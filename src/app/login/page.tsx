@@ -32,19 +32,25 @@ function LoginContent() {
   })
 
   const signInWithGoogle = async () => {
+    if (!isSupabaseConfigured()) { setError('Supabase가 설정되지 않았습니다.'); return }
+    setLoading(true); setError('')
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${location.origin}/auth/callback?next=${redirect}` },
     })
+    if (error) { setError('구글 로그인 실패: ' + error.message); setLoading(false) }
   }
 
   const signInWithKakao = async () => {
+    if (!isSupabaseConfigured()) { setError('Supabase가 설정되지 않았습니다.'); return }
+    setLoading(true); setError('')
     const supabase = createClient()
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: { redirectTo: `${location.origin}/auth/callback?next=${redirect}` },
     })
+    if (error) { setError('카카오 로그인 실패: ' + error.message); setLoading(false) }
   }
 
   const signInWithNaver = () => {
