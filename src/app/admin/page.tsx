@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck } from 'lucide-react'
+import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users } from 'lucide-react'
 
 export default function AdminPage() {
   const stats = [
@@ -40,6 +40,15 @@ export default function AdminPage() {
           <ShieldCheck className="w-8 h-8 text-green-500 mb-3" />
           <h2 className="font-bold text-gray-800 text-lg mb-1">DTF 인증 관리</h2>
           <p className="text-gray-500 text-sm">장비 보유 인증 신청 확인 및 승인/반려 처리</p>
+        </Link>
+
+        <Link
+          href="/admin/members"
+          className="bg-white border border-gray-200 rounded-xl p-6 hover:border-purple-300 hover:shadow-md transition-all"
+        >
+          <Users className="w-8 h-8 text-purple-500 mb-3" />
+          <h2 className="font-bold text-gray-800 text-lg mb-1">회원 관리</h2>
+          <p className="text-gray-500 text-sm">가입 회원 목록 확인, 권한 변경</p>
         </Link>
 
         <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 opacity-50">
