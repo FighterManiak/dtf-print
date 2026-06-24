@@ -18,11 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="flex-1">{children}</main>
         <footer className="bg-[#0f0f0f] text-gray-500 text-sm py-8 px-6">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 font-bold text-white">
-              <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center text-xs">D</div>
-              DTF 출력 서비스
+            <div className="font-extrabold text-white text-lg">
+              SUPER HARD
             </div>
-            <p className="text-gray-600">© 2024 DTF 출력 서비스. All rights reserved.</p>
+            <p className="text-gray-600">© 2024 SUPER HARD. All rights reserved.</p>
             <div className="flex gap-6 text-gray-600">
               <span className="hover:text-white cursor-pointer transition-colors">이용약관</span>
               <span className="hover:text-white cursor-pointer transition-colors">개인정보처리방침</span>

@@ -85,11 +85,8 @@ export default function Header() {
     <>
       <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-extrabold text-lg text-gray-900 tracking-tight">
-            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Printer className="w-4 h-4 text-white" />
-            </div>
-            DTF 출력
+          <Link href="/" className="font-extrabold text-xl text-gray-900 tracking-tight">
+            SUPER HARD
           </Link>
 
           <nav className="flex items-center gap-5">
