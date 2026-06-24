@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Upload, CheckCircle, Clock } from 'lucide-react'
 import type { VerificationStatus } from '@/types'
+import { createClient } from '@/lib/supabase-browser'
 
 interface Props {
   onClose: () => void
@@ -36,16 +37,42 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
       return
     }
     setLoading(true)
-    // TODO: Supabase 연동 후 실제 파일 업로드 및 인증 요청 저장
-    await new Promise((r) => setTimeout(r, 1000))
-    setLoading(false)
-    setSubmitted(true)
+    setError('')
+
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setError('로그인이 필요합니다.'); setLoading(false); return }
+
+      const fileUrls: string[] = []
+      for (const file of files) {
+        const ext = file.name.split('.').pop()
+        const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: uploadError } = await supabase.storage.from('verify-files').upload(path, file)
+        if (uploadError) throw uploadError
+        fileUrls.push(path)
+      }
+
+      const { error: insertError } = await supabase.from('dtf_verifications').insert({
+        user_id: user.id,
+        user_email: user.email,
+        user_name: user.user_metadata?.full_name || user.email,
+        file_urls: fileUrls,
+        status: 'pending',
+      })
+      if (insertError) throw insertError
+
+      setSubmitted(true)
+    } catch (err: unknown) {
+      setError('오류가 발생했습니다: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        {/* 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
             <h2 className="font-bold text-gray-800 text-lg">DTF 장비 보유 인증</h2>
@@ -57,7 +84,6 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
         </div>
 
         <div className="p-6">
-          {/* 이미 신청 중인 경우 */}
           {currentStatus === 'pending' && !submitted && (
             <div className="text-center py-6">
               <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -71,7 +97,6 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
             </div>
           )}
 
-          {/* 승인된 경우 */}
           {currentStatus === 'approved' && (
             <div className="text-center py-6">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -85,7 +110,6 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
             </div>
           )}
 
-          {/* 제출 완료 */}
           {submitted && (
             <div className="text-center py-6">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -99,26 +123,28 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
             </div>
           )}
 
-          {/* 신청 폼 */}
-          {!currentStatus && !submitted && (
+          {((!currentStatus && !submitted) || (currentStatus === 'rejected' && !submitted)) && (
             <form onSubmit={handleSubmit}>
-              {/* 안내 */}
-              <div className="bg-blue-50 rounded-xl p-4 mb-5 text-sm text-blue-700">
-                <p className="font-semibold mb-1">제출 서류 안내</p>
-                <ul className="space-y-1 text-blue-600 list-disc list-inside">
-                  <li>DTF 장비 사진 (장비 전체가 보이는 사진)</li>
-                  <li>사업자 등록증</li>
-                </ul>
-              </div>
+              {currentStatus === 'rejected' && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-sm text-red-600">
+                  이전 신청이 반려되었습니다. 서류를 보완하여 재신청해주세요.
+                </div>
+              )}
+              {!currentStatus && (
+                <div className="bg-blue-50 rounded-xl p-4 mb-5 text-sm text-blue-700">
+                  <p className="font-semibold mb-1">제출 서류 안내</p>
+                  <ul className="space-y-1 text-blue-600 list-disc list-inside">
+                    <li>DTF 장비 사진 (장비 전체가 보이는 사진)</li>
+                    <li>사업자 등록증</li>
+                  </ul>
+                </div>
+              )}
 
-              {/* 파일 업로드 */}
               <div className="mb-4">
                 <label className="text-sm font-semibold text-gray-700 block mb-2">
                   파일 첨부 <span className="text-red-500">*</span>
                   <span className="text-gray-400 font-normal ml-1">(최대 5개, JPG·PNG·PDF)</span>
                 </label>
-
-                {/* 첨부된 파일 목록 */}
                 {files.length > 0 && (
                   <div className="space-y-2 mb-3">
                     {files.map((file, idx) => (
@@ -132,67 +158,18 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
                     ))}
                   </div>
                 )}
-
                 {files.length < 5 && (
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all">
                     <Upload className="w-7 h-7 text-gray-400 mb-2" />
                     <span className="text-sm text-gray-500">클릭하여 파일 선택</span>
-                    <input
-                      type="file"
-                      multiple
-                      accept=".jpg,.jpeg,.png,.pdf"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
+                    <input type="file" multiple accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleFileChange} />
                   </label>
                 )}
               </div>
 
               {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {loading ? '제출 중...' : '인증 신청하기'}
-              </button>
-            </form>
-          )}
-
-          {/* 거절된 경우 - 재신청 가능 */}
-          {currentStatus === 'rejected' && !submitted && (
-            <form onSubmit={handleSubmit}>
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-5 text-sm text-red-600">
-                이전 신청이 반려되었습니다. 서류를 보완하여 재신청해주세요.
-              </div>
-
-              <div className="mb-4">
-                <label className="text-sm font-semibold text-gray-700 block mb-2">
-                  파일 첨부 <span className="text-red-500">*</span>
-                </label>
-                {files.length > 0 && (
-                  <div className="space-y-2 mb-3">
-                    {files.map((file, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                        <span className="text-sm text-gray-700 flex-1 truncate">{file.name}</span>
-                        <button type="button" onClick={() => removeFile(idx)} className="text-gray-400 hover:text-red-500">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all">
-                  <Upload className="w-7 h-7 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-500">클릭하여 파일 선택</span>
-                  <input type="file" multiple accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={handleFileChange} />
-                </label>
-              </div>
-
-              {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
               <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50">
-                {loading ? '제출 중...' : '재신청하기'}
+                {loading ? '제출 중...' : currentStatus === 'rejected' ? '재신청하기' : '인증 신청하기'}
               </button>
             </form>
           )}
