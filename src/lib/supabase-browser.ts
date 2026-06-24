@@ -1,13 +1,12 @@
 import { createBrowserClient } from '@supabase/ssr'
 
+const SUPABASE_URL = 'https://fqjsdnmxaytuaanoqpfq.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZxanNkbm14YXl0dWFhbm9xcGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNjE0ODIsImV4cCI6MjA5NzgzNzQ4Mn0.RvHpnjb0thBujtUHzRUC4Yzpn6eS2hzRdmgaekNJLAw'
+
 export function isSupabaseConfigured() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  return !!url && url !== 'your_supabase_url' && !!key && key !== 'your_supabase_anon_key'
+  return true
 }
 
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  return createBrowserClient(url, key)
+  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 }
