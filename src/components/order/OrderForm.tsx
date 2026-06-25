@@ -192,13 +192,15 @@ export default function OrderForm() {
                             <Minus className="w-4 h-4 text-black" />
                           </button>
                           <input
-                            type="number"
-                            min="1"
+                            type="text"
+                            inputMode="numeric"
                             value={inCart.quantity}
                             onChange={(e) => {
-                              const v = parseInt(e.target.value)
-                              if (!isNaN(v) && v >= 1) updateItem(product.id, { quantity: v })
+                              const raw = e.target.value.replace(/[^0-9]/g, '')
+                              const v = parseInt(raw)
+                              updateItem(product.id, { quantity: isNaN(v) || v < 1 ? 1 : v })
                             }}
+                            onFocus={(e) => e.target.select()}
                             className="w-16 text-center font-bold text-lg text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 py-1"
                           />
                           <button
