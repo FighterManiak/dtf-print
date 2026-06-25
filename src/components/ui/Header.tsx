@@ -144,6 +144,13 @@ export default function Header() {
                       >
                         내 주문 조회
                       </Link>
+                      <Link
+                        href="/profile/edit"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                      >
+                        회원정보 변경
+                      </Link>
                       <button
                         onClick={handleLogout}
                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
