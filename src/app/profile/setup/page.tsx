@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
-import { Phone } from 'lucide-react'
+import { Phone, MapPin } from 'lucide-react'
 
 function ProfileSetupForm() {
   const router = useRouter()
@@ -11,6 +11,8 @@ function ProfileSetupForm() {
   const next = searchParams.get('next') || '/'
 
   const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [addressDetail, setAddressDetail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -18,13 +20,17 @@ function ProfileSetupForm() {
     e.preventDefault()
     const cleaned = phone.replace(/[^0-9]/g, '')
     if (cleaned.length < 10) { setError('올바른 전화번호를 입력해주세요.'); return }
+    if (!address.trim()) { setError('주소를 입력해주세요.'); return }
 
     setLoading(true)
     setError('')
 
     const supabase = createClient()
     const { error: updateError } = await supabase.auth.updateUser({
-      data: { phone: cleaned }
+      data: {
+        phone: cleaned,
+        address: address.trim() + (addressDetail.trim() ? ' ' + addressDetail.trim() : ''),
+      }
     })
 
     if (updateError) {
@@ -50,15 +56,19 @@ function ProfileSetupForm() {
           <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <Phone className="w-7 h-7 text-blue-600" />
           </div>
-          <h1 className="text-xl font-bold text-gray-800">전화번호 등록</h1>
+          <h1 className="text-xl font-bold text-gray-800">기본 정보 등록</h1>
           <p className="text-sm text-gray-500 mt-2 text-center">
-            주문 및 배송 안내를 위해<br />전화번호를 등록해주세요.
+            주문 및 배송 안내를 위해<br />연락처와 주소를 등록해주세요.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* 전화번호 */}
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1.5">전화번호</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+              <Phone className="w-3.5 h-3.5 inline mr-1" />
+              전화번호 <span className="text-red-500">*</span>
+            </label>
             <input
               type="tel"
               value={phone}
@@ -66,7 +76,28 @@ function ProfileSetupForm() {
               placeholder="010-0000-0000"
               maxLength={13}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
+            />
+          </div>
+
+          {/* 주소 */}
+          <div>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+              <MapPin className="w-3.5 h-3.5 inline mr-1" />
+              기본 배송지 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="도로명 주소 (예: 서울시 강남구 테헤란로 123)"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+            />
+            <input
+              type="text"
+              value={addressDetail}
+              onChange={(e) => setAddressDetail(e.target.value)}
+              placeholder="상세 주소 (동, 호수 등)"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>
 
