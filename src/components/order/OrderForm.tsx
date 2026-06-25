@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { PRODUCTS, VERIFIED_PRODUCTS, type ProductId } from '@/types'
 import { Scissors, Upload, X, Plus, Minus, ChevronDown, ChevronUp, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
+import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
+
+const TOSS_CLIENT_KEY = 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
 const formatPhone = (value: string) => {
   const num = value.replace(/[^0-9]/g, '')
@@ -126,8 +129,32 @@ export default function OrderForm() {
   }
 
   const handlePayment = async () => {
-    // 토스페이먼츠 연동 (Supabase 설정 후 활성화)
-    alert('결제 기능은 Supabase + 토스페이먼츠 설정 후 활성화됩니다.')
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      const orderId = `ORDER-${Date.now()}`
+      const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY)
+      const payment = tossPayments.payment({ customerKey: user?.id || 'GUEST' })
+
+      await payment.requestPayment({
+        method: 'CARD',
+        amount: { currency: 'KRW', value: totalAmount },
+        orderId,
+        orderName: cart.length === 1
+          ? `${cart[0].productId} 외 ${cart[0].quantity}건`
+          : `${cart[0].productId} 외 ${cart.length - 1}개 상품`,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        customerMobilePhone: customer.phone.replace(/-/g, ''),
+        successUrl: `${window.location.origin}/payment/success`,
+        failUrl: `${window.location.origin}/payment/fail`,
+      })
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message !== 'PAYMENT_CANCELED') {
+        alert('결제 오류: ' + err.message)
+      }
+    }
   }
 
   return (
