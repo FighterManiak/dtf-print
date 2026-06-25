@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { Phone } from 'lucide-react'
 
-export default function ProfileSetupPage() {
+function ProfileSetupForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/'
@@ -90,5 +90,13 @@ export default function ProfileSetupPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function ProfileSetupPage() {
+  return (
+    <Suspense>
+      <ProfileSetupForm />
+    </Suspense>
   )
 }
