@@ -492,6 +492,7 @@ export default function OrderForm() {
               <span className="font-bold text-gray-700">결제 금액</span>
               <span className="text-2xl font-bold text-blue-600">{totalAmount.toLocaleString()}원</span>
             </div>
+            <p className="text-xs text-gray-500 mt-1">* 부가세(VAT 10%) 포함 금액입니다.</p>
             {cart.some((i) => i.cutting && !ROLL_PRODUCTS.includes(i.productId)) && (
               <p className="text-xs text-orange-500 mt-1">* A4/A3 컷팅 금액은 확인 후 별도 안내됩니다.</p>
             )}
