@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PRODUCTS, VERIFIED_PRODUCTS, type ProductId } from '@/types'
 import { Scissors, Upload, X, Plus, Minus, ChevronDown, ChevronUp, Calendar } from 'lucide-react'
+import { createClient } from '@/lib/supabase-browser'
+
+const formatPhone = (value: string) => {
+  const num = value.replace(/[^0-9]/g, '')
+  if (num.length <= 3) return num
+  if (num.length <= 7) return `${num.slice(0, 3)}-${num.slice(3)}`
+  return `${num.slice(0, 3)}-${num.slice(3, 7)}-${num.slice(7, 11)}`
+}
 
 interface CartItem {
   productId: ProductId
@@ -51,6 +59,23 @@ export default function OrderForm() {
   const [customer, setCustomer] = useState<CustomerInfo>({
     name: '', email: '', phone: '', address: '',
   })
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        setCustomer({
+          name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          email: user.email || '',
+          phone: formatPhone(user.user_metadata?.phone || ''),
+          address: user.user_metadata?.address || '',
+        })
+      } catch {}
+    }
+    loadUserInfo()
+  }, [])
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
 
   const getProduct = (id: ProductId) => ALL_PRODUCTS.find((p) => p.id === id)!
