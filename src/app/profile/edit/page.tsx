@@ -84,7 +84,7 @@ export default function ProfileEditPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-2">회원정보 변경</h1>
       <p className="text-sm text-gray-500 mb-8">연락처와 배송지를 수정할 수 있습니다.</p>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         {/* 이메일 (읽기 전용) */}
         <div>
           <label className="text-sm font-semibold text-gray-700 block mb-1.5">이메일</label>
