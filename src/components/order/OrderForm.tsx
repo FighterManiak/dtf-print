@@ -409,7 +409,7 @@ export default function OrderForm() {
                   value={customer[key as keyof CustomerInfo]}
                   onChange={(e) => setCustomer((prev) => ({ ...prev, [key]: e.target.value }))}
                   placeholder={placeholder}
-                  className={`w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  className={`w-full border rounded-lg px-4 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                     errors[key as keyof CustomerInfo] ? 'border-red-400 bg-red-50' : 'border-gray-300'
                   }`}
                 />
