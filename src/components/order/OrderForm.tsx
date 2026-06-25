@@ -93,8 +93,6 @@ export default function OrderForm() {
   const handleNextStep = () => {
     if (step === 1) {
       if (cart.length === 0) return alert('상품을 선택해주세요.')
-      const missingFile = cart.find((i) => !i.file)
-      if (missingFile) return alert(`[${getProduct(missingFile.productId).name}] 시안 파일을 첨부해주세요.`)
       setStep(2)
     } else if (step === 2) {
       if (!validateCustomer()) return
@@ -268,7 +266,7 @@ export default function OrderForm() {
                       {/* 시안 파일 업로드 */}
                       <div>
                         <label className="text-sm font-semibold text-gray-700 block mb-2">
-                          시안 파일 업로드 <span className="text-red-500">*</span>
+                          시안 파일 업로드
                         </label>
                         {inCart.file ? (
                           <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
