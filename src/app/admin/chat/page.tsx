@@ -8,6 +8,7 @@ interface Room {
   id: string
   user_email: string
   user_name: string
+  user_phone: string | null
   last_message: string | null
   last_message_at: string
   status: string
@@ -184,7 +185,7 @@ export default function AdminChatPage() {
           <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
             <div>
               <div className="font-bold text-gray-800">{selectedRoom.user_name || selectedRoom.user_email}</div>
-              <div className="text-sm text-gray-400">{selectedRoom.user_email}</div>
+              <div className="text-sm text-gray-400">{selectedRoom.user_email}{selectedRoom.user_phone ? ` · ${selectedRoom.user_phone}` : ''}</div>
             </div>
             {selectedRoom.status === 'open' ? (
               <button

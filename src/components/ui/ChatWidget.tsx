@@ -15,6 +15,7 @@ interface Message {
 interface GuestInfo {
   name: string
   email: string
+  phone: string
 }
 
 export default function ChatWidget() {
@@ -27,7 +28,7 @@ export default function ChatWidget() {
   const [userId, setUserId] = useState<string | null>(null)
 
   // 비로그인 게스트 정보
-  const [guestInfo, setGuestInfo] = useState<GuestInfo>({ name: '', email: '' })
+  const [guestInfo, setGuestInfo] = useState<GuestInfo>({ name: '', email: '', phone: '' })
   const [guestStep, setGuestStep] = useState<'form' | 'chat'>('form')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
@@ -41,7 +42,7 @@ export default function ChatWidget() {
       if (user) {
         setIsLoggedIn(true)
         setUserId(user.id)
-        setGuestInfo({ name: user.user_metadata?.full_name || user.email || '', email: user.email || '' })
+        setGuestInfo({ name: user.user_metadata?.full_name || user.email || '', email: user.email || '', phone: user.user_metadata?.phone || '' })
         setGuestStep('chat')
       } else {
         // 로컬스토리지에서 게스트 정보 복원
@@ -80,6 +81,7 @@ export default function ChatWidget() {
           user_id: userId || null,
           user_email: guestInfo.email,
           user_name: guestInfo.name,
+          user_phone: guestInfo.phone || null,
           status: 'open',
         })
         .select('id')
@@ -170,7 +172,7 @@ export default function ChatWidget() {
 
   const handleGuestSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!guestInfo.name.trim() || !guestInfo.email.trim()) return
+    if (!guestInfo.email.trim() || !guestInfo.phone.trim()) return
     setGuestStep('chat')
   }
 
@@ -203,17 +205,6 @@ export default function ChatWidget() {
             <form onSubmit={handleGuestSubmit} className="p-5 space-y-3">
               <p className="text-sm text-gray-600">문의하실 정보를 입력해주세요.</p>
               <div>
-                <label className="text-xs font-semibold text-gray-600 block mb-1">이름 *</label>
-                <input
-                  type="text"
-                  value={guestInfo.name}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="홍길동"
-                  required
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-              </div>
-              <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">이메일 *</label>
                 <input
                   type="email"
@@ -221,6 +212,18 @@ export default function ChatWidget() {
                   onChange={(e) => setGuestInfo((p) => ({ ...p, email: e.target.value }))}
                   placeholder="example@email.com"
                   required
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">전화번호 *</label>
+                <input
+                  type="tel"
+                  value={guestInfo.phone}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="010-0000-0000"
+                  required
+                  inputMode="numeric"
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
