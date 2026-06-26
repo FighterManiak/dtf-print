@@ -15,6 +15,7 @@ interface Member {
     role?: string
     verify_status?: string
     phone?: string
+    company?: string
     address?: string
   }
   app_metadata: {
@@ -94,13 +95,15 @@ export default function MembersPage() {
         <table className="text-sm" style={{ minWidth: '900px', width: '100%' }}>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">이름</th>
-              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-48">이메일</th>
-              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-32">전화번호</th>
-              <th className="text-left px-4 py-3 text-gray-600 font-semibold w-56">주소</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">이름</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-32">회사명</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-44">이메일</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">전화번호</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold w-48">주소</th>
               <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
-              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">가입일</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입일</th>
               <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">DTF인증</th>
               <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">관리</th>
             </tr>
           </thead>
@@ -110,10 +113,13 @@ export default function MembersPage() {
               const role = member.user_metadata?.role || 'user'
               const provider = member.app_metadata?.provider || 'email'
               const phone = member.user_metadata?.phone || '-'
+              const company = member.user_metadata?.company || '-'
               const address = member.user_metadata?.address || '-'
+              const isDtfVerified = role === 'dtf_verified' || member.user_metadata?.verify_status === 'approved'
               return (
                 <tr key={member.id} className="hover:bg-gray-50">
                   <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
+                  <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{company}</td>
                   <td className="px-4 py-4 text-gray-600">{member.email}</td>
                   <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{phone}</td>
                   <td className="px-4 py-4 text-gray-600">{address}</td>
@@ -138,6 +144,15 @@ export default function MembersPage() {
                       <span className="flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-1 rounded-lg text-xs w-fit">
                         <User className="w-3 h-3" /> 일반
                       </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    {isDtfVerified ? (
+                      <span className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded-lg text-xs font-bold w-fit whitespace-nowrap">
+                        <ShieldCheck className="w-3 h-3" /> 인증완료
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">미인증</span>
                     )}
                   </td>
                   <td className="px-4 py-4">

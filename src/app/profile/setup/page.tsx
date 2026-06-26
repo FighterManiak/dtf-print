@@ -11,6 +11,7 @@ function ProfileSetupForm() {
   const next = searchParams.get('next') || '/'
 
   const [phone, setPhone] = useState('')
+  const [company, setCompany] = useState('')
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,6 +30,7 @@ function ProfileSetupForm() {
     const { error: updateError } = await supabase.auth.updateUser({
       data: {
         phone: cleaned,
+        company: company.trim(),
         address: address.trim() + (addressDetail.trim() ? ' ' + addressDetail.trim() : ''),
       }
     })
@@ -75,6 +77,18 @@ function ProfileSetupForm() {
               onChange={(e) => setPhone(formatPhone(e.target.value))}
               placeholder="010-0000-0000"
               maxLength={13}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          {/* 회사명 */}
+          <div>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">회사명 (선택)</label>
+            <input
+              type="text"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="회사명 또는 브랜드명"
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
           </div>

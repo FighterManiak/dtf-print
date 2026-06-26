@@ -14,6 +14,7 @@ export default function ProfileEditPage() {
 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [company, setCompany] = useState('')
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
   const [email, setEmail] = useState('')
@@ -30,6 +31,7 @@ export default function ProfileEditPage() {
     setEmail(user.email || '')
     setName(user.user_metadata?.full_name || user.user_metadata?.name || '')
     setPhone(formatPhone(user.user_metadata?.phone || ''))
+    setCompany(user.user_metadata?.company || '')
 
     const fullAddress: string = user.user_metadata?.address || ''
     const lastSpace = fullAddress.lastIndexOf(' ')
@@ -62,6 +64,7 @@ export default function ProfileEditPage() {
       data: {
         full_name: name,
         phone: cleaned,
+        company: company.trim(),
         address: address.trim() + (addressDetail.trim() ? ' ' + addressDetail.trim() : ''),
       }
     })
@@ -108,6 +111,18 @@ export default function ProfileEditPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="홍길동"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+
+        {/* 회사명 */}
+        <div>
+          <label className="text-sm font-semibold text-gray-700 block mb-1.5">회사명 (선택)</label>
+          <input
+            type="text"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="회사명 또는 브랜드명"
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
