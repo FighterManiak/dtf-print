@@ -90,18 +90,18 @@ export default function MembersPage() {
         />
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+        <table className="text-sm" style={{ minWidth: '900px', width: '100%' }}>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">이름</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">이메일</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">전화번호</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">주소</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">가입방법</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">가입일</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">권한</th>
-              <th className="text-left px-5 py-3 text-gray-600 font-semibold">관리</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">이름</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-48">이메일</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-32">전화번호</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold w-56">주소</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">가입일</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
+              <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">관리</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -113,19 +113,19 @@ export default function MembersPage() {
               const address = member.user_metadata?.address || '-'
               return (
                 <tr key={member.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-4 font-medium text-gray-800">{name}</td>
-                  <td className="px-5 py-4 text-gray-600">{member.email}</td>
-                  <td className="px-5 py-4 text-gray-600">{phone}</td>
-                  <td className="px-5 py-4 text-gray-600 max-w-xs truncate">{address}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
+                  <td className="px-4 py-4 text-gray-600">{member.email}</td>
+                  <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{phone}</td>
+                  <td className="px-4 py-4 text-gray-600">{address}</td>
+                  <td className="px-4 py-4">
                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg text-xs">
                       {PROVIDER_LABEL[provider] || provider}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-gray-500">
+                  <td className="px-4 py-4 text-gray-500">
                     {new Date(member.created_at).toLocaleDateString('ko-KR')}
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-4">
                     {role === 'admin' ? (
                       <span className="flex items-center gap-1 text-purple-700 bg-purple-100 px-2 py-1 rounded-lg text-xs font-bold w-fit">
                         <Shield className="w-3 h-3" /> 관리자
@@ -140,7 +140,7 @@ export default function MembersPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-4">
                     <div className="flex gap-2">
                       {role !== 'admin' && (
                         <button
