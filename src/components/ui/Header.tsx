@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Printer, LogOut, User, ShieldCheck } from 'lucide-react'
+import { LogOut, User, ShieldCheck, Menu, X } from 'lucide-react'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase-browser'
 import { getDemoSession, setDemoSession } from '@/lib/demo-auth'
 import { useEffect, useState } from 'react'
@@ -16,6 +16,7 @@ export default function Header() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState<VerificationStatus | null>(null)
 
@@ -26,7 +27,6 @@ export default function Header() {
       else setVerifyStatus(null)
     }
 
-    // Supabase 미연동 시 데모 세션 사용
     if (!isSupabaseConfigured()) {
       const demo = getDemoSession()
       if (demo) {
@@ -53,6 +53,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     setMenuOpen(false)
+    setMobileOpen(false)
     if (!isSupabaseConfigured()) {
       setDemoSession(null)
       window.location.href = '/'
@@ -72,7 +73,6 @@ export default function Header() {
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '사용자'
 
-  // 인증 버튼 스타일/라벨
   const verifyBtnConfig = {
     null: { label: 'DTF 보유인증', className: 'bg-orange-500 hover:bg-orange-600 text-white' },
     pending: { label: '인증 심사중', className: 'bg-yellow-400 hover:bg-yellow-500 text-white' },
@@ -84,12 +84,13 @@ export default function Header() {
   return (
     <>
       <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="font-extrabold text-xl text-gray-900 tracking-tight">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="font-extrabold text-xl text-gray-900 tracking-tight shrink-0">
             SUPER HARD
           </Link>
 
-          <nav className="flex items-center gap-5">
+          {/* 데스크탑 메뉴 */}
+          <nav className="hidden md:flex items-center gap-5">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -107,10 +108,8 @@ export default function Header() {
               </Link>
             )}
 
-            {/* 로그인 상태 */}
             {user ? (
               <div className="flex items-center gap-2">
-                {/* DTF 보유인증 버튼 */}
                 <button
                   onClick={() => setVerifyModalOpen(true)}
                   className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${verifyBtn.className}`}
@@ -119,7 +118,6 @@ export default function Header() {
                   {verifyBtn.label}
                 </button>
 
-                {/* 사용자 메뉴 */}
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen((v) => !v)}
@@ -137,24 +135,13 @@ export default function Header() {
                           <span className="inline-block mt-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">DTF 인증 회원</span>
                         )}
                       </div>
-                      <Link
-                        href="/my-orders"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                      >
+                      <Link href="/my-orders" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                         내 주문 조회
                       </Link>
-                      <Link
-                        href="/profile/edit"
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100"
-                      >
+                      <Link href="/profile/edit" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
                         회원정보 변경
                       </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                      >
+                      <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-100">
                         <LogOut className="w-4 h-4" />
                         로그아웃
                       </button>
@@ -163,18 +150,74 @@ export default function Header() {
                 </div>
               </div>
             ) : (
-              <Link
-                href="/login"
-                className="bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors"
-              >
+              <Link href="/login" className="bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors">
                 로그인
               </Link>
             )}
           </nav>
+
+          {/* 모바일 햄버거 버튼 */}
+          <button
+            className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
+
+        {/* 모바일 메뉴 */}
+        {mobileOpen && (
+          <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={`block px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  pathname === item.href ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+            {isAdmin && (
+              <Link href="/admin" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:bg-gray-50">
+                관리자
+              </Link>
+            )}
+
+            {user ? (
+              <div className="pt-2 border-t border-gray-100 space-y-1">
+                <div className="px-3 py-2">
+                  <p className="text-xs text-gray-400">로그인 계정</p>
+                  <p className="text-sm font-medium text-gray-700 truncate">{user.email}</p>
+                </div>
+                <button
+                  onClick={() => { setVerifyModalOpen(true); setMobileOpen(false) }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${verifyBtn.className}`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  {verifyBtn.label}
+                </button>
+                <Link href="/profile/edit" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                  회원정보 변경
+                </Link>
+                <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50">
+                  <LogOut className="w-4 h-4" />
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-gray-100">
+                <Link href="/login" onClick={() => setMobileOpen(false)} className="block bg-gray-900 text-white text-center px-4 py-3 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors">
+                  로그인
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
-      {/* DTF 인증 모달 */}
       {verifyModalOpen && (
         <DtfVerifyModal
           onClose={() => setVerifyModalOpen(false)}
