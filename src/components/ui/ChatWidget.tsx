@@ -90,7 +90,7 @@ export default function ChatWidget() {
       if (!newRoom) return
       rid = newRoom.id
       setRoomId(rid)
-      if (!isLoggedIn) {
+      if (!isLoggedIn && rid) {
         localStorage.setItem('chat_guest', JSON.stringify(guestInfo))
         localStorage.setItem('chat_room_id', rid)
       }
