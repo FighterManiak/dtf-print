@@ -69,6 +69,18 @@ export default function AdminOrdersPage() {
   const [statuses, setStatuses] = useState<Record<string, OrderStatus>>(
     Object.fromEntries(SAMPLE_ORDERS.map((o) => [o.id, o.status]))
   )
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  const setQuickDate = (months: number) => {
+    const to = new Date()
+    const from = new Date()
+    from.setMonth(from.getMonth() - months)
+    setDateFrom(from.toISOString().slice(0, 10))
+    setDateTo(to.toISOString().slice(0, 10))
+  }
+
+  const clearDate = () => { setDateFrom(''); setDateTo('') }
 
   // 고객별 최근 1년 통계
   const customerStats = useMemo(() => {
@@ -94,7 +106,11 @@ export default function AdminOrdersPage() {
       o.customer_email.includes(search) ||
       o.id.includes(search) ||
       o.customer_phone.includes(search)
-    return matchStatus && matchSearch
+    const orderDate = o.created_at.slice(0, 10)
+    const matchDate =
+      (!dateFrom || orderDate >= dateFrom) &&
+      (!dateTo || orderDate <= dateTo)
+    return matchStatus && matchSearch && matchDate
   })
 
   return (
@@ -102,32 +118,77 @@ export default function AdminOrdersPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">주문 관리</h1>
 
       {/* 필터 */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="flex items-center border border-gray-300 rounded-xl px-3 gap-2 bg-white">
-          <Search className="w-4 h-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="고객명, 연락처, 주문번호 검색"
-            className="py-2.5 text-sm focus:outline-none w-52 text-black"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setStatusFilter('all')}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-          >
-            전체
-          </button>
-          {(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([key, label]) => (
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 space-y-3">
+        {/* 검색 + 상태 */}
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center border border-gray-300 rounded-xl px-3 gap-2">
+            <Search className="w-4 h-4 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="고객명, 연락처, 주문번호 검색"
+              className="py-2.5 text-sm focus:outline-none w-52 text-black"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
             <button
-              key={key}
-              onClick={() => setStatusFilter(key)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === key ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              onClick={() => setStatusFilter('all')}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
             >
-              {label}
+              전체
             </button>
-          ))}
+            {(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${statusFilter === key ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 날짜 필터 */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100">
+          <span className="text-xs font-semibold text-gray-500">기간</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <span className="text-gray-400 text-sm">~</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            {[{ label: '1개월', months: 1 }, { label: '3개월', months: 3 }, { label: '6개월', months: 6 }, { label: '1년', months: 12 }].map(({ label, months }) => (
+              <button
+                key={months}
+                onClick={() => setQuickDate(months)}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                {label}
+              </button>
+            ))}
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={clearDate}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+              >
+                초기화
+              </button>
+            )}
+          </div>
+          {filtered.length > 0 && (
+            <span className="text-xs text-gray-400 ml-auto">{filtered.length}건</span>
+          )}
         </div>
       </div>
 
