@@ -2,7 +2,19 @@
 
 import { useState, useMemo } from 'react'
 import { ORDER_STATUS_LABEL, type OrderStatus } from '@/types'
-import { Download, Search, ShoppingBag, TrendingUp, ShieldCheck } from 'lucide-react'
+import { Download, Search, ShoppingBag, TrendingUp, ShieldCheck, ArrowRight } from 'lucide-react'
+
+const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  paid: 'in_progress',
+  in_progress: 'shipped',
+  shipped: 'delivered',
+}
+
+const NEXT_STATUS_LABEL: Partial<Record<OrderStatus, string>> = {
+  paid: '작업 시작',
+  in_progress: '출고 처리',
+  shipped: '배송 완료',
+}
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   pending: 'bg-gray-100 text-gray-600',
@@ -311,45 +323,50 @@ export default function AdminOrdersPage() {
               <div className="px-6 py-5">
                 <p className="text-xs font-bold text-gray-400 uppercase mb-3">주문 처리</p>
                 <div className="space-y-3">
-                  {/* 상태 변경 */}
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">상태 변경</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={statuses[order.id]}
-                        onChange={(e) => setStatuses((p) => ({ ...p, [order.id]: e.target.value as OrderStatus }))}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        {(Object.entries(ORDER_STATUS_LABEL) as [OrderStatus, string][]).map(([key, label]) => (
-                          <option key={key} value={key}>{label}</option>
-                        ))}
-                      </select>
-                      <button className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                        저장
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* 주문 취소 */}
-                  {statuses[order.id] === 'paid' && (
-                    <div className="pt-1">
-                      <button
-                        onClick={() => {
-                          if (confirm(`${order.customer_name}님의 주문을 취소하시겠습니까?`)) {
-                            setStatuses((p) => ({ ...p, [order.id]: 'cancelled' }))
-                          }
-                        }}
-                        className="w-full border border-red-300 text-red-500 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-                      >
-                        주문 취소
-                      </button>
-                      <p className="text-xs text-gray-400 text-center mt-1">결제완료 상태에서만 취소 가능</p>
+                  {/* 단계 진행 버튼 */}
+                  {NEXT_STATUS[statuses[order.id]] && (
+                    <button
+                      onClick={() => {
+                        const next = NEXT_STATUS[statuses[order.id]]!
+                        if (confirm(`${ORDER_STATUS_LABEL[statuses[order.id]]} → ${ORDER_STATUS_LABEL[next]} 으로 변경하시겠습니까?`)) {
+                          setStatuses((p) => ({ ...p, [order.id]: next }))
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      {NEXT_STATUS_LABEL[statuses[order.id]]}
+                      <span className="text-blue-200 font-normal text-xs">({ORDER_STATUS_LABEL[NEXT_STATUS[statuses[order.id]]!]})</span>
+                    </button>
+                  )}
+
+                  {/* 배송완료 */}
+                  {statuses[order.id] === 'delivered' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2.5 text-center">
+                      <span className="text-sm text-green-600 font-bold">✓ 배송 완료</span>
                     </div>
                   )}
+
+                  {/* 취소됨 */}
                   {statuses[order.id] === 'cancelled' && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-center">
+                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-center">
                       <span className="text-sm text-red-500 font-medium">취소된 주문입니다</span>
                     </div>
+                  )}
+
+                  {/* 주문 취소 - 결제완료 상태에서만 */}
+                  {statuses[order.id] === 'paid' && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`${order.customer_name}님의 주문을 취소하시겠습니까?`)) {
+                          setStatuses((p) => ({ ...p, [order.id]: 'cancelled' }))
+                        }
+                      }}
+                      className="w-full border border-red-300 text-red-500 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                    >
+                      주문 취소
+                    </button>
                   )}
 
                   {/* 송장번호 */}
