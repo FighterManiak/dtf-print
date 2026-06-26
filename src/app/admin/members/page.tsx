@@ -94,6 +94,8 @@ export default function MembersPage() {
             <tr>
               <th className="text-left px-5 py-3 text-gray-600 font-semibold">이름</th>
               <th className="text-left px-5 py-3 text-gray-600 font-semibold">이메일</th>
+              <th className="text-left px-5 py-3 text-gray-600 font-semibold">전화번호</th>
+              <th className="text-left px-5 py-3 text-gray-600 font-semibold">주소</th>
               <th className="text-left px-5 py-3 text-gray-600 font-semibold">가입방법</th>
               <th className="text-left px-5 py-3 text-gray-600 font-semibold">가입일</th>
               <th className="text-left px-5 py-3 text-gray-600 font-semibold">권한</th>
@@ -105,10 +107,14 @@ export default function MembersPage() {
               const name = member.user_metadata?.full_name || member.user_metadata?.name || '-'
               const role = member.user_metadata?.role || 'user'
               const provider = member.app_metadata?.provider || 'email'
+              const phone = member.user_metadata?.phone || '-'
+              const address = member.user_metadata?.address || '-'
               return (
                 <tr key={member.id} className="hover:bg-gray-50">
                   <td className="px-5 py-4 font-medium text-gray-800">{name}</td>
                   <td className="px-5 py-4 text-gray-600">{member.email}</td>
+                  <td className="px-5 py-4 text-gray-600">{phone}</td>
+                  <td className="px-5 py-4 text-gray-600 max-w-xs truncate">{address}</td>
                   <td className="px-5 py-4">
                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg text-xs">
                       {PROVIDER_LABEL[provider] || provider}
