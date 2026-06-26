@@ -91,6 +91,17 @@ export default function MyOrdersPage() {
     setLoading(false)
   }
 
+  const cancelOrder = async (orderId: string) => {
+    if (!confirm('주문을 취소하시겠습니까?')) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'cancelled' })
+      .eq('id', orderId)
+    if (error) { alert('취소 처리 중 오류가 발생했습니다.'); return }
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'cancelled' } : o))
+  }
+
   const downloadFile = async (filePath: string, fileName: string) => {
     const supabase = createClient()
     const { data } = await supabase.storage.from('order-files').createSignedUrl(filePath, 60)
@@ -254,6 +265,19 @@ export default function MyOrdersPage() {
                     {order.user_address && (
                       <div className="text-xs text-gray-500 border-t border-gray-100 pt-4">
                         <span className="font-semibold text-gray-600">배송지: </span>{order.user_address}
+                      </div>
+                    )}
+
+                    {/* 주문 취소 버튼 - 결제완료 상태에서만 */}
+                    {order.status === 'paid' && (
+                      <div className="border-t border-gray-100 pt-4">
+                        <button
+                          onClick={() => cancelOrder(order.id)}
+                          className="w-full border border-red-300 text-red-500 py-2.5 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors"
+                        >
+                          주문 취소
+                        </button>
+                        <p className="text-xs text-gray-400 text-center mt-1.5">작업이 시작되면 취소가 불가합니다.</p>
                       </div>
                     )}
                   </div>

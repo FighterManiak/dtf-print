@@ -330,6 +330,28 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
 
+                  {/* 주문 취소 */}
+                  {statuses[order.id] === 'paid' && (
+                    <div className="pt-1">
+                      <button
+                        onClick={() => {
+                          if (confirm(`${order.customer_name}님의 주문을 취소하시겠습니까?`)) {
+                            setStatuses((p) => ({ ...p, [order.id]: 'cancelled' }))
+                          }
+                        }}
+                        className="w-full border border-red-300 text-red-500 py-2 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
+                      >
+                        주문 취소
+                      </button>
+                      <p className="text-xs text-gray-400 text-center mt-1">결제완료 상태에서만 취소 가능</p>
+                    </div>
+                  )}
+                  {statuses[order.id] === 'cancelled' && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-center">
+                      <span className="text-sm text-red-500 font-medium">취소된 주문입니다</span>
+                    </div>
+                  )}
+
                   {/* 송장번호 */}
                   <div>
                     <label className="text-xs text-gray-500 block mb-1">택배사 / 송장번호</label>
