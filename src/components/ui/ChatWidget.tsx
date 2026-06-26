@@ -173,7 +173,7 @@ export default function ChatWidget() {
 
   const handleGuestSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!guestInfo.email.trim() || !guestInfo.phone.trim()) return
+    if (!guestInfo.name.trim() || !guestInfo.phone.trim() || !guestInfo.email.trim()) return
     setGuestStep('chat')
   }
 
@@ -206,12 +206,12 @@ export default function ChatWidget() {
             <form onSubmit={handleGuestSubmit} className="p-5 space-y-3">
               <p className="text-sm text-gray-600">문의하실 정보를 입력해주세요.</p>
               <div>
-                <label className="text-xs font-semibold text-gray-600 block mb-1">이메일 *</label>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">이름 *</label>
                 <input
-                  type="email"
-                  value={guestInfo.email}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, email: e.target.value }))}
-                  placeholder="example@email.com"
+                  type="text"
+                  value={guestInfo.name}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="홍길동"
                   required
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
@@ -225,6 +225,17 @@ export default function ChatWidget() {
                   placeholder="010-0000-0000"
                   required
                   inputMode="numeric"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">이메일 *</label>
+                <input
+                  type="email"
+                  value={guestInfo.email}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="example@email.com"
+                  required
                   className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
