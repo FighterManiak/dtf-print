@@ -14,6 +14,8 @@ interface Member {
     name?: string
     role?: string
     verify_status?: string
+    phone?: string
+    address?: string
   }
   app_metadata: {
     provider?: string
