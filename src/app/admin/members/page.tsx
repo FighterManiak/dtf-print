@@ -74,7 +74,7 @@ export default function MembersPage() {
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">불러오는 중...</div>
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
+    <div className="max-w-full mx-auto px-6 py-10">
       <h1 className="text-2xl font-bold text-gray-800 mb-2">회원 관리</h1>
       <p className="text-gray-500 text-sm mb-6">전체 가입 회원 목록입니다.</p>
 
@@ -92,7 +92,7 @@ export default function MembersPage() {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-        <table className="text-sm" style={{ minWidth: '900px', width: '100%' }}>
+        <table className="text-sm" style={{ minWidth: '1200px', width: '100%' }}>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">이름</th>
@@ -122,7 +122,7 @@ export default function MembersPage() {
                   <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{company}</td>
                   <td className="px-4 py-4 text-gray-600">{member.email}</td>
                   <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{phone}</td>
-                  <td className="px-4 py-4 text-gray-600">{address}</td>
+                  <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{address}</td>
                   <td className="px-4 py-4">
                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg text-xs">
                       {PROVIDER_LABEL[provider] || provider}
