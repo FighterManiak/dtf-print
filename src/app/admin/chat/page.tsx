@@ -80,13 +80,14 @@ export default function AdminChatPage() {
     if (!selectedRoom) return
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('chat_messages').insert({
+    const { data: newMsg } = await supabase.from('chat_messages').insert({
       room_id: selectedRoom.id,
       sender_id: user?.id,
       sender_type: 'admin',
       content: content || null,
       image_url: imageUrl || null,
-    })
+    }).select().single()
+    if (newMsg) setMessages((prev) => [...prev, newMsg as Message])
     await supabase.from('chat_rooms').update({
       last_message: content || '사진',
       last_message_at: new Date().toISOString(),

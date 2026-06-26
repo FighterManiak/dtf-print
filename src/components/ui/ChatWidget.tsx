@@ -86,13 +86,14 @@ export default function ChatWidget() {
   const sendMessage = async (content: string, imageUrl?: string) => {
     if (!roomId || !user) return
     const supabase = createClient()
-    await supabase.from('chat_messages').insert({
+    const { data: newMsg } = await supabase.from('chat_messages').insert({
       room_id: roomId,
       sender_id: user.id,
       sender_type: 'user',
       content: content || null,
       image_url: imageUrl || null,
-    })
+    }).select().single()
+    if (newMsg) setMessages((prev) => [...prev, newMsg as Message])
     await supabase.from('chat_rooms').update({
       last_message: content || '사진',
       last_message_at: new Date().toISOString(),
