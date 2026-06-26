@@ -96,6 +96,7 @@ export default function ChatWidget() {
       }
     }
 
+    if (!rid) return
     await loadMessages(rid)
     subscribeRoom(rid)
   }
