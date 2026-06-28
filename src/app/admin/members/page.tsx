@@ -65,11 +65,18 @@ export default function MembersPage() {
     setProcessing(null)
   }
 
-  const filtered = members.filter((m) =>
-    m.email.includes(search) ||
-    (m.user_metadata?.full_name || '').includes(search) ||
-    (m.user_metadata?.name || '').includes(search)
-  )
+  const filtered = members.filter((m) => {
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      m.email.toLowerCase().includes(q) ||
+      (m.user_metadata?.full_name || '').toLowerCase().includes(q) ||
+      (m.user_metadata?.name || '').toLowerCase().includes(q) ||
+      (m.user_metadata?.phone || '').includes(q) ||
+      (m.user_metadata?.company || '').toLowerCase().includes(q) ||
+      (m.user_metadata?.address || '').toLowerCase().includes(q)
+    )
+  })
 
   if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">불러오는 중...</div>
 
@@ -86,8 +93,8 @@ export default function MembersPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="이메일 또는 이름 검색"
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="이름, 이메일, 전화번호, 회사명, 주소 검색"
+          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
 
