@@ -32,13 +32,20 @@ export default function AdminChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const roomsChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
 
   useEffect(() => {
     loadRooms()
     const supabase = createClient()
-    supabase.channel('admin-rooms')
+    const ch = supabase.channel('admin-rooms')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => loadRooms())
       .subscribe()
+    roomsChannelRef.current = ch
+
+    return () => {
+      supabase.removeChannel(ch)
+      if (channelRef.current) supabase.removeChannel(channelRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -64,14 +71,21 @@ export default function AdminChatPage() {
       .order('created_at', { ascending: true })
     setMessages(data || [])
 
-    if (channelRef.current) supabase.removeChannel(channelRef.current)
+    if (channelRef.current) {
+      await supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
     const ch = supabase
-      .channel(`admin-room-${room.id}`)
+      .channel(`admin-room-${room.id}-${Date.now()}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'chat_messages',
         filter: `room_id=eq.${room.id}`,
       }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message])
+        setMessages((prev) => {
+          const exists = prev.find((m) => m.id === (payload.new as Message).id)
+          if (exists) return prev
+          return [...prev, payload.new as Message]
+        })
       })
       .subscribe()
     channelRef.current = ch
