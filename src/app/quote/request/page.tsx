@@ -50,10 +50,13 @@ function QuoteRequestForm() {
     if (file) {
       const path = `quotes/${userId}/${Date.now()}_${file.name}`
       const { error } = await supabase.storage.from('order-files').upload(path, file)
-      if (!error) {
-        fileUrl = path
-        fileName = file.name
+      if (error) {
+        setUploading(false)
+        alert(`파일 업로드 실패: ${error.message}\n\n관리자에게 문의해주세요.`)
+        return
       }
+      fileUrl = path
+      fileName = file.name
     }
 
     await supabase.from('quotes').insert({
