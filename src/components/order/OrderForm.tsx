@@ -158,6 +158,7 @@ export default function OrderForm() {
   }
 
   return (
+    <div className="min-h-screen bg-white">
     <div className="max-w-3xl mx-auto px-4 py-10">
       {/* 스텝 인디케이터 */}
       <div className="flex items-center mb-10">
@@ -541,6 +542,7 @@ export default function OrderForm() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }
