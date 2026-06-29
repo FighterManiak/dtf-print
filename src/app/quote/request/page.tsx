@@ -48,7 +48,7 @@ function QuoteRequestForm() {
     let fileName = null
 
     if (file) {
-      const path = `quotes/${userId}/${Date.now()}_${file.name}`
+      const path = `${userId}/quotes/${Date.now()}_${file.name}`
       const { data: uploadData, error } = await supabase.storage.from('order-files').upload(path, file)
       console.log('업로드 결과:', { uploadData, error, path })
       if (error) {
