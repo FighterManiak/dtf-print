@@ -35,6 +35,9 @@ export default function ChatWidget() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // localStorage에서 복원한 roomId를 ref로 보관 (state 타이밍 문제 방지)
+  const savedRoomRef = useRef<string | null>(null)
+
   useEffect(() => {
     const init = async () => {
       const supabase = createClient()
@@ -44,15 +47,22 @@ export default function ChatWidget() {
         setUserId(user.id)
         setGuestInfo({ name: user.user_metadata?.full_name || user.email || '', email: user.email || '', phone: user.user_metadata?.phone || '' })
         setGuestStep('chat')
+        const savedRoom = localStorage.getItem(`chat_room_id_${user.id}`)
+        if (savedRoom) {
+          savedRoomRef.current = savedRoom
+          setRoomId(savedRoom)
+        }
       } else {
-        // 로컬스토리지에서 게스트 정보 복원
         const saved = localStorage.getItem('chat_guest')
         const savedRoom = localStorage.getItem('chat_room_id')
         if (saved) {
           const parsed = JSON.parse(saved)
           setGuestInfo(parsed)
           setGuestStep('chat')
-          if (savedRoom) setRoomId(savedRoom)
+          if (savedRoom) {
+            savedRoomRef.current = savedRoom
+            setRoomId(savedRoom)
+          }
         }
       }
     }
@@ -61,8 +71,14 @@ export default function ChatWidget() {
 
   useEffect(() => {
     if (!open || guestStep !== 'chat') return
-    if (!roomId) initRoom()
-    else loadMessages(roomId)
+    // state 반영 전에도 ref에서 roomId 읽어서 사용
+    const rid = roomId || savedRoomRef.current
+    if (!rid) {
+      initRoom()
+    } else {
+      if (!roomId) setRoomId(rid)
+      loadMessages(rid)
+    }
   }, [open, guestStep])
 
   useEffect(() => {
@@ -90,7 +106,10 @@ export default function ChatWidget() {
       if (!newRoom) return
       rid = newRoom.id
       setRoomId(rid)
-      if (!isLoggedIn && rid) {
+      savedRoomRef.current = rid
+      if (isLoggedIn && userId) {
+        localStorage.setItem(`chat_room_id_${userId}`, rid)
+      } else {
         localStorage.setItem('chat_guest', JSON.stringify(guestInfo))
         localStorage.setItem('chat_room_id', rid)
       }
