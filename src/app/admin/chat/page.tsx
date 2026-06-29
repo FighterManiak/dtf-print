@@ -120,9 +120,12 @@ export default function AdminChatPage() {
     if (!file) return
     setUploading(true)
     const supabase = createClient()
-    const path = `admin/${Date.now()}_${file.name}`
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const path = `admin/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`
     const { error } = await supabase.storage.from('chat-images').upload(path, file)
-    if (!error) {
+    if (error) {
+      alert(`이미지 업로드 실패: ${error.message}`)
+    } else {
       const { data } = supabase.storage.from('chat-images').getPublicUrl(path)
       await sendMessage('', data.publicUrl)
     }
