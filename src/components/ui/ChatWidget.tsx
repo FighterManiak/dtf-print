@@ -71,13 +71,14 @@ export default function ChatWidget() {
 
   useEffect(() => {
     if (!open || guestStep !== 'chat') return
-    // state 반영 전에도 ref에서 roomId 읽어서 사용
     const rid = roomId || savedRoomRef.current
     if (!rid) {
       initRoom()
     } else {
       if (!roomId) setRoomId(rid)
-      loadMessages(rid)
+      // 이미 메시지가 로드되어 있으면 다시 불러오지 않음 (닫았다 열어도 유지)
+      if (messages.length === 0) loadMessages(rid)
+      else subscribeRoom(rid)
     }
   }, [open, guestStep])
 
