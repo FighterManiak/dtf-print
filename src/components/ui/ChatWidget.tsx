@@ -34,6 +34,7 @@ export default function ChatWidget() {
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const initializedRef = useRef(false)
 
   // localStorage에서 복원한 roomId를 ref로 보관 (state 타이밍 문제 방지)
   const savedRoomRef = useRef<string | null>(null)
@@ -71,14 +72,15 @@ export default function ChatWidget() {
 
   useEffect(() => {
     if (!open || guestStep !== 'chat') return
+    // 이미 초기화됐으면 다시 실행하지 않음 (닫았다 열어도 메시지 유지)
+    if (initializedRef.current) return
+    initializedRef.current = true
     const rid = roomId || savedRoomRef.current
     if (!rid) {
       initRoom()
     } else {
       if (!roomId) setRoomId(rid)
-      // 이미 메시지가 로드되어 있으면 다시 불러오지 않음 (닫았다 열어도 유지)
-      if (messages.length === 0) loadMessages(rid)
-      else subscribeRoom(rid)
+      loadMessages(rid)
     }
   }, [open, guestStep])
 
