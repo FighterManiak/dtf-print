@@ -67,7 +67,8 @@ export default function Header() {
 
   const navItems = [
     { href: '/', label: '홈' },
-    { href: '/order', label: '주문하기' },
+    { href: '/quote/request', label: '견적 요청' },
+    { href: '/my-quotes', label: '견적 현황' },
     { href: '/my-orders', label: '내 주문 조회' },
   ]
 
@@ -135,6 +136,9 @@ export default function Header() {
                           <span className="inline-block mt-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">DTF 인증 회원</span>
                         )}
                       </div>
+                      <Link href="/my-quotes" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                        견적 현황
+                      </Link>
                       <Link href="/my-orders" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                         내 주문 조회
                       </Link>
