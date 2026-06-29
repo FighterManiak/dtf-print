@@ -90,8 +90,7 @@ export default function ChatWidget() {
     let rid = roomId
 
     if (!rid) {
-      const guestId = `guest_${Date.now()}_${Math.random().toString(36).slice(2)}`
-      const { data: newRoom } = await supabase
+      const { data: newRoom, error } = await supabase
         .from('chat_rooms')
         .insert({
           user_id: userId || null,
@@ -103,6 +102,11 @@ export default function ChatWidget() {
         .select('id')
         .single()
 
+      if (error) {
+        console.error('채팅방 생성 실패:', error)
+        alert(`채팅방 생성 실패: ${error.message}`)
+        return
+      }
       if (!newRoom) return
       rid = newRoom.id
       setRoomId(rid)
