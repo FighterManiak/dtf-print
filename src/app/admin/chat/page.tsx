@@ -180,17 +180,38 @@ export default function AdminChatPage() {
             </div>
           )}
           {displayRooms.map((room) => (
-            <button
+            <div
               key={room.id}
-              onClick={() => selectRoom(room)}
-              className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedRoom?.id === room.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
+              className={`flex items-center border-b border-gray-100 hover:bg-gray-50 transition-colors ${selectedRoom?.id === room.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
             >
-              <div className="font-medium text-gray-800 text-sm truncate">{room.user_name || room.user_email}</div>
-              <div className="text-xs text-gray-400 truncate mt-0.5">{room.last_message || '새 문의'}</div>
-              <div className="text-xs text-gray-300 mt-0.5">
-                {new Date(room.last_message_at).toLocaleDateString('ko-KR')}
-              </div>
-            </button>
+              <button
+                onClick={() => selectRoom(room)}
+                className="flex-1 text-left px-4 py-3 min-w-0"
+              >
+                <div className="font-medium text-gray-800 text-sm truncate">{room.user_name || room.user_email}</div>
+                <div className="text-xs text-gray-400 truncate mt-0.5">{room.last_message || '새 문의'}</div>
+                <div className="text-xs text-gray-300 mt-0.5">
+                  {new Date(room.last_message_at).toLocaleDateString('ko-KR')}
+                  {' '}
+                  {new Date(room.last_message_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </button>
+              {room.status === 'open' && (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    const supabase = createClient()
+                    await supabase.from('chat_rooms').update({ status: 'closed' }).eq('id', room.id)
+                    if (selectedRoom?.id === room.id) setSelectedRoom({ ...room, status: 'closed' })
+                    await loadRooms()
+                  }}
+                  className="shrink-0 mr-2 p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                  title="문의 완료"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </div>
