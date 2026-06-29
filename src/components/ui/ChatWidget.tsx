@@ -115,7 +115,7 @@ export default function ChatWidget() {
         localStorage.setItem(`chat_room_id_${userId}`, rid!)
       } else {
         localStorage.setItem('chat_guest', JSON.stringify(guestInfo))
-        localStorage.setItem('chat_room_id', rid)
+        localStorage.setItem('chat_room_id', rid!)
       }
     }
 
