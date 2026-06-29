@@ -16,7 +16,7 @@ function QuoteRequestForm() {
   const router = useRouter()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [productType, setProductType] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [requestNote, setRequestNote] = useState('')
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '', address: '' })
   const [uploading, setUploading] = useState(false)
@@ -44,21 +44,20 @@ function QuoteRequestForm() {
     setUploading(true)
     const supabase = createClient()
 
-    let fileUrl = null
-    let fileName = null
+    const uploadedUrls: string[] = []
+    const uploadedNames: string[] = []
 
-    if (file) {
+    for (const file of files) {
       const ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
-      const path = `${userId}/quotes/${Date.now()}.${ext}`
-      const { data: uploadData, error } = await supabase.storage.from('order-files').upload(path, file)
-      console.log('업로드 결과:', { uploadData, error, path })
+      const path = `${userId}/quotes/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`
+      const { error } = await supabase.storage.from('order-files').upload(path, file)
       if (error) {
         setUploading(false)
-        alert(`파일 업로드 실패: ${error.message}`)
+        alert(`파일 업로드 실패 (${file.name}): ${error.message}`)
         return
       }
-      fileUrl = path
-      fileName = file.name
+      uploadedUrls.push(path)
+      uploadedNames.push(file.name)
     }
 
     await supabase.from('quotes').insert({
@@ -69,8 +68,8 @@ function QuoteRequestForm() {
       user_address: customer.address,
       product_type: productType,
       request_note: requestNote,
-      file_url: fileUrl,
-      file_name: fileName,
+      file_url: uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null,
+      file_name: uploadedNames.length > 0 ? JSON.stringify(uploadedNames) : null,
       status: 'pending',
     })
 
@@ -170,27 +169,49 @@ function QuoteRequestForm() {
         {step === 2 && (
           <div>
             <h2 className="text-lg font-bold text-gray-900 mb-4">시안 파일 업로드</h2>
-            <div className="mb-5">
-              {!file ? (
-                <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:border-blue-400 hover:bg-blue-50 transition-all">
-                  <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600 font-medium">파일을 선택하거나 드래그하세요</span>
-                  <span className="text-xs text-gray-400 mt-1">PNG, JPG, AI, PDF, PSD 등 (최대 50MB)</span>
-                  <input type="file" className="hidden" accept="image/*,.pdf,.ai,.psd,.eps" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                </label>
-              ) : (
-                <div className="flex items-center gap-3 bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+            <div className="mb-5 space-y-3">
+              {/* 파일 목록 */}
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-3 bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
                   <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0">
-                    {file.name.split('.').pop()?.toUpperCase()}
+                    {f.name.split('.').pop()?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-800 truncate">{file.name}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{(file.size / 1024 / 1024).toFixed(1)}MB</div>
+                    <div className="font-semibold text-gray-800 truncate">{f.name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{(f.size / 1024 / 1024).toFixed(1)}MB</div>
                   </div>
-                  <button onClick={() => setFile(null)} className="text-gray-400 hover:text-red-500 transition-colors p-1">
+                  <button onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))} className="text-gray-400 hover:text-red-500 transition-colors p-1">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
+              ))}
+
+              {/* 추가 버튼 */}
+              {files.length < 10 && (
+                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:border-blue-400 hover:bg-blue-50 transition-all">
+                  <Upload className="w-7 h-7 text-gray-400 mb-2" />
+                  <span className="text-sm text-gray-600 font-medium">
+                    {files.length === 0 ? '파일을 선택하거나 드래그하세요' : '파일 추가 (+)'}
+                  </span>
+                  <span className="text-xs text-gray-400 mt-1">PNG, JPG, AI, PDF, PSD 등 · 최대 10개 ({files.length}/10)</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*,.pdf,.ai,.psd,.eps"
+                    multiple
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.files || [])
+                      setFiles((prev) => {
+                        const combined = [...prev, ...selected]
+                        return combined.slice(0, 10)
+                      })
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              )}
+              {files.length >= 10 && (
+                <p className="text-xs text-center text-gray-400">최대 10개 파일을 선택했습니다.</p>
               )}
             </div>
 
@@ -252,7 +273,7 @@ function QuoteRequestForm() {
                 </div>
                 <div className="flex gap-2">
                   <span className="text-gray-500 w-20 shrink-0">시안 파일</span>
-                  <span className="text-gray-800">{file ? file.name : '없음 (요구사항으로 대체)'}</span>
+                  <span className="text-gray-800">{files.length > 0 ? `${files.length}개 선택됨` : '없음 (요구사항으로 대체)'}</span>
                 </div>
                 {requestNote && (
                   <div className="flex gap-2">

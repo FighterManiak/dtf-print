@@ -73,11 +73,27 @@ export default function MyQuotesPage() {
   const downloadFile = async (filePath: string, fileName: string) => {
     const supabase = createClient()
     const { data } = await supabase.storage.from('order-files').createSignedUrl(filePath, 60)
-    if (data?.signedUrl) {
-      const a = document.createElement('a')
-      a.href = data.signedUrl
-      a.download = fileName
-      a.click()
+    if (!data?.signedUrl) return
+    const res = await fetch(data.signedUrl)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const parseFiles = (fileUrl: string | null, fileName: string | null) => {
+    if (!fileUrl || !fileName) return []
+    try {
+      const urls = JSON.parse(fileUrl) as string[]
+      const names = JSON.parse(fileName) as string[]
+      return urls.map((url, i) => ({ url, name: names[i] || `파일 ${i + 1}` }))
+    } catch {
+      return [{ url: fileUrl, name: fileName }]
     }
   }
 
@@ -175,18 +191,26 @@ export default function MyQuotesPage() {
                       <p className="text-xs font-bold text-gray-400 uppercase mb-2">요청 내용</p>
                       <div className="space-y-1.5 text-sm">
                         <div className="flex gap-2"><span className="text-gray-400 w-20">상품 유형</span><span className="text-gray-800">{PRODUCT_TYPE_LABEL[quote.product_type]}</span></div>
-                        {quote.file_name && (
-                          <div className="flex gap-2 items-center">
-                            <span className="text-gray-400 w-20">시안 파일</span>
-                            <button
-                              onClick={() => downloadFile(quote.file_url!, quote.file_name!)}
-                              className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              {quote.file_name}
-                            </button>
-                          </div>
-                        )}
+                        {(() => {
+                          const files = parseFiles(quote.file_url, quote.file_name)
+                          return files.length > 0 ? (
+                            <div className="flex gap-2">
+                              <span className="text-gray-400 w-20 shrink-0">시안 파일</span>
+                              <div className="flex flex-col gap-1.5">
+                                {files.map((f, i) => (
+                                  <button
+                                    key={i}
+                                    onClick={() => downloadFile(f.url, f.name)}
+                                    className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    {f.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null
+                        })()}
                         {quote.request_note && <div className="flex gap-2"><span className="text-gray-400 w-20">요구사항</span><span className="text-gray-800">{quote.request_note}</span></div>}
                       </div>
                     </div>

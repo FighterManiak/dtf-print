@@ -114,11 +114,27 @@ export default function AdminQuotesPage() {
   const downloadFile = async (filePath: string, fileName: string) => {
     const supabase = createClient()
     const { data } = await supabase.storage.from('order-files').createSignedUrl(filePath, 60)
-    if (data?.signedUrl) {
-      const a = document.createElement('a')
-      a.href = data.signedUrl
-      a.download = fileName
-      a.click()
+    if (!data?.signedUrl) return
+    const res = await fetch(data.signedUrl)
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const parseFiles = (fileUrl: string | null, fileName: string | null) => {
+    if (!fileUrl || !fileName) return []
+    try {
+      const urls = JSON.parse(fileUrl) as string[]
+      const names = JSON.parse(fileName) as string[]
+      return urls.map((url, i) => ({ url, name: names[i] || `파일 ${i + 1}` }))
+    } catch {
+      return [{ url: fileUrl, name: fileName }]
     }
   }
 
@@ -170,6 +186,7 @@ export default function AdminQuotesPage() {
               const StatusIcon = cfg.icon
               const form = getForm(quote.id)
               const total = calcTotal(form)
+              const files = parseFiles(quote.file_url, quote.file_name)
 
               return (
                 <div key={quote.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
@@ -186,16 +203,16 @@ export default function AdminQuotesPage() {
                             <StatusIcon className="w-3 h-3" />
                             {cfg.label}
                           </span>
-                          {/* 파일 있으면 헤더에 다운로드 버튼 바로 표시 */}
-                          {quote.file_name && (
+                          {files.length > 0 && files.map((f, i) => (
                             <button
-                              onClick={(e) => { e.stopPropagation(); downloadFile(quote.file_url!, quote.file_name!) }}
+                              key={i}
+                              onClick={(e) => { e.stopPropagation(); downloadFile(f.url, f.name) }}
                               className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 border border-green-200 px-2.5 py-1 rounded-full font-semibold hover:bg-green-200 transition-colors"
                             >
                               <Download className="w-3 h-3" />
-                              시안 다운로드
+                              시안 {files.length > 1 ? `${i + 1}` : '다운로드'}
                             </button>
-                          )}
+                          ))}
                         </div>
                         <div className="flex gap-3 text-xs text-gray-500 flex-wrap">
                           <span className="font-medium text-gray-700">{PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type}</span>
@@ -231,17 +248,21 @@ export default function AdminQuotesPage() {
                         </div>
                       </div>
 
-                      {/* 파일 다운로드 (상세에서도 크게 표시) */}
-                      {quote.file_url && quote.file_name && (
-                        <button
-                          onClick={() => downloadFile(quote.file_url!, quote.file_name!)}
-                          className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors"
-                        >
-                          <Download className="w-4 h-4" />
-                          시안 파일 다운로드 — {quote.file_name}
-                        </button>
-                      )}
-                      {!quote.file_url && (
+                      {/* 파일 다운로드 */}
+                      {files.length > 0 ? (
+                        <div className="space-y-2">
+                          {files.map((f, i) => (
+                            <button
+                              key={i}
+                              onClick={() => downloadFile(f.url, f.name)}
+                              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors"
+                            >
+                              <Download className="w-4 h-4" />
+                              시안 파일 다운로드 {files.length > 1 ? `(${i + 1}/${files.length})` : ''} — {f.name}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
                         <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-sm text-yellow-700">
                           첨부 파일 없음 — 요구사항 내용으로 확인하세요.
                         </div>
