@@ -112,7 +112,7 @@ export default function ChatWidget() {
       setRoomId(rid)
       savedRoomRef.current = rid
       if (isLoggedIn && userId) {
-        localStorage.setItem(`chat_room_id_${userId}`, rid)
+        localStorage.setItem(`chat_room_id_${userId}`, rid!)
       } else {
         localStorage.setItem('chat_guest', JSON.stringify(guestInfo))
         localStorage.setItem('chat_room_id', rid)
