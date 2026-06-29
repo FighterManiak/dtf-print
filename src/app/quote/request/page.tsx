@@ -48,7 +48,8 @@ function QuoteRequestForm() {
     let fileName = null
 
     if (file) {
-      const path = `${userId}/quotes/${Date.now()}_${file.name}`
+      const safeName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9가-힣._-]/g, '')
+      const path = `${userId}/quotes/${Date.now()}_${safeName}`
       const { data: uploadData, error } = await supabase.storage.from('order-files').upload(path, file)
       console.log('업로드 결과:', { uploadData, error, path })
       if (error) {
