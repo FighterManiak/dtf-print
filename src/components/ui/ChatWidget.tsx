@@ -156,14 +156,28 @@ export default function ChatWidget() {
   const sendMessage = async (content: string, imageUrl?: string) => {
     if (!roomId) return
     const supabase = createClient()
-    const { data: newMsg } = await supabase.from('chat_messages').insert({
+    const msgId = crypto.randomUUID()
+    const { error } = await supabase.from('chat_messages').insert({
+      id: msgId,
       room_id: roomId,
       sender_id: userId || null,
       sender_type: 'user',
       content: content || null,
       image_url: imageUrl || null,
-    }).select().single()
-    if (newMsg) setMessages((prev) => [...prev, newMsg as Message])
+    })
+    if (error) {
+      console.error('메시지 전송 실패:', error)
+      alert(`메시지 전송 실패: ${error.message}`)
+      return
+    }
+    const newMsg: Message = {
+      id: msgId,
+      content: content || null,
+      image_url: imageUrl || null,
+      sender_type: 'user',
+      created_at: new Date().toISOString(),
+    }
+    setMessages((prev) => [...prev, newMsg])
     await supabase.from('chat_rooms').update({
       last_message: content || '사진',
       last_message_at: new Date().toISOString(),
