@@ -12,6 +12,8 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   shipped: 'bg-purple-100 text-purple-700',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-600',
+  refund_requested: 'bg-orange-100 text-orange-700',
+  refunded: 'bg-gray-100 text-gray-500',
 }
 
 interface OrderItem {
@@ -100,6 +102,20 @@ export default function MyOrdersPage() {
       .eq('id', orderId)
     if (error) { alert('취소 처리 중 오류가 발생했습니다.'); return }
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'cancelled' } : o))
+  }
+
+  const requestRefund = async (orderId: string) => {
+    const reason = prompt('환불 사유를 입력해주세요.')
+    if (reason === null) return
+    if (!reason.trim()) { alert('환불 사유를 입력해주세요.'); return }
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'refund_requested', refund_reason: reason.trim() })
+      .eq('id', orderId)
+    if (error) { alert('환불 요청 중 오류가 발생했습니다.'); return }
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'refund_requested' as OrderStatus } : o))
+    alert('환불 요청이 접수되었습니다. 담당자 확인 후 처리됩니다.')
   }
 
   const downloadFile = async (filePath: string, fileName: string) => {
@@ -270,14 +286,34 @@ export default function MyOrdersPage() {
 
                     {/* 주문 취소 버튼 - 결제완료 상태에서만 */}
                     {order.status === 'paid' && (
-                      <div className="border-t border-gray-100 pt-4">
+                      <div className="border-t border-gray-100 pt-4 space-y-2">
                         <button
                           onClick={() => cancelOrder(order.id)}
                           className="w-full border border-red-300 text-red-500 py-2.5 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors"
                         >
                           주문 취소
                         </button>
-                        <p className="text-xs text-gray-400 text-center mt-1.5">작업이 시작되면 취소가 불가합니다.</p>
+                        <button
+                          onClick={() => requestRefund(order.id)}
+                          className="w-full border border-orange-300 text-orange-600 py-2.5 rounded-xl text-sm font-medium hover:bg-orange-50 transition-colors"
+                        >
+                          환불 요청
+                        </button>
+                        <p className="text-xs text-gray-400 text-center">작업이 시작되면 취소가 불가합니다.</p>
+                      </div>
+                    )}
+                    {order.status === 'refund_requested' && (
+                      <div className="border-t border-gray-100 pt-4">
+                        <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-700 text-center">
+                          환불 요청이 접수되었습니다. 담당자 검토 후 처리됩니다.
+                        </div>
+                      </div>
+                    )}
+                    {order.status === 'refunded' && (
+                      <div className="border-t border-gray-100 pt-4">
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 text-center">
+                          환불이 완료되었습니다.
+                        </div>
                       </div>
                     )}
                   </div>

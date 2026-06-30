@@ -24,6 +24,8 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
   shipped: 'bg-purple-100 text-purple-700',
   delivered: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-600',
+  refund_requested: 'bg-orange-100 text-orange-700',
+  refunded: 'bg-gray-100 text-gray-500',
 }
 
 interface OrderItem {
@@ -335,6 +337,49 @@ export default function AdminOrdersPage() {
                     {order.status === 'cancelled' && (
                       <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2.5 text-center">
                         <span className="text-sm text-red-500 font-medium">취소된 주문입니다</span>
+                      </div>
+                    )}
+
+                    {order.status === 'refunded' && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-center">
+                        <span className="text-sm text-gray-500 font-medium">환불 완료된 주문입니다</span>
+                      </div>
+                    )}
+
+                    {/* 환불 요청 처리 */}
+                    {order.status === 'refund_requested' && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-orange-700 mb-1">환불 요청 접수</p>
+                          {(order as any).refund_reason && (
+                            <p className="text-sm text-gray-700">사유: {(order as any).refund_reason}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            disabled={processing === order.id}
+                            onClick={async () => {
+                              if (confirm(`${order.user_name || '고객'}님의 환불을 승인하시겠습니까?\n\n※ 토스페이먼츠 대시보드에서 실제 환불을 진행해주세요.`)) {
+                                await updateStatus(order.id, 'refunded')
+                              }
+                            }}
+                            className="flex-1 bg-orange-500 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors disabled:opacity-50"
+                          >
+                            환불 승인
+                          </button>
+                          <button
+                            disabled={processing === order.id}
+                            onClick={async () => {
+                              if (confirm('환불 요청을 거절하고 이전 상태로 되돌리시겠습니까?')) {
+                                await updateStatus(order.id, 'paid')
+                              }
+                            }}
+                            className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                          >
+                            요청 거절
+                          </button>
+                        </div>
+                        <p className="text-xs text-orange-600">※ 환불 승인 후 토스페이먼츠 대시보드에서 실제 환불을 처리해주세요.</p>
                       </div>
                     )}
 

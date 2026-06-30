@@ -59,6 +59,8 @@ export type OrderStatus =
   | 'shipped'
   | 'delivered'
   | 'cancelled'
+  | 'refund_requested'
+  | 'refunded'
 
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: '결제 대기',
@@ -67,6 +69,8 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   shipped: '출고 완료',
   delivered: '배송 완료',
   cancelled: '취소',
+  refund_requested: '환불 요청',
+  refunded: '환불 완료',
 }
 
 export const PRODUCTS: Product[] = [
