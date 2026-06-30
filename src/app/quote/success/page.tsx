@@ -3,7 +3,6 @@
 import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase-browser'
 
 function QuoteSuccessContent() {
   const router = useRouter()
@@ -13,37 +12,11 @@ function QuoteSuccessContent() {
   useEffect(() => {
     const confirm = async () => {
       if (!quoteId) return
-      const supabase = createClient()
-
-      // 견적 정보 가져오기
-      const { data: quote } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('id', quoteId)
-        .single()
-
-      if (!quote) return
-
-      // 이미 처리된 경우 중복 생성 방지
-      if (quote.status === 'paid' && quote.order_id) return
-
-      // orders 테이블에 주문 생성
-      const { data: newOrder } = await supabase.from('orders').insert({
-        user_id: quote.user_id,
-        user_email: quote.user_email,
-        user_name: quote.user_name,
-        user_phone: quote.user_phone,
-        user_address: quote.user_address,
-        total_amount: quote.total_amount,
-        status: 'paid',
-        memo: `견적 주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
-      }).select('id').single()
-
-      // quotes 상태 업데이트 + order_id 연결
-      await supabase.from('quotes').update({
-        status: 'paid',
-        order_id: newOrder?.id || null,
-      }).eq('id', quoteId)
+      await fetch('/api/quote/confirm-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quoteId }),
+      })
     }
     confirm()
   }, [quoteId])
