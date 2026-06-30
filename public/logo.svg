@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 80" width="260" height="40">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&amp;display=swap');
+    text { font-family: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif; }
+  </style>
+  <text
+    x="0"
+    y="68"
+    font-size="80"
+    font-weight="900"
+    fill="currentColor"
+    letter-spacing="-2"
+  >SUPER HARD</text>
+</svg>

@@ -86,7 +86,7 @@ export default function Header() {
     <>
       <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="font-extrabold text-xl text-gray-900 tracking-tight shrink-0">
+          <Link href="/" className="shrink-0 font-[family-name:var(--font-barlow-condensed)] font-black text-2xl tracking-tight text-gray-900 leading-none">
             SUPER HARD
           </Link>
 
