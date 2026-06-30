@@ -395,7 +395,36 @@ export default function AdminQuotesPage() {
                       {/* 발송된 견적 내용 */}
                       {(quote.status === 'quoted' || quote.status === 'paid') && quote.total_amount && (
                         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm">
-                          <p className="text-xs font-bold text-blue-700 uppercase mb-3">발송된 견적</p>
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs font-bold text-blue-700 uppercase">발송된 견적</p>
+                            {quote.user_email && (
+                              <button
+                                onClick={async () => {
+                                  await fetch('/api/send-quote-email', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      userEmail: quote.user_email,
+                                      userName: quote.user_name || '고객',
+                                      productType: PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type,
+                                      quantity: quote.quoted_quantity,
+                                      unit: quote.quoted_unit,
+                                      unitPrice: quote.unit_price,
+                                      cuttingPrice: quote.cutting_price,
+                                      totalAmount: quote.total_amount,
+                                      adminNote: quote.admin_note || '',
+                                      quoteId: quote.id,
+                                    }),
+                                  })
+                                  alert('이메일을 재발송했습니다.')
+                                }}
+                                className="flex items-center gap-1.5 text-xs bg-white border border-blue-300 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors font-semibold"
+                              >
+                                <Send className="w-3 h-3" />
+                                이메일 재발송
+                              </button>
+                            )}
+                          </div>
                           <div className="space-y-2">
                             {quote.quoted_quantity && <div className="flex gap-2"><span className="text-gray-600 w-20 shrink-0">출력 수량</span><span className="font-semibold text-gray-900">{quote.quoted_quantity}{quote.quoted_unit}</span></div>}
                             {quote.unit_price && <div className="flex gap-2"><span className="text-gray-600 w-20 shrink-0">단가</span><span className="text-gray-900">{quote.unit_price.toLocaleString()}원</span></div>}
