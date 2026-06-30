@@ -79,6 +79,7 @@ export default function OrderForm() {
     }
     loadUserInfo()
   }, [])
+  const [orderName, setOrderName] = useState('')
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
 
   const getProduct = (id: ProductId) => ALL_PRODUCTS.find((p) => p.id === id)!
@@ -147,7 +148,7 @@ export default function OrderForm() {
         customerName: customer.name,
         customerEmail: customer.email,
         customerMobilePhone: customer.phone.replace(/-/g, ''),
-        successUrl: `${window.location.origin}/payment/success`,
+        successUrl: `${window.location.origin}/payment/success${orderName.trim() ? `?orderName=${encodeURIComponent(orderName.trim())}` : ''}`,
         failUrl: `${window.location.origin}/payment/fail`,
       })
     } catch (err: unknown) {
@@ -421,6 +422,22 @@ export default function OrderForm() {
       {step === 2 && (
         <div>
           <h2 className="text-xl font-bold text-gray-800 mb-6">배송 정보 입력</h2>
+
+          {/* 주문명 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+              주문명 <span className="text-gray-400 font-normal">(선택 · 나중에 식별하기 쉽게 입력)</span>
+            </label>
+            <input
+              type="text"
+              value={orderName}
+              onChange={(e) => setOrderName(e.target.value)}
+              placeholder="예) 여름 신상 로고, 브랜드 패치 200장"
+              maxLength={50}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
           <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
             {[
               { key: 'name', label: '주문자 이름', placeholder: '홍길동', type: 'text' },
@@ -468,6 +485,14 @@ export default function OrderForm() {
       {step === 3 && (
         <div>
           <h2 className="text-xl font-bold text-gray-800 mb-6">주문 확인 및 결제</h2>
+
+          {/* 주문명 확인 */}
+          {orderName.trim() && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-3 mb-4 flex items-center gap-3">
+              <span className="text-xs font-bold text-blue-500 shrink-0">주문명</span>
+              <span className="font-semibold text-gray-800">{orderName.trim()}</span>
+            </div>
+          )}
 
           {/* 주문 상품 확인 */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
