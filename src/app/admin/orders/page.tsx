@@ -53,6 +53,8 @@ interface Order {
   user_email: string | null
   user_phone: string | null
   user_address: string | null
+  order_name: string | null
+  memo: string | null
   order_items: OrderItem[]
 }
 
@@ -340,6 +342,28 @@ export default function AdminOrdersPage() {
                         {NEXT_STATUS_LABEL[order.status]}
                         <span className="text-blue-200 font-normal text-xs">({ORDER_STATUS_LABEL[NEXT_STATUS[order.status]!]})</span>
                       </button>
+                    )}
+
+                    {/* 무통장 입금 대기 확인 처리 */}
+                    {order.status === 'pending' && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-orange-700 mb-1">무통장 입금 대기</p>
+                          <p className="text-sm text-gray-700 font-bold">{order.total_amount.toLocaleString()}원</p>
+                          {order.memo && <p className="text-xs text-gray-500 mt-1">{order.memo}</p>}
+                        </div>
+                        <button
+                          disabled={processing === order.id}
+                          onClick={async () => {
+                            if (confirm('입금을 확인하고 결제완료 처리하시겠습니까?')) {
+                              await updateStatus(order.id, 'paid')
+                            }
+                          }}
+                          className="w-full bg-orange-500 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors disabled:opacity-50"
+                        >
+                          입금 확인 완료 → 결제완료 처리
+                        </button>
+                      </div>
                     )}
 
                     {order.status === 'delivered' && (

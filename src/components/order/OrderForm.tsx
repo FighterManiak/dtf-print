@@ -80,6 +80,9 @@ export default function OrderForm() {
     loadUserInfo()
   }, [])
   const [orderName, setOrderName] = useState('')
+  const [payMethod, setPayMethod] = useState<'card' | 'bank'>('card')
+  const [bankDone, setBankDone] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
 
   const getProduct = (id: ProductId) => ALL_PRODUCTS.find((p) => p.id === id)!
@@ -156,6 +159,39 @@ export default function OrderForm() {
         alert('결제 오류: ' + err.message)
       }
     }
+  }
+
+  const handleBankTransfer = async () => {
+    setSubmitting(true)
+    const res = await fetch('/api/order/bank-transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderName: orderName.trim() || null,
+        customer,
+        cart: cart.map((item) => {
+          const product = getProduct(item.productId)
+          const cuttingAmt = item.cutting ? getCuttingPrice(item.productId, item.quantity, item.cuttingPrice) : 0
+          return {
+            productId: item.productId,
+            productName: product.name,
+            quantity: item.quantity,
+            unitPrice: product.price,
+            cutting: item.cutting,
+            cuttingPrice: cuttingAmt,
+            requestNote: item.requestNote,
+            dueDate: item.dueDate || null,
+          }
+        }),
+        totalAmount,
+      }),
+    })
+    if (res.ok) {
+      setBankDone(true)
+    } else {
+      alert('처리 중 오류가 발생했습니다. 다시 시도해주세요.')
+    }
+    setSubmitting(false)
   }
 
   return (
@@ -551,6 +587,40 @@ export default function OrderForm() {
             )}
           </div>
 
+          {/* 결제 수단 선택 */}
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-gray-700 mb-2">결제 수단</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setPayMethod('card')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-colors ${payMethod === 'card' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+              >
+                💳 카드 결제
+              </button>
+              <button
+                onClick={() => setPayMethod('bank')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-colors ${payMethod === 'bank' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+              >
+                🏦 무통장 입금
+              </button>
+            </div>
+          </div>
+
+          {/* 무통장 입금 계좌 안내 */}
+          {payMethod === 'bank' && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 text-sm space-y-1.5">
+              <p className="font-bold text-orange-800 mb-2">입금 계좌 안내</p>
+              <div className="flex justify-between"><span className="text-gray-500">은행</span><span className="font-semibold">기업은행</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">계좌번호</span><span className="font-bold tracking-wider">495-028223-01-021</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">아유디스터디 (조봉준)</span></div>
+              <div className="flex justify-between border-t border-orange-200 pt-2 mt-1">
+                <span className="text-gray-500">입금 금액</span>
+                <span className="font-bold text-orange-700 text-base">{totalAmount.toLocaleString()}원</span>
+              </div>
+              <p className="text-xs text-orange-600 pt-1">입금 후 아래 버튼을 눌러주세요. 관리자가 확인 후 작업을 진행합니다.</p>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
               onClick={() => setStep(2)}
@@ -558,13 +628,50 @@ export default function OrderForm() {
             >
               ← 이전
             </button>
-            <button
-              onClick={handlePayment}
-              className="flex-1 bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors"
-            >
-              결제하기
-            </button>
+            {payMethod === 'card' ? (
+              <button
+                onClick={handlePayment}
+                className="flex-1 bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                카드 결제하기
+              </button>
+            ) : (
+              <button
+                onClick={handleBankTransfer}
+                disabled={submitting}
+                className="flex-1 bg-orange-500 text-white font-bold py-3.5 rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {submitting ? '처리 중...' : '입금 완료했습니다'}
+              </button>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* 무통장 입금 완료 화면 */}
+      {bankDone && (
+        <div className="fixed inset-0 bg-white flex flex-col items-center justify-center px-6 z-50">
+          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-5">
+            <span className="text-3xl">🏦</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">입금 접수 완료!</h2>
+          <p className="text-gray-500 text-center mb-2">무통장 입금 요청이 접수되었습니다.</p>
+          <p className="text-sm text-gray-400 text-center mb-8">관리자가 입금 확인 후 작업을 시작합니다.</p>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 w-full max-w-sm text-sm space-y-1.5 mb-8">
+            <div className="flex justify-between"><span className="text-gray-500">은행</span><span className="font-semibold">기업은행</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">계좌번호</span><span className="font-bold tracking-wider">495-028223-01-021</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">아유디스터디 (조봉준)</span></div>
+            <div className="flex justify-between border-t border-orange-200 pt-2 mt-1">
+              <span className="text-gray-500">입금 금액</span>
+              <span className="font-bold text-orange-700 text-base">{totalAmount.toLocaleString()}원</span>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/my-quotes')}
+            className="w-full max-w-sm bg-gray-800 text-white py-4 rounded-xl font-bold hover:bg-gray-700 transition-colors"
+          >
+            내 주문 현황 확인
+          </button>
         </div>
       )}
     </div>
