@@ -7,7 +7,7 @@ import ChatWidget from '@/components/ui/ChatWidget'
 const geist = Geist({ subsets: ['latin'] })
 const barlowCondensed = Barlow_Condensed({
   subsets: ['latin'],
-  weight: ['900'],
+  weight: ['700', '900'],
   variable: '--font-barlow-condensed',
 })
 
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ChatWidget />
         <footer className="bg-[#0f0f0f] text-gray-500 text-sm py-8 px-6">
           <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="font-[family-name:var(--font-barlow-condensed)] font-black text-white text-2xl tracking-tight">
+            <div className="font-[family-name:var(--font-barlow-condensed)] font-bold text-white text-[1.8rem] tracking-tight">
               SUPER HARD
             </div>
             <p className="text-gray-600">© 2024 SUPER HARD. All rights reserved.</p>
