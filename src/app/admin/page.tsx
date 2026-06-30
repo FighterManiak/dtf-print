@@ -1,12 +1,45 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, FileText } from 'lucide-react'
+import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase-browser'
 
 export default function AdminPage() {
-  const stats = [
-    { label: '전체 주문', value: '—', icon: ClipboardList, color: 'blue' },
-    { label: '작업 중', value: '—', icon: Package, color: 'yellow' },
-    { label: '출고 완료', value: '—', icon: Truck, color: 'green' },
-    { label: '이번 달 매출', value: '—', icon: TrendingUp, color: 'purple' },
+  const [stats, setStats] = useState({ total: 0, inProgress: 0, shipped: 0, revenue: 0 })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+      const [totalRes, inProgressRes, shippedRes, revenueRes] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'shipped'),
+        supabase.from('orders').select('total_amount').eq('status', 'paid').gte('created_at', monthStart),
+      ])
+
+      const monthlyRevenue = (revenueRes.data || []).reduce((sum, o) => sum + (o.total_amount || 0), 0)
+
+      setStats({
+        total: totalRes.count || 0,
+        inProgress: inProgressRes.count || 0,
+        shipped: shippedRes.count || 0,
+        revenue: monthlyRevenue,
+      })
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const cards = [
+    { label: '전체 주문', value: loading ? '—' : `${stats.total}건`, icon: ClipboardList },
+    { label: '작업 중', value: loading ? '—' : `${stats.inProgress}건`, icon: Package },
+    { label: '출고 완료', value: loading ? '—' : `${stats.shipped}건`, icon: Truck },
+    { label: '이번 달 매출', value: loading ? '—' : `${stats.revenue.toLocaleString()}원`, icon: TrendingUp },
   ]
 
   return (
@@ -14,7 +47,7 @@ export default function AdminPage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-8">관리자 대시보드</h1>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {stats.map(({ label, value, icon: Icon }) => (
+        {cards.map(({ label, value, icon: Icon }) => (
           <div key={label} className="bg-white border border-gray-200 rounded-xl p-5">
             <Icon className="w-6 h-6 text-blue-500 mb-2" />
             <div className="text-2xl font-bold text-gray-800">{value}</div>
