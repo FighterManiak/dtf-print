@@ -7,15 +7,18 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { orderId, status } = await req.json()
+  const { orderId, status, refund_reason } = await req.json()
 
   if (!orderId || !status) {
     return NextResponse.json({ error: 'orderId and status required' }, { status: 400 })
   }
 
+  const updateData: Record<string, unknown> = { status }
+  if (refund_reason !== undefined) updateData.refund_reason = refund_reason
+
   const { error } = await supabaseAdmin
     .from('orders')
-    .update({ status })
+    .update(updateData)
     .eq('id', orderId)
 
   if (error) {

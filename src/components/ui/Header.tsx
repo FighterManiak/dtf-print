@@ -69,8 +69,7 @@ export default function Header() {
     { href: '/', label: '홈' },
     { href: '/quote/request', label: '견적 요청' },
     { href: '/order', label: '바로 주문' },
-    { href: '/my-quotes', label: '견적 현황' },
-    { href: '/my-orders', label: '내 주문 조회' },
+    { href: '/my-quotes', label: '내 주문 현황' },
   ]
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '사용자'
@@ -138,10 +137,7 @@ export default function Header() {
                         )}
                       </div>
                       <Link href="/my-quotes" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                        견적 현황
-                      </Link>
-                      <Link href="/my-orders" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                        내 주문 조회
+                        내 주문 현황
                       </Link>
                       <Link href="/profile/edit" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
                         회원정보 변경
