@@ -49,6 +49,7 @@ interface Quote {
   created_at: string
   status: string
   product_type: string
+  order_name: string | null
   request_note: string | null
   file_url: string | null
   file_name: string | null
@@ -67,6 +68,11 @@ interface Quote {
   user_phone: string | null
   user_address: string | null
   order?: Order | null
+}
+
+interface ReorderModal {
+  quote: Quote
+  quantity: string
 }
 
 // 통합 상태: 주문이 있으면 주문 상태를, 없으면 견적 상태를 사용
@@ -107,6 +113,8 @@ export default function MyOrdersPage() {
   const [paying, setPaying] = useState<string | null>(null)
   const [payMethod, setPayMethod] = useState<Record<string, 'card' | 'bank'>>({})
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
+  const [reorderModal, setReorderModal] = useState<ReorderModal | null>(null)
+  const [reordering, setReordering] = useState(false)
   const [quickRange, setQuickRange] = useState<QuickRange>('최근 3일')
   const [dateFrom, setDateFrom] = useState(() => getRangeDates('최근 3일').from)
   const [dateTo, setDateTo] = useState(() => getRangeDates('최근 3일').to)
@@ -235,6 +243,32 @@ export default function MyOrdersPage() {
     setPaying(null)
   }
 
+  const handleReorder = async () => {
+    if (!reorderModal || !user) return
+    const qty = reorderModal.quantity.trim()
+    if (!qty) { alert('수량을 입력해주세요.'); return }
+    setReordering(true)
+    const supabase = createClient()
+    const { quote } = reorderModal
+    await supabase.from('quotes').insert({
+      user_id: user.id,
+      user_name: quote.user_name,
+      user_email: quote.user_email,
+      user_phone: quote.user_phone,
+      user_address: quote.user_address,
+      product_type: quote.product_type,
+      order_name: quote.order_name,
+      request_note: `재구매 (수량: ${qty})\n${quote.request_note || ''}`.trim(),
+      file_url: quote.file_url,
+      file_name: quote.file_name,
+      status: 'pending',
+    })
+    setReordering(false)
+    setReorderModal(null)
+    await loadData(user.id, dateFrom, dateTo)
+    alert('재구매 견적 요청이 완료되었습니다!')
+  }
+
   const cancelQuote = async (quoteId: string) => {
     if (!confirm('견적 요청을 취소하시겠습니까?')) return
     const supabase = createClient()
@@ -259,6 +293,7 @@ export default function MyOrdersPage() {
   }
 
   return (
+    <div className="min-h-screen bg-gray-50">
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">내 주문 현황</h1>
@@ -343,7 +378,12 @@ export default function MyOrdersPage() {
                 >
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="font-bold text-gray-800">{PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type}</span>
+                      <span className="font-bold text-gray-800">
+                        {quote.order_name || PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type}
+                      </span>
+                      {quote.order_name && (
+                        <span className="text-xs text-gray-400">{PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type}</span>
+                      )}
                       <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${cfg.color}`}>
                         <StatusIcon className="w-3 h-3" />
                         {cfg.label}
@@ -539,6 +579,16 @@ export default function MyOrdersPage() {
                       </button>
                     )}
 
+                    {/* 재구매 버튼 */}
+                    {(quote.order?.status === 'delivered' || quote.order?.status === 'paid' || quote.order?.status === 'shipped') && (
+                      <button
+                        onClick={() => setReorderModal({ quote, quantity: '' })}
+                        className="w-full bg-gray-800 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors"
+                      >
+                        ↩ 재구매
+                      </button>
+                    )}
+
                     {/* 견적 취소 버튼 */}
                     {quote.status === 'pending' && (
                       <button onClick={() => cancelQuote(quote.id)}
@@ -554,6 +604,59 @@ export default function MyOrdersPage() {
           <p className="text-xs text-gray-400 text-center pt-2">총 {quotes.length}건</p>
         </div>
       )}
+    </div>
+
+    {/* 재구매 모달 */}
+    {reorderModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+          <h3 className="text-lg font-bold text-gray-800 mb-1">재구매</h3>
+          <p className="text-sm text-gray-500 mb-5">
+            이전과 동일한 시안으로 새 견적을 요청합니다.
+          </p>
+          <div className="bg-gray-50 rounded-xl p-3 mb-5 text-sm space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-500">주문명</span>
+              <span className="font-semibold text-gray-800">{reorderModal.quote.order_name || PRODUCT_TYPE_LABEL[reorderModal.quote.product_type]}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">이전 단가</span>
+              <span className="text-gray-800">{reorderModal.quote.unit_price?.toLocaleString()}원/{reorderModal.quote.quoted_unit}</span>
+            </div>
+          </div>
+          <div className="mb-5">
+            <label className="text-sm font-semibold text-gray-700 block mb-2">
+              주문 수량 <span className="text-red-500">*</span>
+              {reorderModal.quote.quoted_unit && <span className="text-gray-400 font-normal ml-1">({reorderModal.quote.quoted_unit} 단위)</span>}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={reorderModal.quantity}
+              onChange={(e) => setReorderModal({ ...reorderModal, quantity: e.target.value })}
+              placeholder={`예) 5${reorderModal.quote.quoted_unit || ''}`}
+              autoFocus
+              className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-800 text-base focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setReorderModal(null)}
+              className="flex-1 border border-gray-300 text-gray-600 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleReorder}
+              disabled={reordering || !reorderModal.quantity.trim()}
+              className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              {reordering ? '요청 중...' : '견적 요청'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   )
 }

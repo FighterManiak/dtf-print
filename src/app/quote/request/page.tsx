@@ -16,6 +16,7 @@ function QuoteRequestForm() {
   const router = useRouter()
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [productType, setProductType] = useState('')
+  const [orderName, setOrderName] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [requestNote, setRequestNote] = useState('')
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '', address: '' })
@@ -67,6 +68,7 @@ function QuoteRequestForm() {
       user_phone: customer.phone,
       user_address: customer.address,
       product_type: productType,
+      order_name: orderName.trim() || null,
       request_note: requestNote,
       file_url: uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null,
       file_name: uploadedNames.length > 0 ? JSON.stringify(uploadedNames) : null,
@@ -155,6 +157,22 @@ function QuoteRequestForm() {
                 </button>
               ))}
             </div>
+            {/* 주문명 입력 */}
+            {productType && (
+              <div className="mb-6">
+                <label className="text-sm font-semibold text-gray-700 block mb-2">
+                  주문명 <span className="text-gray-400 font-normal">(선택 · 나중에 식별하기 쉽게 입력)</span>
+                </label>
+                <input
+                  type="text"
+                  value={orderName}
+                  onChange={(e) => setOrderName(e.target.value)}
+                  placeholder="예) 여름 신상 로고, 브랜드 패치 200장"
+                  maxLength={50}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400"
+                />
+              </div>
+            )}
             <button
               disabled={!productType}
               onClick={() => setStep(2)}
@@ -267,6 +285,12 @@ function QuoteRequestForm() {
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6">
               <p className="text-xs font-bold text-blue-600 uppercase mb-3">견적 요청 요약</p>
               <div className="space-y-2 text-sm">
+                {orderName && (
+                  <div className="flex gap-2">
+                    <span className="text-gray-500 w-20 shrink-0">주문명</span>
+                    <span className="text-gray-800 font-semibold">{orderName}</span>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <span className="text-gray-500 w-20 shrink-0">상품 유형</span>
                   <span className="text-gray-800 font-semibold">{PRODUCT_TYPES.find(p => p.id === productType)?.label}</span>
