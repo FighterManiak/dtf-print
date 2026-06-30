@@ -75,6 +75,30 @@ function getDisplayStatus(quote: Quote): string {
   return quote.status
 }
 
+type QuickRange = '오늘' | '어제' | '최근 3일' | '최근 7일' | '최근 1달'
+
+const fmt = (d: Date) => d.toISOString().slice(0, 10)
+
+function getRangeDates(range: QuickRange): { from: string; to: string } {
+  const now = new Date()
+  const today = fmt(now)
+  if (range === '오늘') return { from: today, to: today }
+  if (range === '어제') {
+    const y = new Date(now); y.setDate(y.getDate() - 1)
+    return { from: fmt(y), to: fmt(y) }
+  }
+  if (range === '최근 3일') {
+    const d = new Date(now); d.setDate(d.getDate() - 2)
+    return { from: fmt(d), to: today }
+  }
+  if (range === '최근 7일') {
+    const d = new Date(now); d.setDate(d.getDate() - 6)
+    return { from: fmt(d), to: today }
+  }
+  const d = new Date(now); d.setMonth(d.getMonth() - 1)
+  return { from: fmt(d), to: today }
+}
+
 export default function MyOrdersPage() {
   const router = useRouter()
   const [quotes, setQuotes] = useState<Quote[]>([])
@@ -83,6 +107,12 @@ export default function MyOrdersPage() {
   const [paying, setPaying] = useState<string | null>(null)
   const [payMethod, setPayMethod] = useState<Record<string, 'card' | 'bank'>>({})
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
+  const [quickRange, setQuickRange] = useState<QuickRange>('최근 3일')
+  const [dateFrom, setDateFrom] = useState(() => getRangeDates('최근 3일').from)
+  const [dateTo, setDateTo] = useState(() => getRangeDates('최근 3일').to)
+  const userIdRef = React.useRef<string>('')
+
+  const QUICK_RANGES: QuickRange[] = ['오늘', '어제', '최근 3일', '최근 7일', '최근 1달']
 
   useEffect(() => {
     const init = async () => {
@@ -90,19 +120,36 @@ export default function MyOrdersPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUser({ id: user.id, email: user.email || '' })
-      await loadData(user.id)
+      userIdRef.current = user.id
+      await loadData(user.id, dateFrom, dateTo)
     }
     init()
   }, [])
 
-  const loadData = async (uid: string) => {
+  const applyQuickRange = (range: QuickRange) => {
+    const { from, to } = getRangeDates(range)
+    setQuickRange(range)
+    setDateFrom(from)
+    setDateTo(to)
+    if (userIdRef.current) loadData(userIdRef.current, from, to)
+  }
+
+  const applyCustomRange = () => {
+    setQuickRange('' as QuickRange)
+    if (userIdRef.current) loadData(userIdRef.current, dateFrom, dateTo)
+  }
+
+  const loadData = async (uid: string, from: string, to: string) => {
+    setLoading(true)
     const supabase = createClient()
 
-    // 견적 목록 조회
+    // 견적 목록 조회 (날짜 필터 적용)
     const { data: quotesData } = await supabase
       .from('quotes')
       .select('*')
       .eq('user_id', uid)
+      .gte('created_at', from + 'T00:00:00')
+      .lte('created_at', to + 'T23:59:59')
       .order('created_at', { ascending: false })
 
     if (!quotesData) { setLoading(false); return }
@@ -211,11 +258,9 @@ export default function MyOrdersPage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">불러오는 중...</div>
-
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">내 주문 현황</h1>
         <button
           onClick={() => router.push('/quote/request')}
@@ -224,17 +269,61 @@ export default function MyOrdersPage() {
           + 새 견적 요청
         </button>
       </div>
-      {user && <p className="text-sm text-gray-400 mb-6">{user.email}</p>}
 
-      {quotes.length === 0 ? (
-        <div className="text-center py-20">
+      {/* 날짜 필터 */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-6 space-y-3">
+        {/* 빠른 선택 버튼 */}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_RANGES.map((r) => (
+            <button
+              key={r}
+              onClick={() => applyQuickRange(r)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${
+                quickRange === r
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        {/* 날짜 직접 입력 */}
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setQuickRange('' as QuickRange) }}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <span className="text-gray-400 text-sm shrink-0">~</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setQuickRange('' as QuickRange) }}
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button
+            onClick={applyCustomRange}
+            className="shrink-0 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+          >
+            조회
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-gray-400">불러오는 중...</div>
+      ) : quotes.length === 0 ? (
+        <div className="text-center py-16">
           <FileText className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400 mb-6">아직 주문 내역이 없습니다.</p>
+          <p className="text-gray-400 mb-2">해당 기간에 주문 내역이 없습니다.</p>
+          <p className="text-xs text-gray-300 mb-6">{dateFrom} ~ {dateTo}</p>
           <button
             onClick={() => router.push('/quote/request')}
             className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors"
           >
-            첫 견적 요청하기
+            견적 요청하기
           </button>
         </div>
       ) : (
