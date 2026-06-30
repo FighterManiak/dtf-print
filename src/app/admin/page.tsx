@@ -43,6 +43,7 @@ export default function AdminPage() {
   ]
 
   return (
+    <div className="min-h-screen bg-gray-50">
     <div className="max-w-5xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-800 mb-8">관리자 대시보드</h1>
 
@@ -99,6 +100,7 @@ export default function AdminPage() {
           <p className="text-gray-400 text-sm">준비 중</p>
         </div>
       </div>
+    </div>
     </div>
   )
 }
