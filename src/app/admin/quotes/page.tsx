@@ -408,13 +408,12 @@ export default function AdminQuotesPage() {
                           <button
                             onClick={async () => {
                               if (!confirm('입금을 확인하고 결제완료 처리하시겠습니까?')) return
-                              const supabase = createClient()
-                              // quotes 상태 paid로 변경
-                              await supabase.from('quotes').update({ status: 'paid' }).eq('id', quote.id)
-                              // 연결된 order도 paid로 변경
-                              if (quote.order_id) {
-                                await supabase.from('orders').update({ status: 'paid' }).eq('id', quote.order_id)
-                              }
+                              const res = await fetch('/api/admin/confirm-bank-transfer', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ quoteId: quote.id, orderId: quote.order_id }),
+                              })
+                              if (!res.ok) { alert('처리 중 오류가 발생했습니다.'); return }
                               setQuotes((prev) => prev.map((q) => q.id === quote.id ? { ...q, status: 'paid' } : q))
                             }}
                             className="w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-orange-600 transition-colors"

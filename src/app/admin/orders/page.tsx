@@ -82,9 +82,16 @@ export default function AdminOrdersPage() {
 
   const updateStatus = async (orderId: string, nextStatus: OrderStatus) => {
     setProcessing(orderId)
-    const supabase = createClient()
-    await supabase.from('orders').update({ status: nextStatus }).eq('id', orderId)
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: nextStatus } : o))
+    const res = await fetch('/api/admin/update-order-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, status: nextStatus }),
+    })
+    if (res.ok) {
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: nextStatus } : o))
+    } else {
+      alert('상태 변경 중 오류가 발생했습니다.')
+    }
     setProcessing(null)
   }
 
@@ -92,9 +99,16 @@ export default function AdminOrdersPage() {
     const carrier = carrierInputs[order.id] ?? order.carrier ?? ''
     const tracking = trackingInputs[order.id] ?? order.tracking_number ?? ''
     setProcessing(order.id)
-    const supabase = createClient()
-    await supabase.from('orders').update({ carrier, tracking_number: tracking }).eq('id', order.id)
-    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, carrier, tracking_number: tracking } : o))
+    const res = await fetch('/api/admin/update-order-tracking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id, carrier, tracking_number: tracking }),
+    })
+    if (res.ok) {
+      setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, carrier, tracking_number: tracking } : o))
+    } else {
+      alert('송장 저장 중 오류가 발생했습니다.')
+    }
     setProcessing(null)
   }
 
