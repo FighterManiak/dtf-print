@@ -171,7 +171,11 @@ export default function MyQuotesPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400">
-                      <span>{new Date(quote.created_at).toLocaleDateString('ko-KR')}</span>
+                      <span>
+                        {new Date(quote.created_at).toLocaleDateString('ko-KR')}
+                        {' '}
+                        {new Date(quote.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                       {quote.total_amount && (
                         <>
                           <span>·</span>
