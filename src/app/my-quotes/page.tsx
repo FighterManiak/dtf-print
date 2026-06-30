@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import React from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCircle, Download } from 'lucide-react'
+import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCircle, Download, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 
@@ -15,11 +16,18 @@ const PRODUCT_TYPE_LABEL: Record<string, string> = {
   other: '기타',
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   pending: { label: '검토 대기중', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
   quoted: { label: '견적 완료', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
   paid: { label: '결제 완료', color: 'bg-green-100 text-green-700', icon: CreditCard },
   cancelled: { label: '취소', color: 'bg-red-100 text-red-600', icon: XCircle },
+  bank_transfer_pending: { label: '입금 확인중', color: 'bg-orange-100 text-orange-700', icon: Clock },
+}
+
+const BANK_INFO = {
+  bank: '기업은행',
+  account: '495-028223-01-021',
+  holder: '아유디스터디 (조봉준)',
 }
 
 interface Quote {
@@ -38,6 +46,11 @@ interface Quote {
   total_amount: number | null
   admin_note: string | null
   quoted_at: string | null
+  user_id: string | null
+  user_email: string | null
+  user_name: string | null
+  user_phone: string | null
+  user_address: string | null
 }
 
 export default function MyQuotesPage() {
@@ -46,6 +59,8 @@ export default function MyQuotesPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [paying, setPaying] = useState<string | null>(null)
+  const [payMethod, setPayMethod] = useState<Record<string, 'card' | 'bank'>>({})
+  const [bankTransferDone, setBankTransferDone] = useState<string | null>(null)
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
 
   useEffect(() => {
@@ -114,6 +129,34 @@ export default function MyQuotesPage() {
     } catch {
       setPaying(null)
     }
+  }
+
+  const handleBankTransfer = async (quote: Quote) => {
+    if (!quote.total_amount || !user) return
+    if (!confirm(`무통장 입금으로 결제하시겠습니까?\n\n은행: ${BANK_INFO.bank}\n계좌번호: ${BANK_INFO.account}\n예금주: ${BANK_INFO.holder}\n금액: ${quote.total_amount.toLocaleString()}원\n\n입금 후 관리자가 확인 후 처리됩니다.`)) return
+    setPaying(quote.id)
+    const supabase = createClient()
+
+    // orders 테이블에 입금 대기 주문 생성
+    const { data: newOrder } = await supabase.from('orders').insert({
+      user_id: quote.user_id ?? user.id,
+      user_email: quote.user_email ?? user.email,
+      user_name: quote.user_name,
+      user_phone: quote.user_phone,
+      user_address: quote.user_address,
+      total_amount: quote.total_amount,
+      status: 'pending',
+      memo: `무통장입금 견적 주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
+    }).select('id').single()
+
+    await supabase.from('quotes').update({
+      status: 'bank_transfer_pending',
+      order_id: newOrder?.id || null,
+    }).eq('id', quote.id)
+
+    setQuotes((prev) => prev.map((q) => q.id === quote.id ? { ...q, status: 'bank_transfer_pending' } : q))
+    setBankTransferDone(quote.id)
+    setPaying(null)
   }
 
   const cancelQuote = async (quoteId: string) => {
@@ -249,15 +292,94 @@ export default function MyQuotesPage() {
                       </div>
                     )}
 
-                    {/* 결제 버튼 */}
+                    {/* 결제 방법 선택 */}
                     {quote.status === 'quoted' && (
-                      <button
-                        onClick={() => handlePay(quote)}
-                        disabled={paying === quote.id}
-                        className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                      >
-                        {paying === quote.id ? '결제창 열는 중...' : `${quote.total_amount?.toLocaleString()}원 결제하기`}
-                      </button>
+                      <div className="space-y-3">
+                        {/* 결제 수단 탭 */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => setPayMethod((p) => ({ ...p, [quote.id]: 'card' }))}
+                            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${(payMethod[quote.id] ?? 'card') === 'card' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            카드 결제
+                          </button>
+                          <button
+                            onClick={() => setPayMethod((p) => ({ ...p, [quote.id]: 'bank' }))}
+                            className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${payMethod[quote.id] === 'bank' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          >
+                            <Building2 className="w-4 h-4" />
+                            무통장 입금
+                          </button>
+                        </div>
+
+                        {/* 무통장 입금 계좌 안내 */}
+                        {payMethod[quote.id] === 'bank' && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2 text-sm">
+                            <p className="font-bold text-orange-800">무통장 입금 계좌 안내</p>
+                            <div className="space-y-1 text-gray-700">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">은행</span>
+                                <span className="font-semibold">{BANK_INFO.bank}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">계좌번호</span>
+                                <span className="font-bold tracking-wider">{BANK_INFO.account}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">예금주</span>
+                                <span className="font-semibold">{BANK_INFO.holder}</span>
+                              </div>
+                              <div className="flex justify-between border-t border-orange-200 pt-2 mt-2">
+                                <span className="text-gray-500">입금 금액</span>
+                                <span className="font-bold text-orange-700 text-base">{quote.total_amount?.toLocaleString()}원</span>
+                              </div>
+                            </div>
+                            <p className="text-xs text-orange-600">입금 후 버튼을 눌러주세요. 관리자가 확인 후 작업을 진행합니다.</p>
+                          </div>
+                        )}
+
+                        {/* 결제 실행 버튼 */}
+                        {(payMethod[quote.id] ?? 'card') === 'card' ? (
+                          <button
+                            onClick={() => handlePay(quote)}
+                            disabled={paying === quote.id}
+                            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                          >
+                            {paying === quote.id ? '결제창 열는 중...' : `${quote.total_amount?.toLocaleString()}원 카드 결제하기`}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleBankTransfer(quote)}
+                            disabled={paying === quote.id}
+                            className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold hover:bg-orange-600 transition-colors disabled:opacity-50 text-sm"
+                          >
+                            {paying === quote.id ? '처리 중...' : '입금 완료했습니다'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 무통장 입금 대기 안내 */}
+                    {quote.status === 'bank_transfer_pending' && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2 text-sm">
+                        <p className="font-bold text-orange-800">입금 확인 중</p>
+                        <div className="space-y-1 text-gray-700">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">은행</span>
+                            <span className="font-semibold">{BANK_INFO.bank}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">계좌번호</span>
+                            <span className="font-bold tracking-wider">{BANK_INFO.account}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">예금주</span>
+                            <span className="font-semibold">{BANK_INFO.holder}</span>
+                          </div>
+                        </div>
+                        <p className="text-xs text-orange-600">관리자가 입금 확인 후 작업을 시작합니다.</p>
+                      </div>
                     )}
 
                     {/* 취소 버튼 */}

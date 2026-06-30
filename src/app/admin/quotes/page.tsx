@@ -16,6 +16,7 @@ const STATUS_CONFIG = {
   quoted: { label: '견적 발송완료', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
   paid: { label: '결제 완료', color: 'bg-green-100 text-green-700', icon: CreditCard },
   cancelled: { label: '취소', color: 'bg-red-100 text-red-600', icon: XCircle },
+  bank_transfer_pending: { label: '입금 확인중', color: 'bg-orange-100 text-orange-700', icon: Clock },
 }
 
 interface Quote {
@@ -37,6 +38,7 @@ interface Quote {
   unit_price: number | null
   total_amount: number | null
   admin_note: string | null
+  order_id: string | null
 }
 
 interface QuoteForm {
@@ -48,7 +50,7 @@ interface QuoteForm {
   adminNote: string
 }
 
-const TABS = ['pending', 'quoted', 'paid', 'cancelled'] as const
+const TABS = ['pending', 'quoted', 'bank_transfer_pending', 'paid', 'cancelled'] as const
 
 export default function AdminQuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([])
@@ -393,6 +395,35 @@ export default function AdminQuotesPage() {
                       )}
 
                       {/* 발송된 견적 내용 */}
+                      {/* 무통장 입금 확인 처리 */}
+                      {quote.status === 'bank_transfer_pending' && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 space-y-3">
+                          <p className="text-sm font-bold text-orange-800">무통장 입금 대기중</p>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-500">입금 금액</span>
+                              <span className="font-bold text-orange-700">{quote.total_amount?.toLocaleString()}원</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('입금을 확인하고 결제완료 처리하시겠습니까?')) return
+                              const supabase = createClient()
+                              // quotes 상태 paid로 변경
+                              await supabase.from('quotes').update({ status: 'paid' }).eq('id', quote.id)
+                              // 연결된 order도 paid로 변경
+                              if (quote.order_id) {
+                                await supabase.from('orders').update({ status: 'paid' }).eq('id', quote.order_id)
+                              }
+                              setQuotes((prev) => prev.map((q) => q.id === quote.id ? { ...q, status: 'paid' } : q))
+                            }}
+                            className="w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-orange-600 transition-colors"
+                          >
+                            입금 확인 완료 → 결제완료 처리
+                          </button>
+                        </div>
+                      )}
+
                       {(quote.status === 'quoted' || quote.status === 'paid') && quote.total_amount && (
                         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm">
                           <div className="flex items-center justify-between mb-3">
