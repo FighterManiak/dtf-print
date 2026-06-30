@@ -78,27 +78,29 @@ export default function MembersPage() {
     )
   })
 
-  if (loading) return <div className="flex items-center justify-center py-20 text-gray-400">불러오는 중...</div>
+  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">불러오는 중...</div>
 
   return (
-    <div className="max-w-full mx-auto px-6 py-10">
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">회원 관리</h1>
-      <p className="text-gray-500 text-sm mb-6">전체 가입 회원 목록입니다.</p>
+    <div className="min-h-screen bg-gray-50">
+    <div className="max-w-full mx-auto px-6 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">회원 관리</h1>
+        <p className="text-sm text-gray-500 mt-0.5">전체 가입 회원 목록 — 총 {filtered.length}명</p>
+      </div>
 
-      {error && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl mb-4">{error}</div>}
+      {error && <div className="bg-red-50 text-red-700 ring-1 ring-red-200 text-sm px-4 py-3 rounded-xl mb-4">{error}</div>}
 
-      {/* 검색 */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 mb-4 shadow-sm">
+        <Search className="w-4 h-4 text-gray-400 shrink-0" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="이름, 이메일, 전화번호, 회사명, 주소 검색"
-          className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400"
         />
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
         <table className="text-sm" style={{ minWidth: '1200px', width: '100%' }}>
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -191,11 +193,10 @@ export default function MembersPage() {
         </table>
 
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-400">회원이 없습니다.</div>
+          <div className="text-center py-12 text-gray-400 text-sm">회원이 없습니다.</div>
         )}
       </div>
-
-      <p className="text-xs text-gray-400 mt-3">총 {filtered.length}명</p>
+    </div>
     </div>
   )
 }

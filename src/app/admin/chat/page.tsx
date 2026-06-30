@@ -154,9 +154,9 @@ export default function AdminChatPage() {
   const displayRooms = tab === 'open' ? openRooms : closedRooms
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
+    <div className="flex h-[calc(100vh-64px)] bg-gray-50">
       {/* 채팅방 목록 */}
-      <div className="w-72 border-r border-gray-200 bg-white flex flex-col">
+      <div className="w-72 border-r border-gray-200 bg-white flex flex-col shadow-sm">
         {/* 탭 */}
         <div className="flex border-b border-gray-200">
           <button
@@ -188,9 +188,9 @@ export default function AdminChatPage() {
                 onClick={() => selectRoom(room)}
                 className="flex-1 text-left px-4 py-3 min-w-0"
               >
-                <div className="font-medium text-gray-800 text-sm truncate">{room.user_name || room.user_email}</div>
-                <div className="text-xs text-gray-400 truncate mt-0.5">{room.last_message || '새 문의'}</div>
-                <div className="text-xs text-gray-300 mt-0.5">
+                <div className="font-semibold text-gray-900 text-sm truncate">{room.user_name || room.user_email}</div>
+                <div className="text-xs text-gray-500 truncate mt-0.5">{room.last_message || '새 문의'}</div>
+                <div className="text-xs text-gray-400 mt-0.5">
                   {new Date(room.last_message_at).toLocaleDateString('ko-KR')}
                   {' '}
                   {new Date(room.last_message_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
@@ -220,10 +220,10 @@ export default function AdminChatPage() {
       {selectedRoom ? (
         <div className="flex-1 flex flex-col bg-gray-50">
           {/* 채팅 헤더 */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
             <div>
-              <div className="font-bold text-gray-800">{selectedRoom.user_name || selectedRoom.user_email}</div>
-              <div className="text-sm text-gray-400">{selectedRoom.user_email}{selectedRoom.user_phone ? ` · ${selectedRoom.user_phone}` : ''}</div>
+              <div className="font-bold text-gray-900">{selectedRoom.user_name || selectedRoom.user_email}</div>
+              <div className="text-sm text-gray-500">{selectedRoom.user_email}{selectedRoom.user_phone ? ` · ${selectedRoom.user_phone}` : ''}</div>
             </div>
             {selectedRoom.status === 'open' ? (
               <button
@@ -298,7 +298,7 @@ export default function AdminChatPage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-400">
+        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
           왼쪽에서 채팅방을 선택하세요
         </div>
       )}
