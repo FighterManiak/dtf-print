@@ -26,20 +26,11 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link
           href="/admin/quotes"
-          className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-400 hover:shadow-md transition-all"
+          className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-400 hover:shadow-md transition-all md:col-span-2"
         >
-          <FileText className="w-8 h-8 text-blue-600 mb-3" />
-          <h2 className="font-bold text-gray-800 text-lg mb-1">견적 관리</h2>
-          <p className="text-gray-500 text-sm">시안 파일 확인 → 출력 길이 확정 → 견적 발송</p>
-        </Link>
-
-        <Link
-          href="/admin/orders"
-          className="bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-md transition-all"
-        >
-          <ClipboardList className="w-8 h-8 text-blue-500 mb-3" />
+          <ClipboardList className="w-8 h-8 text-blue-600 mb-3" />
           <h2 className="font-bold text-gray-800 text-lg mb-1">주문 관리</h2>
-          <p className="text-gray-500 text-sm">주문 목록 확인, 상태 변경, 시안 파일 다운로드, 송장 입력</p>
+          <p className="text-gray-500 text-sm">견적 요청 검토 → 견적 발송 → 입금 확인 → 작업 진행 → 출고 · 배송완료까지 통합 관리</p>
         </Link>
 
         <Link
