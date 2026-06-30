@@ -89,17 +89,41 @@ export default function AdminQuotesPage() {
     if (!form.quantity || !form.unitPrice) { alert('수량과 단가를 입력하세요.'); return }
     setSending(quote.id)
     const supabase = createClient()
+    const total = calcTotal(form)
+    const cuttingPrice = form.cutting ? (parseInt(form.cuttingPrice) || 0) : 0
+
     await supabase.from('quotes').update({
       status: 'quoted',
       quoted_quantity: parseFloat(form.quantity),
       quoted_unit: form.unit,
       unit_price: parseInt(form.unitPrice),
       cutting: form.cutting,
-      cutting_price: form.cutting ? (parseInt(form.cuttingPrice) || 0) : 0,
-      total_amount: calcTotal(form),
+      cutting_price: cuttingPrice,
+      total_amount: total,
       admin_note: form.adminNote || null,
       quoted_at: new Date().toISOString(),
     }).eq('id', quote.id)
+
+    // 이메일 발송
+    if (quote.user_email) {
+      await fetch('/api/send-quote-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userEmail: quote.user_email,
+          userName: quote.user_name || '고객',
+          productType: PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type,
+          quantity: form.quantity,
+          unit: form.unit,
+          unitPrice: form.unitPrice,
+          cuttingPrice,
+          totalAmount: total,
+          adminNote: form.adminNote || '',
+          quoteId: quote.id,
+        }),
+      })
+    }
+
     await loadQuotes()
     setSending(null)
   }
