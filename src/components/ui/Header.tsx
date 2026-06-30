@@ -67,8 +67,7 @@ export default function Header() {
 
   const navItems = [
     { href: '/', label: '홈' },
-    { href: '/quote/request', label: '견적 요청' },
-    { href: '/order', label: '바로 주문' },
+    { href: '/order', label: '주문하기' },
     { href: '/my-quotes', label: '내 주문 현황' },
   ]
 
