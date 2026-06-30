@@ -42,25 +42,6 @@ function LoginContent() {
     if (error) { setError('구글 로그인 실패: ' + error.message); setLoading(false) }
   }
 
-  const signInWithKakao = async () => {
-    if (!isSupabaseConfigured()) { setError('Supabase가 설정되지 않았습니다.'); return }
-    setLoading(true); setError('')
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: { redirectTo: `${location.origin}/auth/callback?next=${redirect}` },
-    })
-    if (error) { setError('카카오 로그인 실패: ' + error.message); setLoading(false) }
-  }
-
-  const signInWithNaver = () => {
-    const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID
-    const callbackUrl = `${location.origin}/auth/callback/naver?next=${redirect}`
-    const state = Math.random().toString(36).substring(2)
-    sessionStorage.setItem('naver_oauth_state', state)
-    location.href = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(callbackUrl)}&state=${state}`
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -195,20 +176,6 @@ function LoginContent() {
           {/* 간편 로그인 탭 */}
           {tab === 'social' && (
             <div className="space-y-3">
-              <button
-                onClick={signInWithKakao}
-                className="w-full flex items-center justify-center gap-3 bg-[#FEE500] text-[#191919] font-bold py-3.5 rounded-xl hover:bg-[#f0d800] transition-colors"
-              >
-                <KakaoIcon />
-                카카오로 시작하기
-              </button>
-              <button
-                onClick={signInWithNaver}
-                className="w-full flex items-center justify-center gap-3 bg-[#03C75A] text-white font-bold py-3.5 rounded-xl hover:bg-[#02b350] transition-colors"
-              >
-                <NaverIcon />
-                네이버로 시작하기
-              </button>
               <button
                 onClick={signInWithGoogle}
                 className="w-full flex items-center justify-center gap-3 bg-white text-gray-700 font-bold py-3.5 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
@@ -435,22 +402,6 @@ export default function LoginPage() {
     <Suspense>
       <LoginContent />
     </Suspense>
-  )
-}
-
-function KakaoIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 3C6.477 3 2 6.477 2 10.5c0 2.632 1.568 4.935 3.938 6.313L4.875 21l4.688-2.813A10.63 10.63 0 0012 18c5.523 0 10-3.477 10-7.5S17.523 3 12 3z" />
-    </svg>
-  )
-}
-
-function NaverIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" />
-    </svg>
   )
 }
 
