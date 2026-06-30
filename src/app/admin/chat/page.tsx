@@ -205,10 +205,10 @@ export default function AdminChatPage() {
                     if (selectedRoom?.id === room.id) setSelectedRoom({ ...room, status: 'closed' })
                     await loadRooms()
                   }}
-                  className="shrink-0 mr-2 p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                  className="shrink-0 mr-2 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-bold"
                   title="문의 완료"
                 >
-                  <CheckCircle className="w-4 h-4" />
+                  완료
                 </button>
               )}
             </div>
