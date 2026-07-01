@@ -489,21 +489,20 @@ function AdminManagePageContent() {
                           : (d as DirectOrder).status
                         if (!orderStatus) return null
                         // orderId 없는 견적 paid → order 없으므로 직접 처리 불가 안내 대신 order 생성 후 진행
-                        if (item.type === 'quote' && !orderId && orderStatus === 'paid') {
+                        if (item.type === 'quote' && !orderId && ['paid', 'in_progress', 'shipped'].includes(orderStatus)) {
+                          const Q_NEXT: Record<string, string> = { paid: 'in_progress', in_progress: 'shipped', shipped: 'delivered' }
+                          const Q_LABEL: Record<string, string> = { paid: '작업 시작', in_progress: '출고 진행', shipped: '배송 완료 처리' }
+                          const Q_COLOR: Record<string, string> = { paid: 'bg-violet-600 hover:bg-violet-700', in_progress: 'bg-indigo-600 hover:bg-indigo-700', shipped: 'bg-green-600 hover:bg-green-700' }
                           const createAndGo = async (targetStatus: string, label: string) => {
                             if (!confirm(`${label} 처리하시겠습니까?`)) return
                             setProcessing(itemKey)
-                            // 1차: order 생성 포함 처리
                             let res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, targetStatus }) })
                             if (!res.ok) {
-                              // 2차 fallback: quote 상태만 직접 변경
-                              console.warn('[createAndGo] confirm-bank-transfer failed, trying quote-only update')
                               res = await fetch('/api/admin/update-quote-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, status: targetStatus }) })
                             }
                             if (res.ok) await loadAll()
                             else {
                               const errText = await res.text().catch(() => '')
-                              console.error('[createAndGo] final error', res.status, errText, 'quoteId:', d.id)
                               let errMsg = String(res.status)
                               try { errMsg = JSON.parse(errText).error || errMsg } catch {}
                               alert(`처리 중 오류가 발생했습니다.\n오류: ${errMsg}`)
@@ -512,14 +511,18 @@ function AdminManagePageContent() {
                           }
                           return (
                             <div className="space-y-2">
-                              <button onClick={() => createAndGo('in_progress', '작업 시작')} disabled={processing === itemKey}
-                                className="w-full bg-violet-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
-                                작업 시작 →
-                              </button>
-                              <button onClick={() => createAndGo('delivered', '바로 배송 완료')} disabled={processing === itemKey}
-                                className="w-full border border-green-300 text-green-700 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors disabled:opacity-50">
-                                바로 배송 완료 처리
-                              </button>
+                              {Q_NEXT[orderStatus] && (
+                                <button onClick={() => createAndGo(Q_NEXT[orderStatus], Q_LABEL[orderStatus])} disabled={processing === itemKey}
+                                  className={`w-full text-white py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${Q_COLOR[orderStatus]}`}>
+                                  {Q_LABEL[orderStatus]} →
+                                </button>
+                              )}
+                              {orderStatus !== 'shipped' && (
+                                <button onClick={() => createAndGo('delivered', '바로 배송 완료')} disabled={processing === itemKey}
+                                  className="w-full border border-green-300 text-green-700 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors disabled:opacity-50">
+                                  바로 배송 완료 처리
+                                </button>
+                              )}
                             </div>
                           )
                         }
