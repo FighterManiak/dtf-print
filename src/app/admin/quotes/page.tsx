@@ -414,6 +414,16 @@ function AdminManagePageContent() {
                               </div>
                               {quote.admin_note && <div className="flex gap-3"><span className="w-16 text-gray-500">메모</span><span className="text-gray-900">{quote.admin_note}</span></div>}
                             </div>
+                            {quote.status === 'quoted' && (
+                              <button onClick={async () => {
+                                if (!confirm('고객 미응답으로 취소 처리하시겠습니까?')) return
+                                const supabase = createClient()
+                                await supabase.from('quotes').update({ status: 'cancelled' }).eq('id', quote.id)
+                                await loadAll()
+                              }} className="mt-3 w-full border border-gray-300 text-gray-500 py-2 rounded-xl text-xs font-medium hover:bg-gray-50 hover:border-red-300 hover:text-red-500 transition-colors">
+                                고객 미응답 — 취소 처리
+                              </button>
+                            )}
                           </div>
                         )
                       })()}
