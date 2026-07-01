@@ -495,7 +495,10 @@ function AdminManagePageContent() {
                             setProcessing(itemKey)
                             const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, targetStatus }) })
                             if (res.ok) await loadAll()
-                            else alert('처리 중 오류가 발생했습니다.')
+                            else {
+                              const err = await res.json().catch(() => ({}))
+                              alert(`처리 중 오류가 발생했습니다.\n${err.error || res.status}\nquoteId: ${d.id}`)
+                            }
                             setProcessing(null)
                           }
                           return (
