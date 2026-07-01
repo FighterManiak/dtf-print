@@ -485,7 +485,7 @@ function AdminManagePageContent() {
                         const orderId = item.type === 'quote' ? (d as Quote).order_id : d.id
                         // 견적 주문: order_id 없어도 quote 자체 status가 paid면 버튼 표시
                         const orderStatus = item.type === 'quote'
-                          ? ((d as Quote).order?.status || ((d as Quote).status === 'paid' ? 'paid' : null))
+                          ? ((d as Quote).order?.status || (d as Quote).status || null)
                           : (d as DirectOrder).status
                         if (!orderStatus) return null
                         // orderId 없는 견적 paid → order 없으므로 직접 처리 불가 안내 대신 order 생성 후 진행
