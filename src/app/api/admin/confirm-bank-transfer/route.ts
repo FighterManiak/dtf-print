@@ -71,8 +71,14 @@ export async function POST(req: Request) {
     .single()
 
   if (orderError) {
-    console.error('[confirm-bank-transfer] order insert error:', orderError)
-    return NextResponse.json({ error: orderError.message }, { status: 500 })
+    // order 생성 실패 시 quote 상태만 직접 업데이트 (기존 데이터 호환)
+    console.error('[confirm-bank-transfer] order insert failed, updating quote status only:', orderError.message)
+    const { error: fallbackErr } = await supabaseAdmin
+      .from('quotes')
+      .update({ status: finalStatus })
+      .eq('id', quoteId)
+    if (fallbackErr) return NextResponse.json({ error: fallbackErr.message }, { status: 500 })
+    return NextResponse.json({ success: true, fallback: true })
   }
 
   const { error: quoteError } = await supabaseAdmin

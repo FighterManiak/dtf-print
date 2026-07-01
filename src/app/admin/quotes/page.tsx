@@ -493,14 +493,20 @@ function AdminManagePageContent() {
                           const createAndGo = async (targetStatus: string, label: string) => {
                             if (!confirm(`${label} 처리하시겠습니까?`)) return
                             setProcessing(itemKey)
-                            const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, targetStatus }) })
+                            // 1차: order 생성 포함 처리
+                            let res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, targetStatus }) })
+                            if (!res.ok) {
+                              // 2차 fallback: quote 상태만 직접 변경
+                              console.warn('[createAndGo] confirm-bank-transfer failed, trying quote-only update')
+                              res = await fetch('/api/admin/update-quote-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, status: targetStatus }) })
+                            }
                             if (res.ok) await loadAll()
                             else {
                               const errText = await res.text().catch(() => '')
-                              console.error('[createAndGo] error', res.status, errText, 'quoteId:', d.id)
+                              console.error('[createAndGo] final error', res.status, errText, 'quoteId:', d.id)
                               let errMsg = String(res.status)
                               try { errMsg = JSON.parse(errText).error || errMsg } catch {}
-                              alert(`처리 중 오류가 발생했습니다.\n오류: ${errMsg}\nquoteId: ${d.id}`)
+                              alert(`처리 중 오류가 발생했습니다.\n오류: ${errMsg}`)
                             }
                             setProcessing(null)
                           }
