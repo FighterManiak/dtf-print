@@ -486,10 +486,13 @@ function AdminManagePageContent() {
                         if (!orderStatus) return null
                         // orderId 없는 견적 paid → order 없으므로 직접 처리 불가 안내 대신 order 생성 후 진행
                         if (item.type === 'quote' && !orderId && orderStatus === 'paid') {
-                          const createAndGo = async (status: string, label: string) => {
+                          const createAndGo = async (targetStatus: string, label: string) => {
                             if (!confirm(`${label} 처리하시겠습니까?`)) return
-                            const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id }) })
-                            if (res.ok) { const { orderId: newId } = await res.json(); await updateOrderStatus(newId, status, itemKey) }
+                            setProcessing(itemKey)
+                            const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, targetStatus }) })
+                            if (res.ok) await loadAll()
+                            else alert('처리 중 오류가 발생했습니다.')
+                            setProcessing(null)
                           }
                           return (
                             <div className="space-y-2">

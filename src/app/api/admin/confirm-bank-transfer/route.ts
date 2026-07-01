@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { quoteId, orderId } = await req.json()
+  const { quoteId, orderId, targetStatus } = await req.json()
 
   if (!quoteId) {
     return NextResponse.json({ error: 'quoteId required' }, { status: 400 })
@@ -45,6 +45,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId: quote.order_id })
   }
 
+  const finalStatus = targetStatus || 'paid'
+
   const { data: newOrder, error: orderError } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -54,9 +56,9 @@ export async function POST(req: Request) {
       user_phone: quote.user_phone,
       user_address: quote.user_address,
       total_amount: quote.total_amount,
-      status: 'paid',
-      payment_method: 'bank_transfer',
-      memo: `견적 무통장 입금 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
+      status: finalStatus,
+      payment_method: quote.payment_method || 'bank_transfer',
+      memo: `견적 입금 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
     })
     .select('id')
     .single()
@@ -65,7 +67,7 @@ export async function POST(req: Request) {
 
   const { error: quoteError } = await supabaseAdmin
     .from('quotes')
-    .update({ status: 'paid', order_id: newOrder.id })
+    .update({ status: finalStatus, order_id: newOrder.id })
     .eq('id', quoteId)
 
   if (quoteError) return NextResponse.json({ error: quoteError.message }, { status: 500 })
