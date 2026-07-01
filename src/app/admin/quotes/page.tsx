@@ -527,7 +527,7 @@ function AdminManagePageContent() {
                         if (!['paid', 'in_progress', 'shipped', 'refund_requested'].includes(orderStatus)) return null
 
                         const NEXT: Record<string, string> = { paid: 'in_progress', in_progress: 'shipped', shipped: 'delivered' }
-                        const NEXT_LABEL: Record<string, string> = { paid: '작업 시작', in_progress: '출고 처리', shipped: '배송 완료 처리' }
+                        const NEXT_LABEL: Record<string, string> = { paid: '작업 시작', in_progress: '출고 진행 →', shipped: '배송 완료 처리' }
                         const NEXT_COLOR: Record<string, string> = { paid: 'bg-violet-600 hover:bg-violet-700', in_progress: 'bg-indigo-600 hover:bg-indigo-700', shipped: 'bg-green-600 hover:bg-green-700' }
 
                         return (
