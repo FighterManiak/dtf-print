@@ -75,10 +75,10 @@ export default function AdminPage() {
   ]
 
   const monthCards = [
-    { label: '전체 주문', value: loading ? '—' : `${stats.total}건`, icon: ClipboardList, color: 'text-gray-500' },
-    { label: '작업 중', value: loading ? '—' : `${stats.inProgress}건`, icon: Package, color: 'text-blue-500' },
-    { label: '입금 확인 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500' },
-    { label: '이번 달 매출', value: loading ? '—' : `${stats.monthRevenue.toLocaleString()}원`, icon: TrendingUp, color: 'text-indigo-500' },
+    { label: '전체 주문', value: loading ? '—' : `${stats.total}건`, icon: ClipboardList, color: 'text-gray-500', href: '/admin/quotes' },
+    { label: '작업 중', value: loading ? '—' : `${stats.inProgress}건`, icon: Package, color: 'text-blue-500', href: '/admin/quotes?status=in_progress' },
+    { label: '입금 확인 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', href: '/admin/quotes?status=bank_transfer_pending' },
+    { label: '이번 달 매출', value: loading ? '—' : `${stats.monthRevenue.toLocaleString()}원`, icon: TrendingUp, color: 'text-indigo-500', href: '/admin/quotes' },
   ]
 
   return (
@@ -111,12 +111,12 @@ export default function AdminPage() {
         <div className="mt-6 mb-8">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">누적 현황</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {monthCards.map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="bg-white border border-gray-200 rounded-xl p-4">
+            {monthCards.map(({ label, value, icon: Icon, color, href }) => (
+              <Link key={label} href={href} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
                 <Icon className={`w-5 h-5 ${color} mb-2`} />
                 <div className="text-xl font-bold text-gray-800">{value}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
