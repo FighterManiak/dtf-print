@@ -486,15 +486,22 @@ function AdminManagePageContent() {
                         if (!orderStatus) return null
                         // orderId 없는 견적 paid → order 없으므로 직접 처리 불가 안내 대신 order 생성 후 진행
                         if (item.type === 'quote' && !orderId && orderStatus === 'paid') {
+                          const createAndGo = async (status: string, label: string) => {
+                            if (!confirm(`${label} 처리하시겠습니까?`)) return
+                            const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id }) })
+                            if (res.ok) { const { orderId: newId } = await res.json(); await updateOrderStatus(newId, status, itemKey) }
+                          }
                           return (
-                            <button onClick={async () => {
-                              if (!confirm('작업 시작 처리하시겠습니까?')) return
-                              const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id }) })
-                              if (res.ok) { const { orderId: newId } = await res.json(); await updateOrderStatus(newId, 'in_progress', itemKey) }
-                            }} disabled={processing === itemKey}
-                              className="w-full bg-violet-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
-                              작업 시작 →
-                            </button>
+                            <div className="space-y-2">
+                              <button onClick={() => createAndGo('in_progress', '작업 시작')} disabled={processing === itemKey}
+                                className="w-full bg-violet-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
+                                작업 시작 →
+                              </button>
+                              <button onClick={() => createAndGo('delivered', '바로 배송 완료')} disabled={processing === itemKey}
+                                className="w-full border border-green-300 text-green-700 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors disabled:opacity-50">
+                                바로 배송 완료 처리
+                              </button>
+                            </div>
                           )
                         }
                         if (!orderId) return null
