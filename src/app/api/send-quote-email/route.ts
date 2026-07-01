@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 

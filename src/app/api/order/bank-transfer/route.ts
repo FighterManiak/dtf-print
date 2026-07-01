@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
@@ -11,7 +12,6 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   const { orderName, customer, cart, totalAmount, paymentMethod } = await req.json()
 
-  // 로그인 유저 확인
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +20,6 @@ export async function POST(req: Request) {
   )
   const { data: { user } } = await supabase.auth.getUser()
 
-  // orders 테이블에 주문 생성 (status: pending = 입금 대기)
   const { data: newOrder, error: orderErr } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -42,7 +41,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: orderErr?.message || 'order insert failed' }, { status: 500 })
   }
 
-  // order_items 저장
   const items = cart.map((item: {
     productId: string
     quantity: number

@@ -1,3 +1,4 @@
+﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
@@ -6,7 +7,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024 // 1GB (Supabase 무료 플랜)
+const STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024 // 1GB (Supabase 臾대즺 ?뚮옖)
 
 async function listAllFiles(bucket: string, folder = ''): Promise<number> {
   const { data, error } = await supabaseAdmin.storage.from(bucket).list(folder, {
@@ -20,7 +21,7 @@ async function listAllFiles(bucket: string, folder = ''): Promise<number> {
     if (item.metadata?.size) {
       total += item.metadata.size
     } else if (!item.metadata) {
-      // 폴더인 경우 재귀 탐색
+      // ?대뜑??寃쎌슦 ?ш? ?먯깋
       const path = folder ? `${folder}/${item.name}` : item.name
       total += await listAllFiles(bucket, path)
     }
@@ -30,7 +31,7 @@ async function listAllFiles(bucket: string, folder = ''): Promise<number> {
 
 export async function GET() {
   try {
-    // 사용 중인 버킷 목록
+    // ?ъ슜 以묒씤 踰꾪궥 紐⑸줉
     const { data: buckets } = await supabaseAdmin.storage.listBuckets()
     const bucketNames = (buckets || []).map((b) => b.name)
 
@@ -53,3 +54,4 @@ export async function GET() {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
+

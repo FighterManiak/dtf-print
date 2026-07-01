@@ -1,3 +1,4 @@
+﻿export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: data.message }, { status: 400 })
   }
 
-  // DB order를 paid로 업데이트 (카드 결제 성공)
+  // DB order瑜?paid濡??낅뜲?댄듃 (移대뱶 寃곗젣 ?깃났)
   if (dbOrderId) {
     await supabaseAdmin
       .from('orders')
@@ -37,3 +38,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ success: true, data })
 }
+

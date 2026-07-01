@@ -1,7 +1,7 @@
+export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// 서비스 롤 키로 RLS 우회
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -14,7 +14,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'quoteId required' }, { status: 400 })
   }
 
-  // 이미 order가 있으면 상태만 변경
   if (orderId) {
     const { error: orderError } = await supabaseAdmin
       .from('orders')
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId })
   }
 
-  // order가 없는 경우 (견적 무통장 입금) → 견적 정보 조회 후 order 생성
   const { data: quote, error: quoteErr } = await supabaseAdmin
     .from('quotes')
     .select('*')
@@ -40,7 +38,6 @@ export async function POST(req: Request) {
 
   if (quoteErr || !quote) return NextResponse.json({ error: 'quote not found' }, { status: 404 })
 
-  // 중복 방지
   if (quote.status === 'paid' && quote.order_id) {
     return NextResponse.json({ success: true, orderId: quote.order_id })
   }
@@ -71,7 +68,6 @@ export async function POST(req: Request) {
     .single()
 
   if (orderError) {
-    // order 생성 실패 시 quote 상태만 직접 업데이트 (기존 데이터 호환)
     console.error('[confirm-bank-transfer] order insert failed, updating quote status only:', orderError.message)
     const { error: fallbackErr } = await supabaseAdmin
       .from('quotes')

@@ -1,3 +1,4 @@
+﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     user_address: quote.user_address,
     total_amount: quote.total_amount,
     status: 'pending',
-    memo: `무통장입금 견적 주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
+    memo: `臾댄넻?μ엯湲?寃ъ쟻 二쇰Ц (${quote.product_type})${quote.admin_note ? ' 쨌 ' + quote.admin_note : ''}`,
   }).select('id').single()
 
   if (orderErr) return NextResponse.json({ error: orderErr.message }, { status: 500 })
@@ -33,3 +34,4 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ success: true })
 }
+
