@@ -2,8 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, AlertCircle, CreditCard, ShoppingCart, DollarSign } from 'lucide-react'
+import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, AlertCircle, CreditCard, ShoppingCart, DollarSign, HardDrive } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+}
+
+interface StorageStats {
+  totalUsed: number
+  totalLimit: number
+  usedPercent: number
+  buckets: { name: string; size: number }[]
+}
 
 interface Stats {
   total: number
@@ -17,6 +31,8 @@ interface Stats {
 }
 
 export default function AdminPage() {
+  const [storage, setStorage] = useState<StorageStats | null>(null)
+
   const [stats, setStats] = useState<Stats>({
     total: 0, inProgress: 0, monthRevenue: 0,
     todayOrders: 0, todayRevenue: 0, todayShipped: 0, pendingQuotes: 0, pendingPayment: 0,
@@ -51,6 +67,9 @@ export default function AdminPage() {
         // 입금 확인 대기
         supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'quoted'),
       ])
+
+      // 스토리지 통계 (병렬)
+      fetch('/api/admin/storage-stats').then((r) => r.json()).then((s) => { if (!s.error) setStorage(s) })
 
       setStats({
         total: totalRes.count || 0,
@@ -155,6 +174,65 @@ export default function AdminPage() {
             <TrendingUp className="w-8 h-8 text-gray-400 mb-3" />
             <h2 className="font-bold text-gray-500 text-lg mb-1">매출 통계</h2>
             <p className="text-gray-400 text-sm">준비 중</p>
+          </div>
+
+          {/* 스토리지 현황 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 md:col-span-2">
+            <div className="flex items-center gap-3 mb-4">
+              <HardDrive className="w-6 h-6 text-gray-500" />
+              <h2 className="font-bold text-gray-800 text-lg">스토리지 현황</h2>
+              <span className="text-xs text-gray-400 ml-auto">Supabase 무료 플랜 · 1GB 한도</span>
+            </div>
+            {!storage ? (
+              <div className="text-sm text-gray-400">불러오는 중...</div>
+            ) : (
+              <>
+                {/* 전체 프로그레스바 */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1.5">
+                    <span className="font-semibold text-gray-700">
+                      {storage.usedPercent}% 사용 중
+                    </span>
+                    <span className="text-gray-500">
+                      {formatBytes(storage.totalUsed)} / {formatBytes(storage.totalLimit)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-3 rounded-full transition-all ${
+                        storage.usedPercent >= 90 ? 'bg-red-500' :
+                        storage.usedPercent >= 70 ? 'bg-orange-400' : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${Math.min(storage.usedPercent, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>여유 공간: <span className="font-semibold text-gray-600">{formatBytes(storage.totalLimit - storage.totalUsed)}</span></span>
+                    {storage.usedPercent >= 80 && (
+                      <span className="text-orange-500 font-semibold">⚠ 용량 부족 주의</span>
+                    )}
+                  </div>
+                </div>
+                {/* 버킷별 상세 */}
+                {storage.buckets.length > 0 && (
+                  <div className="border-t border-gray-100 pt-3 space-y-2">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">버킷별 사용량</p>
+                    {storage.buckets.map((b) => (
+                      <div key={b.name} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600 w-36 truncate">{b.name}</span>
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="h-1.5 rounded-full bg-blue-400"
+                            style={{ width: `${Math.min((b.size / storage.totalLimit) * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500 w-16 text-right">{formatBytes(b.size)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
