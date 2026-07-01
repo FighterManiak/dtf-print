@@ -42,6 +42,7 @@ const TABS = [
 interface OrderInfo {
   id: string; status: string; carrier: string | null
   tracking_number: string | null; refund_reason: string | null
+  payment_method: string | null
 }
 interface Quote {
   id: string; created_at: string; status: string
@@ -95,7 +96,7 @@ function AdminManagePageContent() {
     const orderIds = (quotesData || []).map((q) => q.order_id).filter(Boolean) as string[]
     let ordersMap: Record<string, OrderInfo> = {}
     if (orderIds.length > 0) {
-      const { data: linked } = await supabase.from('orders').select('id,status,carrier,tracking_number,refund_reason').in('id', orderIds)
+      const { data: linked } = await supabase.from('orders').select('id,status,carrier,tracking_number,refund_reason,payment_method').in('id', orderIds)
       if (linked) linked.forEach((o) => { ordersMap[o.id] = o })
     }
     const quoteItems: Item[] = (quotesData || []).map((q) => ({ type: 'quote' as const, data: { ...q, order: q.order_id ? (ordersMap[q.order_id] ?? null) : null } }))
@@ -258,6 +259,12 @@ function AdminManagePageContent() {
                         {item.type === 'quote' && <span className="text-xs text-gray-400">{PRODUCT_TYPE_LABEL[(d as Quote).product_type]}</span>}
                         <span className="text-xs text-gray-400">{new Date(d.created_at).toLocaleDateString('ko-KR')} {new Date(d.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                         {d.total_amount && <span className="text-xs font-bold text-blue-600">{d.total_amount.toLocaleString()}원</span>}
+                        {(() => {
+                          const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
+                          if (!pm) return null
+                          const isBank = pm === 'bank_transfer'
+                          return <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${isBank ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>{isBank ? '무통장' : '카드'}</span>
+                        })()}
                         {d.user_phone && <span className="text-xs text-gray-400">{d.user_phone}</span>}
                         {/* 송장 미리보기 */}
                         {(() => {
@@ -283,6 +290,12 @@ function AdminManagePageContent() {
                             <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">연락처</span><span className="text-gray-900">{d.user_phone || '—'}</span></div>
                             <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">이메일</span><span className="text-gray-900 break-all">{d.user_email || '—'}</span></div>
                             <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">주소</span><span className="text-gray-900">{d.user_address || '—'}</span></div>
+                            {(() => {
+                              const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
+                              if (!pm) return null
+                              const isBank = pm === 'bank_transfer'
+                              return <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">결제</span><span className={`font-semibold ${isBank ? 'text-orange-600' : 'text-blue-600'}`}>{isBank ? '🏦 무통장 입금' : '💳 카드 결제'}</span></div>
+                            })()}
                           </div>
                         </div>
                         <div className="rounded-xl border border-gray-200 p-4">
