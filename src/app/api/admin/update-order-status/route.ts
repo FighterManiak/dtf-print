@@ -16,13 +16,18 @@ export async function POST(req: Request) {
   const updateData: Record<string, unknown> = { status }
   if (refund_reason !== undefined) updateData.refund_reason = refund_reason
 
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('orders')
     .update(updateData)
     .eq('id', orderId)
+    .select('id')
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: `orders 테이블에 해당 ID 없음: ${orderId}` }, { status: 404 })
   }
 
   return NextResponse.json({ success: true })
