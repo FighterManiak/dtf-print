@@ -263,7 +263,14 @@ export default function ChatWidget() {
                 <input
                   type="tel"
                   value={guestInfo.phone}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, phone: e.target.value }))}
+                  onChange={(e) => {
+                    const n = e.target.value.replace(/[^0-9]/g, '')
+                    let formatted = n
+                    if (n.length <= 3) formatted = n
+                    else if (n.length <= 7) formatted = `${n.slice(0,3)}-${n.slice(3)}`
+                    else formatted = `${n.slice(0,3)}-${n.slice(3,7)}-${n.slice(7,11)}`
+                    setGuestInfo((p) => ({ ...p, phone: formatted }))
+                  }}
                   placeholder="010-0000-0000"
                   required
                   inputMode="numeric"
