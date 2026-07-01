@@ -477,8 +477,25 @@ function AdminManagePageContent() {
                       {/* 결제 후 작업 진행 */}
                       {(() => {
                         const orderId = item.type === 'quote' ? (d as Quote).order_id : d.id
-                        const orderStatus = item.type === 'quote' ? (d as Quote).order?.status : (d as DirectOrder).status
-                        if (!orderId || !orderStatus) return null
+                        // 견적 주문: order_id 없어도 quote 자체 status가 paid면 버튼 표시
+                        const orderStatus = item.type === 'quote'
+                          ? ((d as Quote).order?.status || ((d as Quote).status === 'paid' ? 'paid' : null))
+                          : (d as DirectOrder).status
+                        if (!orderStatus) return null
+                        // orderId 없는 견적 paid → order 없으므로 직접 처리 불가 안내 대신 order 생성 후 진행
+                        if (item.type === 'quote' && !orderId && orderStatus === 'paid') {
+                          return (
+                            <button onClick={async () => {
+                              if (!confirm('작업 시작 처리하시겠습니까?')) return
+                              const res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id }) })
+                              if (res.ok) { const { orderId: newId } = await res.json(); await updateOrderStatus(newId, 'in_progress', itemKey) }
+                            }} disabled={processing === itemKey}
+                              className="w-full bg-violet-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
+                              작업 시작 →
+                            </button>
+                          )
+                        }
+                        if (!orderId) return null
                         if (!['paid', 'in_progress', 'shipped', 'refund_requested'].includes(orderStatus)) return null
 
                         const NEXT: Record<string, string> = { paid: 'in_progress', in_progress: 'shipped', shipped: 'delivered' }
