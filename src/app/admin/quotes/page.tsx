@@ -130,7 +130,11 @@ function AdminManagePageContent() {
 
   const updateOrderStatus = async (orderId: string, status: string, itemKey?: string) => {
     setProcessing(itemKey || orderId)
-    await fetch('/api/admin/update-order-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId, status }) })
+    const res = await fetch('/api/admin/update-order-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId, status }) })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert(`상태 변경 실패: ${err.error || res.status}\norderId: ${orderId}`)
+    }
     await loadAll(); setProcessing(null)
   }
 
