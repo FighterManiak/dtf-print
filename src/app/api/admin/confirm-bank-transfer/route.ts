@@ -47,23 +47,33 @@ export async function POST(req: Request) {
 
   const finalStatus = targetStatus || 'paid'
 
+  console.log('[confirm-bank-transfer] inserting order for quote:', quoteId, {
+    user_id: quote.user_id,
+    total_amount: quote.total_amount,
+    payment_method: quote.payment_method,
+    finalStatus,
+  })
+
   const { data: newOrder, error: orderError } = await supabaseAdmin
     .from('orders')
     .insert({
       user_id: quote.user_id,
-      user_email: quote.user_email,
-      user_name: quote.user_name,
-      user_phone: quote.user_phone,
-      user_address: quote.user_address,
-      total_amount: quote.total_amount,
+      user_email: quote.user_email || '',
+      user_name: quote.user_name || '',
+      user_phone: quote.user_phone || '',
+      user_address: quote.user_address || '',
+      total_amount: quote.total_amount ?? 0,
       status: finalStatus,
       payment_method: quote.payment_method || 'bank_transfer',
-      memo: `견적 입금 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
+      memo: `견적 입금 (${quote.product_type || ''})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,
     })
     .select('id')
     .single()
 
-  if (orderError) return NextResponse.json({ error: orderError.message }, { status: 500 })
+  if (orderError) {
+    console.error('[confirm-bank-transfer] order insert error:', orderError)
+    return NextResponse.json({ error: orderError.message }, { status: 500 })
+  }
 
   const { error: quoteError } = await supabaseAdmin
     .from('quotes')
