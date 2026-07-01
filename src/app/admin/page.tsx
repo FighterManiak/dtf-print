@@ -8,18 +8,18 @@ import { createClient } from '@/lib/supabase-browser'
 interface Stats {
   total: number
   inProgress: number
-  shipped: number
   monthRevenue: number
   todayOrders: number
   todayRevenue: number
+  todayShipped: number
   pendingQuotes: number
   pendingPayment: number
 }
 
 export default function AdminPage() {
   const [stats, setStats] = useState<Stats>({
-    total: 0, inProgress: 0, shipped: 0, monthRevenue: 0,
-    todayOrders: 0, todayRevenue: 0, pendingQuotes: 0, pendingPayment: 0,
+    total: 0, inProgress: 0, monthRevenue: 0,
+    todayOrders: 0, todayRevenue: 0, todayShipped: 0, pendingQuotes: 0, pendingPayment: 0,
   })
   const [loading, setLoading] = useState(true)
 
@@ -31,34 +31,34 @@ export default function AdminPage() {
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
 
       const [
-        totalRes, inProgressRes, shippedRes, monthRevenueRes,
-        todayOrdersRes, todayRevenueRes, pendingQuotesRes, pendingPaymentRes,
+        totalRes, inProgressRes, monthRevenueRes,
+        todayOrdersRes, todayRevenueRes, todayShippedRes, pendingQuotesRes, pendingPaymentRes,
       ] = await Promise.all([
         // 전체 주문
         supabase.from('orders').select('id', { count: 'exact', head: true }),
         // 작업 중
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
-        // 출고 완료
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'shipped'),
-        // 이번 달 매출 (paid + in_progress + shipped + delivered)
+        // 이번 달 매출
         supabase.from('orders').select('total_amount').in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', monthStart),
         // 오늘 주문 수
         supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart),
         // 오늘 매출
         supabase.from('orders').select('total_amount').in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', todayStart),
-        // 견적 검토 대기 (quotes 테이블, status: pending)
+        // 오늘 출고 완료
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'shipped').gte('updated_at', todayStart),
+        // 견적 검토 대기
         supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        // 입금 확인 대기 (quotes 테이블, status: quote_sent = 견적 발송 후 입금 대기)
-        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'quote_sent'),
+        // 입금 확인 대기
+        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'quoted'),
       ])
 
       setStats({
         total: totalRes.count || 0,
         inProgress: inProgressRes.count || 0,
-        shipped: shippedRes.count || 0,
         monthRevenue: (monthRevenueRes.data || []).reduce((s, o) => s + (o.total_amount || 0), 0),
         todayOrders: todayOrdersRes.count || 0,
         todayRevenue: (todayRevenueRes.data || []).reduce((s, o) => s + (o.total_amount || 0), 0),
+        todayShipped: todayShippedRes.count || 0,
         pendingQuotes: pendingQuotesRes.count || 0,
         pendingPayment: pendingPaymentRes.count || 0,
       })
@@ -67,19 +67,17 @@ export default function AdminPage() {
     load()
   }, [])
 
-  const v = (n: number | string) => loading ? '—' : (typeof n === 'number' ? n : n)
-
   const todayCards = [
-    { label: '오늘 주문', value: loading ? '—' : `${stats.todayOrders}건`, icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
-    { label: '오늘 매출', value: loading ? '—' : `${stats.todayRevenue.toLocaleString()}원`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-    { label: '견적 검토 대기', value: loading ? '—' : `${stats.pendingQuotes}건`, icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-100', urgent: !loading && stats.pendingQuotes > 0 },
-    { label: '입금 확인 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', bg: 'bg-violet-50', border: 'border-violet-100', urgent: !loading && stats.pendingPayment > 0 },
+    { label: '오늘 주문', value: loading ? '—' : `${stats.todayOrders}건`, icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-50', href: '/admin/quotes' },
+    { label: '오늘 매출', value: loading ? '—' : `${stats.todayRevenue.toLocaleString()}원`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50', href: '/admin/quotes' },
+    { label: '오늘 출고 완료', value: loading ? '—' : `${stats.todayShipped}건`, icon: Truck, color: 'text-green-500', bg: 'bg-green-50', href: '/admin/quotes?status=shipped' },
+    { label: '견적 검토 대기', value: loading ? '—' : `${stats.pendingQuotes}건`, icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', href: '/admin/quotes?status=pending', urgent: !loading && stats.pendingQuotes > 0 },
   ]
 
   const monthCards = [
     { label: '전체 주문', value: loading ? '—' : `${stats.total}건`, icon: ClipboardList, color: 'text-gray-500' },
     { label: '작업 중', value: loading ? '—' : `${stats.inProgress}건`, icon: Package, color: 'text-blue-500' },
-    { label: '출고 완료', value: loading ? '—' : `${stats.shipped}건`, icon: Truck, color: 'text-green-500' },
+    { label: '입금 확인 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500' },
     { label: '이번 달 매출', value: loading ? '—' : `${stats.monthRevenue.toLocaleString()}원`, icon: TrendingUp, color: 'text-indigo-500' },
   ]
 
@@ -95,9 +93,9 @@ export default function AdminPage() {
         <div className="mb-2">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">오늘 현황</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {todayCards.map(({ label, value, icon: Icon, color, bg, border, urgent }) => (
-              <Link key={label} href="/admin/quotes"
-                className={`bg-white border rounded-xl p-4 hover:shadow-md transition-all relative ${urgent ? 'border-orange-300 ring-2 ring-orange-200' : `border-gray-200`}`}>
+            {todayCards.map(({ label, value, icon: Icon, color, bg, href, urgent }) => (
+              <Link key={label} href={href}
+                className={`bg-white border rounded-xl p-4 hover:shadow-md transition-all relative ${urgent ? 'border-orange-300 ring-2 ring-orange-200' : 'border-gray-200'}`}>
                 {urgent && <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse" />}
                 <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center mb-3`}>
                   <Icon className={`w-5 h-5 ${color}`} />

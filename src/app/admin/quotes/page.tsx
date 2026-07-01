@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, ChevronUp, Send, Truck, Package, RotateCcw, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 
@@ -70,10 +71,11 @@ function getEffectiveStatus(item: Item): string {
   return item.data.status === 'pending' ? 'order_pending' : item.data.status
 }
 
-export default function AdminManagePage() {
+function AdminManagePageContent() {
+  const searchParams = useSearchParams()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<string>('all')
+  const [tab, setTab] = useState<string>(searchParams.get('status') || 'all')
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [forms, setForms] = useState<Record<string, QuoteForm>>({})
@@ -547,4 +549,8 @@ export default function AdminManagePage() {
       </div>
     </div>
   )
+}
+
+export default function AdminManagePage() {
+  return <Suspense><AdminManagePageContent /></Suspense>
 }
