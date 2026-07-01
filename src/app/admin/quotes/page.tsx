@@ -86,6 +86,8 @@ function AdminManagePageContent() {
   const [carrierInputs, setCarrierInputs] = useState<Record<string, string>>({})
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [memoInputs, setMemoInputs] = useState<Record<string, string>>({})
+  const [memoSaving, setMemoSaving] = useState<string | null>(null)
 
   useEffect(() => { loadAll() }, [])
 
@@ -573,6 +575,69 @@ function AdminManagePageContent() {
                                 주문 취소
                               </button>
                             )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* 진행 관리 메모 */}
+                      {(() => {
+                        const memoKey = `${item.type}-${d.id}`
+                        const existingMemo = item.type === 'quote' ? (d as Quote).admin_note : (d as DirectOrder).memo
+                        const memoLines = existingMemo ? existingMemo.split('\n').filter(Boolean) : []
+                        return (
+                          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">진행 관리 내역</p>
+                            {memoLines.length > 0 ? (
+                              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                {memoLines.map((line, i) => {
+                                  const match = line.match(/^\[(.+?)\] (.+)$/)
+                                  return match ? (
+                                    <div key={i} className="flex gap-2 text-xs">
+                                      <span className="text-gray-400 shrink-0">{match[1]}</span>
+                                      <span className="text-gray-700">{match[2]}</span>
+                                    </div>
+                                  ) : (
+                                    <div key={i} className="text-xs text-gray-600">{line}</div>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-400">기록된 내역이 없습니다.</p>
+                            )}
+                            <div className="flex gap-2 pt-1 border-t border-gray-200">
+                              <input
+                                type="text"
+                                value={memoInputs[memoKey] || ''}
+                                onChange={(e) => setMemoInputs((p) => ({ ...p, [memoKey]: e.target.value }))}
+                                onKeyDown={async (e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault()
+                                    const memo = memoInputs[memoKey]?.trim()
+                                    if (!memo) return
+                                    setMemoSaving(memoKey)
+                                    const res = await fetch('/api/admin/save-memo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: item.type, id: d.id, memo, existing: existingMemo }) })
+                                    if (res.ok) { setMemoInputs((p) => ({ ...p, [memoKey]: '' })); await loadAll() }
+                                    setMemoSaving(null)
+                                  }
+                                }}
+                                placeholder="내역 입력 후 Enter"
+                                className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400"
+                              />
+                              <button
+                                onClick={async () => {
+                                  const memo = memoInputs[memoKey]?.trim()
+                                  if (!memo) return
+                                  setMemoSaving(memoKey)
+                                  const res = await fetch('/api/admin/save-memo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: item.type, id: d.id, memo, existing: existingMemo }) })
+                                  if (res.ok) { setMemoInputs((p) => ({ ...p, [memoKey]: '' })); await loadAll() }
+                                  setMemoSaving(null)
+                                }}
+                                disabled={memoSaving === memoKey || !memoInputs[memoKey]?.trim()}
+                                className="shrink-0 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors disabled:opacity-40"
+                              >
+                                {memoSaving === memoKey ? '...' : '저장'}
+                              </button>
+                            </div>
                           </div>
                         )
                       })()}
