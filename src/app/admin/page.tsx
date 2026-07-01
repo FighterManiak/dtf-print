@@ -40,8 +40,8 @@ export default function AdminPage() {
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
         // 이번 달 매출
         supabase.from('orders').select('total_amount').in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', monthStart),
-        // 오늘 주문 수
-        supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart),
+        // 오늘 결제 완료 주문 수
+        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', todayStart),
         // 오늘 매출
         supabase.from('orders').select('total_amount').in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', todayStart),
         // 오늘 출고 완료
