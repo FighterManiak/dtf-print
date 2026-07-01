@@ -528,7 +528,12 @@ function AdminManagePageContent() {
                               </button>
                             )}
                             {orderStatus === 'paid' && (
-                              <button onClick={async () => { if (confirm('배송 완료로 바로 처리하시겠습니까?')) await updateOrderStatus(orderId, 'delivered', itemKey) }}
+                              <button onClick={async () => {
+                                console.log('[배송완료] orderId:', orderId, 'orderStatus:', orderStatus, 'itemType:', item.type)
+                                if (confirm(`배송 완료로 바로 처리하시겠습니까?\n(orderId: ${orderId})`)) {
+                                  await updateOrderStatus(orderId, 'delivered', itemKey)
+                                }
+                              }}
                                 disabled={processing === itemKey}
                                 className="w-full border border-green-300 text-green-700 py-2.5 rounded-xl text-sm font-medium hover:bg-green-50 transition-colors disabled:opacity-50">
                                 바로 배송 완료 처리
