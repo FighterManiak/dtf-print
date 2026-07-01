@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
 export async function POST(req: NextRequest) {
-  const { paymentKey, orderId, amount, orderName } = await req.json()
-  void orderName // 향후 orders 저장 시 활용
+  const { paymentKey, orderId, amount, orderName, dbOrderId } = await req.json()
+  void orderName
 
   const res = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
     method: 'POST',
@@ -19,6 +25,14 @@ export async function POST(req: NextRequest) {
 
   if (!res.ok) {
     return NextResponse.json({ success: false, message: data.message }, { status: 400 })
+  }
+
+  // DB order를 paid로 업데이트 (카드 결제 성공)
+  if (dbOrderId) {
+    await supabaseAdmin
+      .from('orders')
+      .update({ status: 'paid', payment_method: 'CARD', payment_key: paymentKey })
+      .eq('id', dbOrderId)
   }
 
   return NextResponse.json({ success: true, data })

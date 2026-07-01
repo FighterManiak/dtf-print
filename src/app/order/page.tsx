@@ -131,15 +131,32 @@ function OrderPageContent() {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      const orderId = `ORDER-${Date.now()}`
+
+      // 결제 전 DB에 order 생성 (pending) → 성공 시 paid로 업데이트
+      const displayName = orderName.trim() || (cart.length === 1 ? ALL_PRODUCTS.find(p=>p.id===cart[0].productId)?.name || cart[0].productId : `${ALL_PRODUCTS.find(p=>p.id===cart[0].productId)?.name || cart[0].productId} 외 ${cart.length-1}개`)
+      const res = await fetch('/api/order/bank-transfer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderName: displayName, customer,
+          cart: cart.map((item) => {
+            const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
+            const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
+            return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
+          }),
+          totalAmount, paymentMethod: 'CARD',
+        }),
+      })
+      const { orderId: dbOrderId } = await res.json()
+
       const toss = await loadTossPayments(TOSS_CLIENT_KEY)
       const payment = toss.payment({ customerKey: user?.id || 'GUEST' })
       await payment.requestPayment({
-        method: 'CARD', amount: { currency: 'KRW', value: totalAmount }, orderId,
-        orderName: orderName.trim() || (cart.length === 1 ? `${cart[0].productId}` : `${cart[0].productId} 외 ${cart.length-1}개`),
+        method: 'CARD', amount: { currency: 'KRW', value: totalAmount },
+        orderId: dbOrderId || `ORDER-${Date.now()}`,
+        orderName: displayName,
         customerName: customer.name, customerEmail: customer.email,
         customerMobilePhone: customer.phone.replace(/-/g, ''),
-        successUrl: `${window.location.origin}/payment/success${orderName.trim() ? `?orderName=${encodeURIComponent(orderName.trim())}` : ''}`,
+        successUrl: `${window.location.origin}/payment/success?dbOrderId=${dbOrderId}`,
         failUrl: `${window.location.origin}/payment/fail`,
       })
     } catch (err: unknown) {

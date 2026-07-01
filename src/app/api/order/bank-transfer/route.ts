@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { orderName, customer, cart, totalAmount } = await req.json()
+  const { orderName, customer, cart, totalAmount, paymentMethod } = await req.json()
 
   // 로그인 유저 확인
   const cookieStore = await cookies()
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       order_name: orderName || null,
       total_amount: totalAmount,
       status: 'pending',
+      payment_method: paymentMethod || 'bank_transfer',
       memo: `무통장입금 바로주문${orderName ? ` · ${orderName}` : ''}`,
     })
     .select('id')

@@ -15,6 +15,7 @@ function PaymentSuccessContent() {
     const orderId = searchParams.get('orderId')
     const amount = searchParams.get('amount')
     const orderName = searchParams.get('orderName') || ''
+    const dbOrderId = searchParams.get('dbOrderId') || ''
 
     if (!paymentKey || !orderId || !amount) {
       setStatus('fail')
@@ -25,7 +26,7 @@ function PaymentSuccessContent() {
     fetch('/api/payment/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentKey, orderId, amount: Number(amount), orderName }),
+      body: JSON.stringify({ paymentKey, orderId, amount: Number(amount), orderName, dbOrderId }),
     })
       .then((res) => res.json())
       .then((data) => {
