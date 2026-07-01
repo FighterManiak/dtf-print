@@ -57,7 +57,7 @@ interface DirectOrder {
   id: string; created_at: string; status: string
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
-  memo: string | null; refund_reason: string | null
+  memo: string | null; refund_reason: string | null; payment_method: string | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null }[]
 }
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
