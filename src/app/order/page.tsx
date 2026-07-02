@@ -9,7 +9,7 @@ import { PRODUCTS, VERIFIED_PRODUCTS, type ProductId } from '@/types'
 import { getShippingFee } from '@/lib/shipping'
 import { openPostcode } from '@/lib/daum-postcode'
 
-const TOSS_CLIENT_KEY = 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
+const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
 const PRODUCT_TYPES = [
   { id: 'A4',     label: 'A4 출력',     desc: '210×297mm 단품 출력' },

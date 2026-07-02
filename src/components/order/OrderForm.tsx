@@ -7,7 +7,7 @@ import { Scissors, Upload, X, Plus, Minus, ChevronDown, ChevronUp, Calendar } fr
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 
-const TOSS_CLIENT_KEY = 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
+const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
 const formatPhone = (value: string) => {
   const num = value.replace(/[^0-9]/g, '')

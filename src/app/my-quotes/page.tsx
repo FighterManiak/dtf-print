@@ -7,7 +7,7 @@ import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCirc
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 
-const TOSS_CLIENT_KEY = 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
+const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   A4: 'A4 출력',
