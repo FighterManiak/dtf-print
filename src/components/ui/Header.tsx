@@ -15,6 +15,7 @@ export default function Header() {
   const router = useRouter()
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
@@ -22,7 +23,8 @@ export default function Header() {
 
   useEffect(() => {
     const applyRole = (role: string | undefined) => {
-      setIsAdmin(role === 'admin')
+      setIsAdmin(role === 'admin' || role === 'superadmin')
+      setIsSuperAdmin(role === 'superadmin')
       if (role === 'dtf_verified') setVerifyStatus('approved')
       else setVerifyStatus(null)
     }

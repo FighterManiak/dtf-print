@@ -39,6 +39,7 @@ export default function MembersPage() {
   const [search, setSearch] = useState('')
   const [processing, setProcessing] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [currentRole, setCurrentRole] = useState<string | null>(null)
 
   // 비밀번호 확인 모달
   const [modal, setModal] = useState<ConfirmModal | null>(null)
@@ -47,7 +48,13 @@ export default function MembersPage() {
   const [pwLoading, setPwLoading] = useState(false)
   const pwInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { loadMembers() }, [])
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentRole(data.user?.user_metadata?.role || null)
+    })
+    loadMembers()
+  }, [])
 
   useEffect(() => {
     if (modal) {
@@ -165,6 +172,7 @@ export default function MembersPage() {
                 const company = member.user_metadata?.company || '-'
                 const address = member.user_metadata?.address || '-'
                 const isDtfVerified = role === 'dtf_verified' || member.user_metadata?.verify_status === 'approved'
+                const isSuperAdmin = currentRole === 'superadmin'
                 return (
                   <tr key={member.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
@@ -181,7 +189,11 @@ export default function MembersPage() {
                       {new Date(member.created_at).toLocaleDateString('ko-KR')}
                     </td>
                     <td className="px-4 py-4">
-                      {role === 'admin' ? (
+                      {role === 'superadmin' ? (
+                        <span className="flex items-center gap-1 text-red-700 bg-red-100 px-2 py-1 rounded-lg text-xs font-bold w-fit">
+                          <ShieldCheck className="w-3 h-3" /> 최고관리자
+                        </span>
+                      ) : role === 'admin' ? (
                         <span className="flex items-center gap-1 text-purple-700 bg-purple-100 px-2 py-1 rounded-lg text-xs font-bold w-fit">
                           <Shield className="w-3 h-3" /> 관리자
                         </span>
@@ -205,20 +217,30 @@ export default function MembersPage() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex gap-2">
-                        {role !== 'admin' && (
-                          <button onClick={() => openRoleModal(member, 'admin')} disabled={processing === member.id}
-                            className="text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50">
-                            관리자 지정
-                          </button>
-                        )}
-                        {role === 'admin' && (
-                          <button onClick={() => openRoleModal(member, 'user')} disabled={processing === member.id}
-                            className="text-xs bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
-                            권한 해제
-                          </button>
-                        )}
-                      </div>
+                      {isSuperAdmin ? (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {role !== 'superadmin' && (
+                            <button onClick={() => openRoleModal(member, 'superadmin')} disabled={processing === member.id}
+                              className="text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50">
+                              최고관리자
+                            </button>
+                          )}
+                          {role !== 'admin' && role !== 'superadmin' && (
+                            <button onClick={() => openRoleModal(member, 'admin')} disabled={processing === member.id}
+                              className="text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2 py-1 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50">
+                              관리자 지정
+                            </button>
+                          )}
+                          {(role === 'admin' || role === 'superadmin') && (
+                            <button onClick={() => openRoleModal(member, 'user')} disabled={processing === member.id}
+                              className="text-xs bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
+                              권한 해제
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">열람만 가능</span>
+                      )}
                     </td>
                   </tr>
                 )
@@ -249,8 +271,8 @@ export default function MembersPage() {
 
             <p className="text-sm text-gray-600 mb-1">
               <span className="font-semibold text-gray-900">{modal.memberName}</span> 님을{' '}
-              <span className={`font-semibold ${modal.targetRole === 'admin' ? 'text-purple-600' : 'text-gray-600'}`}>
-                {modal.targetRole === 'admin' ? '관리자' : '일반 회원'}
+              <span className={`font-semibold ${modal.targetRole === 'superadmin' ? 'text-red-600' : modal.targetRole === 'admin' ? 'text-purple-600' : 'text-gray-600'}`}>
+                {modal.targetRole === 'superadmin' ? '최고 관리자' : modal.targetRole === 'admin' ? '관리자' : '일반 회원'}
               </span>으로 변경합니다.
             </p>
             <p className="text-xs text-gray-400 mb-5">본인 계정 비밀번호를 입력해 확인해주세요.</p>
