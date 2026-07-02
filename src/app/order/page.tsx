@@ -6,6 +6,8 @@ import { Upload, X, CheckCircle, Scissors, Plus, Minus, Calendar, FileText, Zap 
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 import { PRODUCTS, VERIFIED_PRODUCTS, type ProductId } from '@/types'
+import { getShippingFee } from '@/lib/shipping'
+import { openPostcode } from '@/lib/daum-postcode'
 
 const TOSS_CLIENT_KEY = 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
@@ -30,7 +32,7 @@ interface CartItem {
   productId: ProductId; quantity: number; cutting: boolean
   cuttingPrice: string; file: File | null; requestNote: string; dueDate: string
 }
-interface CustomerInfo { name: string; email: string; phone: string; address: string }
+interface CustomerInfo { name: string; email: string; phone: string; address: string; zonecode: string; addressDetail: string }
 
 function OrderPageContent() {
   const router = useRouter()
@@ -42,7 +44,7 @@ function OrderPageContent() {
 
   // 공통
   const [orderName, setOrderName] = useState('')
-  const [customer, setCustomer] = useState<CustomerInfo>({ name:'', email:'', phone:'', address:'' })
+  const [customer, setCustomer] = useState<CustomerInfo>({ name:'', email:'', phone:'', address:'', zonecode:'', addressDetail:'' })
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
 
   // 견적 모드 전용
@@ -73,6 +75,8 @@ function OrderPageContent() {
         email: user.email || '',
         phone: formatPhone(user.user_metadata?.phone || ''),
         address: user.user_metadata?.address || '',
+        zonecode: user.user_metadata?.zonecode || '',
+        addressDetail: user.user_metadata?.address_detail || '',
       })
     }
     load()
@@ -82,14 +86,23 @@ function OrderPageContent() {
   }, [])
 
   // ── 공통 헬퍼 ──
-  const validateCustomer = () => {
+  const validateCustomer = (requireZonecode = false) => {
     const e: Partial<CustomerInfo> = {}
     if (!customer.name.trim()) e.name = '이름을 입력해주세요'
     if (!customer.email.trim() || !/\S+@\S+\.\S+/.test(customer.email)) e.email = '올바른 이메일을 입력해주세요'
     if (!customer.phone.trim()) e.phone = '연락처를 입력해주세요'
     if (!customer.address.trim()) e.address = '배송지를 입력해주세요'
+    if (requireZonecode && !customer.zonecode.trim()) e.zonecode = '우편번호 검색으로 주소를 선택해주세요'
     setErrors(e)
     return Object.keys(e).length === 0
+  }
+
+  const handlePostcodeSearch = async () => {
+    const result = await openPostcode()
+    if (result) {
+      setCustomer((p) => ({ ...p, zonecode: result.zonecode, address: result.address }))
+      setErrors((p) => ({ ...p, zonecode: undefined, address: undefined }))
+    }
   }
 
   // ── 견적 제출 ──
@@ -127,6 +140,16 @@ function OrderPageContent() {
     return sum + p.price * item.quantity + cut
   }, 0)
 
+  // 배송비 계산 (소계 + 우편번호 기준)
+  const shipping = getShippingFee(totalAmount, customer.zonecode)
+  const payable = totalAmount + shipping.total
+  const shippingNote = `배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${shipping.surcharge ? ` + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()}` : ''})`
+
+  const buildCustomerPayload = () => ({
+    ...customer,
+    address: `${customer.zonecode ? `(${customer.zonecode}) ` : ''}${customer.address}${customer.addressDetail ? ` ${customer.addressDetail}` : ''}`.trim(),
+  })
+
   const handlePayment = async () => {
     try {
       const supabase = createClient()
@@ -137,13 +160,13 @@ function OrderPageContent() {
       const res = await fetch('/api/order/bank-transfer', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderName: displayName, customer,
+          orderName: displayName, customer: buildCustomerPayload(),
           cart: cart.map((item) => {
             const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
             const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
             return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
           }),
-          totalAmount, paymentMethod: 'CARD',
+          totalAmount: payable, shippingNote, paymentMethod: 'CARD',
         }),
       })
       const { orderId: dbOrderId } = await res.json()
@@ -151,7 +174,7 @@ function OrderPageContent() {
       const toss = await loadTossPayments(TOSS_CLIENT_KEY)
       const payment = toss.payment({ customerKey: user?.id || 'GUEST' })
       await payment.requestPayment({
-        method: 'CARD', amount: { currency: 'KRW', value: totalAmount },
+        method: 'CARD', amount: { currency: 'KRW', value: payable },
         orderId: dbOrderId || `ORDER-${Date.now()}`,
         orderName: displayName,
         customerName: customer.name, customerEmail: customer.email,
@@ -169,13 +192,13 @@ function OrderPageContent() {
     const res = await fetch('/api/order/bank-transfer', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        orderName: orderName.trim() || null, customer,
+        orderName: orderName.trim() || null, customer: buildCustomerPayload(),
         cart: cart.map((item) => {
           const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
           const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
           return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
         }),
-        totalAmount,
+        totalAmount: payable, shippingNote,
       }),
     })
     if (res.ok) setBankDone(true)
@@ -592,18 +615,56 @@ function OrderPageContent() {
                     className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400" />
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 mb-6">
-                  {[{key:'name',label:'주문자 이름',ph:'홍길동',type:'text'},{key:'email',label:'이메일',ph:'example@email.com',type:'email'},{key:'phone',label:'연락처',ph:'010-1234-5678',type:'tel'},{key:'address',label:'배송지 주소',ph:'서울시 강남구 테헤란로 123',type:'text'}].map(({key,label,ph,type}) => (
+                  {[{key:'name',label:'주문자 이름',ph:'홍길동',type:'text'},{key:'email',label:'이메일',ph:'example@email.com',type:'email'},{key:'phone',label:'연락처',ph:'010-1234-5678',type:'tel'}].map(({key,label,ph,type}) => (
                     <div key={key}>
                       <label className="text-sm font-semibold text-gray-700 block mb-1.5">{label} <span className="text-red-500">*</span></label>
-                      <input type={type} value={customer[key as keyof CustomerInfo]} onChange={(e) => setCustomer((p) => ({...p,[key]:e.target.value}))} placeholder={ph}
+                      <input type={type} value={customer[key as keyof CustomerInfo]} onChange={(e) => setCustomer((p) => ({...p,[key]: key==='phone' ? formatPhone(e.target.value) : e.target.value}))} placeholder={ph}
                         className={`w-full border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400 ${errors[key as keyof CustomerInfo] ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
                       {errors[key as keyof CustomerInfo] && <p className="text-red-500 text-xs mt-1">{errors[key as keyof CustomerInfo]}</p>}
                     </div>
                   ))}
+
+                  {/* 배송지 주소 (우편번호 검색) */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 block mb-1.5">배송지 주소 <span className="text-red-500">*</span></label>
+                    <div className="flex gap-2 mb-2">
+                      <input type="text" value={customer.zonecode} readOnly placeholder="우편번호"
+                        className={`w-28 border rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-gray-50 focus:outline-none ${errors.zonecode ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
+                      <button type="button" onClick={handlePostcodeSearch}
+                        className="px-4 py-2.5 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors whitespace-nowrap">
+                        우편번호 검색
+                      </button>
+                    </div>
+                    <input type="text" value={customer.address} readOnly placeholder="기본 주소 (검색으로 입력)"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-gray-50 mb-2 focus:outline-none" />
+                    <input type="text" value={customer.addressDetail} onChange={(e) => setCustomer((p) => ({...p, addressDetail: e.target.value}))} placeholder="상세 주소 (동/호수 등)"
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                    {errors.zonecode && <p className="text-red-500 text-xs mt-1">{errors.zonecode}</p>}
+                  </div>
+
+                  {/* 배송비 안내 */}
+                  {customer.zonecode && (
+                    <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-sm">
+                      <div className="flex justify-between text-gray-600">
+                        <span>기본 배송비 {totalAmount >= 9900 ? '(9,900원 이상 무료)' : ''}</span>
+                        <span className="font-semibold">{shipping.base.toLocaleString()}원</span>
+                      </div>
+                      {shipping.surcharge > 0 && (
+                        <div className="flex justify-between text-gray-600 mt-1">
+                          <span>{shipping.regionLabel} 추가 배송비</span>
+                          <span className="font-semibold">+{shipping.surcharge.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-violet-700 font-bold border-t border-violet-200 mt-2 pt-2">
+                        <span>총 배송비</span>
+                        <span>{shipping.total.toLocaleString()}원</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-600 py-3.5 rounded-xl hover:bg-gray-50">← 이전</button>
-                  <button onClick={() => { if(validateCustomer()) setStep(3) }} className="flex-1 bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700">다음 단계 →</button>
+                  <button onClick={() => { if(validateCustomer(true)) setStep(3) }} className="flex-1 bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700">다음 단계 →</button>
                 </div>
               </div>
             )}
@@ -638,16 +699,24 @@ function OrderPageContent() {
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 text-sm space-y-1 text-gray-600">
                   <h3 className="font-bold text-gray-700 mb-2">배송 정보</h3>
-                  {[['이름',customer.name],['이메일',customer.email],['연락처',customer.phone],['주소',customer.address]].map(([l,v]) => (
-                    <div key={l}><span className="font-medium text-gray-700 w-14 inline-block">{l}</span>{v}</div>
+                  {[['이름',customer.name],['이메일',customer.email],['연락처',customer.phone],['주소',`${customer.zonecode ? `(${customer.zonecode}) ` : ''}${customer.address}${customer.addressDetail ? ` ${customer.addressDetail}` : ''}`]].map(([l,v]) => (
+                    <div key={l}><span className="font-medium text-gray-700 w-14 inline-block align-top">{l}</span><span className="inline-block" style={{width:'calc(100% - 3.5rem)'}}>{v}</span></div>
                   ))}
                 </div>
-                <div className="bg-violet-50 border border-violet-200 rounded-2xl p-5 mb-5">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold text-gray-700">결제 금액</span>
-                    <span className="text-2xl font-bold text-violet-600">{totalAmount.toLocaleString()}원</span>
+                <div className="bg-violet-50 border border-violet-200 rounded-2xl p-5 mb-5 space-y-2">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>상품 소계</span>
+                    <span className="font-semibold">{totalAmount.toLocaleString()}원</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">* 부가세(VAT 10%) 포함</p>
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>배송비 {shipping.surcharge > 0 ? `(기본 ${shipping.base.toLocaleString()} + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()})` : shipping.base === 0 ? '(무료)' : ''}</span>
+                    <span className="font-semibold">{shipping.total.toLocaleString()}원</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-violet-200 pt-2">
+                    <span className="font-bold text-gray-700">최종 결제 금액</span>
+                    <span className="text-2xl font-bold text-violet-600">{payable.toLocaleString()}원</span>
+                  </div>
+                  <p className="text-xs text-gray-500">* 부가세(VAT 10%) 포함</p>
                 </div>
                 <div className="mb-4">
                   <p className="text-sm font-semibold text-gray-700 mb-2">결제 수단</p>
@@ -664,7 +733,7 @@ function OrderPageContent() {
                     <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">아유디스터디 (조봉준)</span></div>
                     <div className="flex justify-between border-t border-orange-200 pt-2 mt-1">
                       <span className="text-gray-500">입금 금액</span>
-                      <span className="font-bold text-orange-700 text-base">{totalAmount.toLocaleString()}원</span>
+                      <span className="font-bold text-orange-700 text-base">{payable.toLocaleString()}원</span>
                     </div>
                   </div>
                 )}
