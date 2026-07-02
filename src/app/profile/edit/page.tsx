@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { openPostcode } from '@/lib/daum-postcode'
 import { Phone, MapPin, User, CheckCircle } from 'lucide-react'
 
 export default function ProfileEditPage() {
@@ -15,9 +16,15 @@ export default function ProfileEditPage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
+  const [zonecode, setZonecode] = useState('')
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
   const [email, setEmail] = useState('')
+
+  const handlePostcodeSearch = async () => {
+    const result = await openPostcode()
+    if (result) { setZonecode(result.zonecode); setAddress(result.address) }
+  }
 
   useEffect(() => {
     loadProfile()
@@ -32,14 +39,21 @@ export default function ProfileEditPage() {
     setName(user.user_metadata?.full_name || user.user_metadata?.name || '')
     setPhone(formatPhone(user.user_metadata?.phone || ''))
     setCompany(user.user_metadata?.company || '')
+    setZonecode(user.user_metadata?.zonecode || '')
 
-    const fullAddress: string = user.user_metadata?.address || ''
-    const lastSpace = fullAddress.lastIndexOf(' ')
-    if (lastSpace > 0 && fullAddress.length - lastSpace < 20) {
-      setAddress(fullAddress.slice(0, lastSpace))
-      setAddressDetail(fullAddress.slice(lastSpace + 1))
+    // 신규 저장 형식(분리 필드) 우선, 없으면 기존 병합 주소 파싱
+    if (user.user_metadata?.zonecode || user.user_metadata?.address_detail !== undefined) {
+      setAddress(user.user_metadata?.address || '')
+      setAddressDetail(user.user_metadata?.address_detail || '')
     } else {
-      setAddress(fullAddress)
+      const fullAddress: string = user.user_metadata?.address || ''
+      const lastSpace = fullAddress.lastIndexOf(' ')
+      if (lastSpace > 0 && fullAddress.length - lastSpace < 20) {
+        setAddress(fullAddress.slice(0, lastSpace))
+        setAddressDetail(fullAddress.slice(lastSpace + 1))
+      } else {
+        setAddress(fullAddress)
+      }
     }
     setLoading(false)
   }
@@ -65,7 +79,9 @@ export default function ProfileEditPage() {
         full_name: name,
         phone: cleaned,
         company: company.trim(),
-        address: address.trim() + (addressDetail.trim() ? ' ' + addressDetail.trim() : ''),
+        zonecode,
+        address: address.trim(),
+        address_detail: addressDetail.trim(),
       }
     })
 
@@ -149,12 +165,28 @@ export default function ProfileEditPage() {
             <MapPin className="w-3.5 h-3.5 inline mr-1" />
             기본 배송지
           </label>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={zonecode}
+              readOnly
+              placeholder="우편번호"
+              className="w-28 border border-gray-300 rounded-xl px-4 py-3 text-black text-sm bg-gray-50 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={handlePostcodeSearch}
+              className="px-4 py-3 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors whitespace-nowrap"
+            >
+              우편번호 검색
+            </button>
+          </div>
           <input
             type="text"
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="도로명 주소 (예: 서울시 강남구 테헤란로 123)"
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+            readOnly
+            placeholder="기본 주소 (검색으로 입력)"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm bg-gray-50 focus:outline-none mb-2"
           />
           <input
             type="text"

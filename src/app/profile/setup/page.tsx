@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
+import { openPostcode } from '@/lib/daum-postcode'
 import { Phone, MapPin } from 'lucide-react'
 
 function ProfileSetupForm() {
@@ -12,16 +13,22 @@ function ProfileSetupForm() {
 
   const [phone, setPhone] = useState('')
   const [company, setCompany] = useState('')
+  const [zonecode, setZonecode] = useState('')
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const handlePostcodeSearch = async () => {
+    const result = await openPostcode()
+    if (result) { setZonecode(result.zonecode); setAddress(result.address) }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleaned = phone.replace(/[^0-9]/g, '')
     if (cleaned.length < 10) { setError('올바른 전화번호를 입력해주세요.'); return }
-    if (!address.trim()) { setError('주소를 입력해주세요.'); return }
+    if (!address.trim()) { setError('우편번호 검색으로 주소를 선택해주세요.'); return }
 
     setLoading(true)
     setError('')
@@ -31,7 +38,9 @@ function ProfileSetupForm() {
       data: {
         phone: cleaned,
         company: company.trim(),
-        address: address.trim() + (addressDetail.trim() ? ' ' + addressDetail.trim() : ''),
+        zonecode,
+        address: address.trim(),
+        address_detail: addressDetail.trim(),
       }
     })
 
@@ -99,12 +108,28 @@ function ProfileSetupForm() {
               <MapPin className="w-3.5 h-3.5 inline mr-1" />
               기본 배송지 <span className="text-red-500">*</span>
             </label>
+            <div className="flex gap-2 mb-2">
+              <input
+                type="text"
+                value={zonecode}
+                readOnly
+                placeholder="우편번호"
+                className="w-28 border border-gray-300 rounded-xl px-4 py-3 text-black text-sm bg-gray-50 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handlePostcodeSearch}
+                className="px-4 py-3 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors whitespace-nowrap"
+              >
+                우편번호 검색
+              </button>
+            </div>
             <input
               type="text"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="도로명 주소 (예: 서울시 강남구 테헤란로 123)"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+              readOnly
+              placeholder="기본 주소 (검색으로 입력)"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm bg-gray-50 focus:outline-none mb-2"
             />
             <input
               type="text"
