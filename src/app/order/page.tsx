@@ -46,6 +46,7 @@ function OrderPageContent() {
   const [orderName, setOrderName] = useState('')
   const [customer, setCustomer] = useState<CustomerInfo>({ name:'', email:'', phone:'', address:'', zonecode:'', addressDetail:'' })
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
+  const [orderNameError, setOrderNameError] = useState('')
 
   // 견적 모드 전용
   const [productType, setProductType] = useState('')
@@ -367,12 +368,12 @@ function OrderPageContent() {
                 </div>
                 {productType && (
                   <div className="mb-6">
-                    <label className="text-sm font-semibold text-gray-700 block mb-2">주문명 <span className="text-gray-400 font-normal">(선택)</span></label>
+                    <label className="text-sm font-semibold text-gray-700 block mb-2">주문명 <span className="text-red-500">*</span></label>
                     <input type="text" value={orderName} onChange={(e) => setOrderName(e.target.value)} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
                       className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400" />
                   </div>
                 )}
-                <button disabled={!productType} onClick={() => setStep(2)}
+                <button disabled={!productType || !orderName.trim()} onClick={() => setStep(2)}
                   className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-40">
                   다음 →
                 </button>
@@ -610,9 +611,10 @@ function OrderPageContent() {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-5">배송 정보 입력</h2>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
-                  <label className="text-sm font-semibold text-gray-700 block mb-1.5">주문명 <span className="text-gray-400 font-normal">(선택)</span></label>
-                  <input type="text" value={orderName} onChange={(e) => setOrderName(e.target.value)} placeholder="예) 여름 신상 로고, 브랜드 패치" maxLength={50}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                  <label className="text-sm font-semibold text-gray-700 block mb-1.5">주문명 <span className="text-red-500">*</span></label>
+                  <input type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치" maxLength={50}
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400 ${orderNameError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
+                  {orderNameError && <p className="text-red-500 text-xs mt-1">{orderNameError}</p>}
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 mb-6">
                   {[{key:'name',label:'주문자 이름',ph:'홍길동',type:'text'},{key:'email',label:'이메일',ph:'example@email.com',type:'email'},{key:'phone',label:'연락처',ph:'010-1234-5678',type:'tel'}].map(({key,label,ph,type}) => (
@@ -664,7 +666,7 @@ function OrderPageContent() {
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-600 py-3.5 rounded-xl hover:bg-gray-50">← 이전</button>
-                  <button onClick={() => { if(validateCustomer(true)) setStep(3) }} className="flex-1 bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700">다음 단계 →</button>
+                  <button onClick={() => { const okName = orderName.trim() ? true : (setOrderNameError('주문명을 입력해주세요'), false); const okCustomer = validateCustomer(true); if (okName && okCustomer) setStep(3) }} className="flex-1 bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700">다음 단계 →</button>
                 </div>
               </div>
             )}
