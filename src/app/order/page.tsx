@@ -86,6 +86,11 @@ function OrderPageContent() {
     if (m === 'quote' || m === 'direct') setMode(m)
   }, [])
 
+  // 단계/모드 전환 시 화면 상단으로 스크롤
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [step, mode])
+
   // ── 공통 헬퍼 ──
   const validateCustomer = (requireZonecode = false) => {
     const e: Partial<CustomerInfo> = {}
