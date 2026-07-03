@@ -95,16 +95,14 @@ function AdminManagePageContent() {
     setLoading(true)
     const supabase = createClient()
     const { data: quotesData } = await supabase.from('quotes').select('*').order('created_at', { ascending: false })
+    // orders는 RLS 우회를 위해 서비스롤 API로 조회
+    const directData: DirectOrder[] = await fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => [])
     const orderIds = (quotesData || []).map((q) => q.order_id).filter(Boolean) as string[]
-    let ordersMap: Record<string, OrderInfo> = {}
-    if (orderIds.length > 0) {
-      const { data: linked } = await supabase.from('orders').select('id,status,carrier,tracking_number,refund_reason,payment_method').in('id', orderIds)
-      if (linked) linked.forEach((o) => { ordersMap[o.id] = o })
-    }
+    const ordersMap: Record<string, OrderInfo> = {}
+    directData.forEach((o) => { ordersMap[o.id] = o })
     const quoteItems: Item[] = (quotesData || []).map((q) => ({ type: 'quote' as const, data: { ...q, order: q.order_id ? (ordersMap[q.order_id] ?? null) : null } }))
     const linkedSet = new Set(orderIds)
-    const { data: directData } = await supabase.from('orders').select('*,order_items(*)').order('created_at', { ascending: false })
-    const directItems: Item[] = (directData || []).filter((o) => !linkedSet.has(o.id)).map((o) => ({ type: 'order' as const, data: o }))
+    const directItems: Item[] = directData.filter((o) => !linkedSet.has(o.id)).map((o) => ({ type: 'order' as const, data: o }))
     const merged = [...quoteItems, ...directItems].sort((a, b) => new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime())
     setItems(merged)
     setLoading(false)

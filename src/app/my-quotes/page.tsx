@@ -14,6 +14,7 @@ const PRODUCT_TYPE_LABEL: Record<string, string> = {
   A3: 'A3 출력',
   roll_58: '58cm 롤 출력',
   other: '기타',
+  direct: '바로주문',
 }
 
 const BANK_INFO = {
@@ -179,7 +180,49 @@ export default function MyOrdersPage() {
       ...q,
       order: q.order_id ? (ordersMap[q.order_id] ?? null) : null,
     }))
-    setQuotes(merged)
+
+    // 바로주문(orders) 조회 → 견적에 연결되지 않은 주문을 pseudo-quote로 변환
+    const linkedOrderIds = new Set(orderIds)
+    let directQuotes: Quote[] = []
+    try {
+      const directOrders = await fetch('/api/my-orders').then((r) => r.ok ? r.json() : [])
+      directQuotes = (directOrders as Array<Record<string, unknown>>)
+        .filter((o) => !linkedOrderIds.has(o.id as string))
+        .filter((o) => {
+          const c = (o.created_at as string) || ''
+          return c >= from + 'T00:00:00' && c <= to + 'T23:59:59'
+        })
+        .map((o) => ({
+          id: o.id as string,
+          created_at: o.created_at as string,
+          status: o.status as string,
+          product_type: 'direct',
+          order_name: (o.order_name as string) || null,
+          request_note: (o.memo as string) || null,
+          file_url: null, file_name: null,
+          quoted_quantity: null, quoted_unit: null,
+          cutting: false, cutting_price: 0,
+          unit_price: null, total_amount: (o.total_amount as number) ?? null,
+          admin_note: null, quoted_at: null,
+          order_id: o.id as string,
+          user_id: (o.user_id as string) || null,
+          user_email: (o.user_email as string) || null,
+          user_name: (o.user_name as string) || null,
+          user_phone: (o.user_phone as string) || null,
+          user_address: (o.user_address as string) || null,
+          order: {
+            id: o.id as string,
+            status: o.status as string,
+            carrier: (o.carrier as string) || null,
+            tracking_number: (o.tracking_number as string) || null,
+            refund_reason: (o.refund_reason as string) || null,
+          },
+        }))
+    } catch { /* 바로주문 조회 실패 시 견적만 표시 */ }
+
+    const all = [...merged, ...directQuotes].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    setQuotes(all)
     setLoading(false)
   }
 
