@@ -49,38 +49,26 @@ export default function AdminPage() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
 
-      const [
-        totalRes, inProgressRes, monthRevenueRes,
-        todayOrdersRes, todayRevenueRes, todayShippedRes, pendingQuotesRes, pendingPaymentRes,
-      ] = await Promise.all([
-        // 전체 주문
-        supabase.from('orders').select('id', { count: 'exact', head: true }),
-        // 작업 중
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'in_progress'),
-        // 이번 달 매출
-        supabase.from('orders').select('total_amount').in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', monthStart),
-        // 오늘 결제 완료 주문 수
-        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', todayStart),
-        // 오늘 매출
-        supabase.from('orders').select('total_amount').in('status', ['paid','in_progress','shipped','delivered']).gte('created_at', todayStart),
-        // 오늘 출고 완료
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'shipped').gte('updated_at', todayStart),
-        // 견적 검토 대기
+      // orders는 RLS 우회를 위해 서비스롤 API로 조회 후 클라이언트에서 집계
+      const [orders, pendingQuotesRes, pendingPaymentRes] = await Promise.all([
+        fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => []) as Promise<Array<{ status: string; total_amount: number | null; created_at: string; updated_at: string }>>,
         supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        // 입금 확인 대기
         supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'quoted'),
       ])
 
       // 스토리지 통계 (병렬)
       fetch('/api/admin/storage-stats').then((r) => r.json()).then((s) => { if (!s.error) setStorage(s) })
 
+      const revenueStatuses = ['paid','in_progress','shipped','delivered']
+      const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
+
       setStats({
-        total: totalRes.count || 0,
-        inProgress: inProgressRes.count || 0,
-        monthRevenue: (monthRevenueRes.data || []).reduce((s, o) => s + (o.total_amount || 0), 0),
-        todayOrders: todayOrdersRes.count || 0,
-        todayRevenue: (todayRevenueRes.data || []).reduce((s, o) => s + (o.total_amount || 0), 0),
-        todayShipped: todayShippedRes.count || 0,
+        total: orders.length,
+        inProgress: orders.filter((o) => o.status === 'in_progress').length,
+        monthRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= monthStart)),
+        todayOrders: orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart).length,
+        todayRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart)),
+        todayShipped: orders.filter((o) => o.status === 'shipped' && o.updated_at >= todayStart).length,
         pendingQuotes: pendingQuotesRes.count || 0,
         pendingPayment: pendingPaymentRes.count || 0,
       })
