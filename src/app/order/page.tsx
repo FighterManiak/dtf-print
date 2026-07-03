@@ -599,9 +599,15 @@ function OrderPageContent() {
                 </div>
                 {cart.length > 0 && (
                   <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="font-bold text-gray-700">합계</span>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="font-bold text-gray-700">상품 합계</span>
                       <span className="text-2xl font-bold text-violet-600">{totalAmount.toLocaleString()}원</span>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl px-4 py-3 mb-4 text-xs text-gray-500 leading-relaxed">
+                      <p className="font-bold text-gray-600 mb-1">🚚 배송비 안내</p>
+                      <p>· 기본 배송비 <b className="text-gray-700">3,000원</b> / <b className="text-gray-700">9,900원 이상</b> 구매 시 <b className="text-violet-600">무료</b></p>
+                      <p>· 제주 <b className="text-gray-700">+3,000원</b> · 도서산간 <b className="text-gray-700">+5,000원</b> (무료배송 시에도 별도 부과)</p>
+                      <p className="text-gray-400 mt-1">* 정확한 배송비는 다음 단계에서 주소 입력 후 계산됩니다.</p>
                     </div>
                     <button onClick={() => setStep(2)} className="w-full bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700 transition-colors">
                       다음 단계 →
