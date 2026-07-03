@@ -89,6 +89,43 @@ function AdminManagePageContent() {
   const [memoInputs, setMemoInputs] = useState<Record<string, string>>({})
   const [memoSaving, setMemoSaving] = useState<string | null>(null)
 
+  // 취소/환불 모달
+  const [cancelModal, setCancelModal] = useState<{ orderId: string; itemKey: string; total: number; isCard: boolean } | null>(null)
+  const [cancelAmount, setCancelAmount] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
+  const [refundAccount, setRefundAccount] = useState('')
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError, setCancelError] = useState('')
+
+  const openCancelModal = (orderId: string, itemKey: string, total: number, isCard: boolean) => {
+    setCancelModal({ orderId, itemKey, total, isCard })
+    setCancelAmount(String(total))
+    setCancelReason('')
+    setRefundAccount('')
+    setCancelError('')
+  }
+
+  const submitCancel = async () => {
+    if (!cancelModal) return
+    if (!cancelReason.trim()) { setCancelError('취소 사유를 입력해주세요.'); return }
+    const amt = Number(cancelAmount)
+    if (!amt || amt <= 0 || amt > cancelModal.total) { setCancelError('취소 금액이 올바르지 않습니다.'); return }
+    setCancelLoading(true)
+    setCancelError('')
+    const res = await fetch('/api/admin/cancel-payment', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: cancelModal.orderId, cancelReason: cancelReason.trim(), cancelAmount: amt, refundAccount: refundAccount.trim() || undefined }),
+    })
+    if (res.ok) {
+      setCancelModal(null)
+      await loadAll()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      setCancelError(err.error || '취소 처리에 실패했습니다.')
+    }
+    setCancelLoading(false)
+  }
+
   useEffect(() => { loadAll() }, [])
 
   const loadAll = async () => {
@@ -586,10 +623,10 @@ function AdminManagePageContent() {
                                   return reason ? <p className="text-sm text-gray-700 bg-white border border-red-100 rounded-lg px-3 py-2">{reason}</p> : null
                                 })()}
                                 <div className="flex gap-2">
-                                  <button onClick={async () => { if (confirm('환불을 승인하시겠습니까?\n※ 토스페이먼츠 대시보드에서 실제 환불을 진행해주세요.')) await updateOrderStatus(orderId, 'refunded', itemKey) }}
+                                  <button onClick={() => { const total = item.type === 'quote' ? ((d as Quote).total_amount || 0) : (d as DirectOrder).total_amount; const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method; openCancelModal(orderId, itemKey, total, pm === 'CARD' || pm === 'card') }}
                                     disabled={processing === itemKey}
                                     className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50">
-                                    환불 승인
+                                    환불 처리
                                   </button>
                                   <button onClick={async () => { if (confirm('환불 요청을 거절하시겠습니까?')) await updateOrderStatus(orderId, 'paid', itemKey) }}
                                     disabled={processing === itemKey}
@@ -600,11 +637,11 @@ function AdminManagePageContent() {
                               </div>
                             )}
 
-                            {orderStatus === 'paid' && (
-                              <button onClick={async () => { if (confirm('주문을 취소하시겠습니까?')) await updateOrderStatus(orderId, 'cancelled', itemKey) }}
+                            {(orderStatus === 'paid' || orderStatus === 'in_progress' || orderStatus === 'shipped') && (
+                              <button onClick={() => { const total = item.type === 'quote' ? ((d as Quote).total_amount || 0) : (d as DirectOrder).total_amount; const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method; openCancelModal(orderId, itemKey, total, pm === 'CARD' || pm === 'card') }}
                                 disabled={processing === itemKey}
                                 className="w-full border border-red-200 text-red-500 py-2.5 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50">
-                                주문 취소
+                                결제 취소 / 환불
                               </button>
                             )}
                           </div>
@@ -691,6 +728,64 @@ function AdminManagePageContent() {
           </div>
         )}
       </div>
+
+      {/* 취소/환불 모달 */}
+      {cancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">결제 취소 / 환불</h2>
+              <button onClick={() => setCancelModal(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className={`rounded-xl px-4 py-3 mb-4 text-sm ${cancelModal.isCard ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}`}>
+              {cancelModal.isCard
+                ? '💳 카드 결제 — 토스페이먼츠에서 자동으로 취소(환불)됩니다.'
+                : '🏦 무통장입금 — 자동 환불이 불가하여 환불 계좌를 기록합니다. 실제 송금은 직접 진행하세요.'}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+                  취소 금액 <span className="text-gray-400 font-normal">(전액: {cancelModal.total.toLocaleString()}원)</span>
+                </label>
+                <input type="number" value={cancelAmount} onChange={(e) => { setCancelAmount(e.target.value); setCancelError('') }} max={cancelModal.total} min={1}
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300" />
+                <p className="text-xs text-gray-400 mt-1">전액보다 적게 입력하면 부분취소됩니다.</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">취소 사유 <span className="text-red-500">*</span></label>
+                <input type="text" value={cancelReason} onChange={(e) => { setCancelReason(e.target.value); setCancelError('') }} placeholder="예) 고객 단순 변심, 재고 부족"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-300" />
+              </div>
+
+              {!cancelModal.isCard && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">환불 계좌 <span className="text-gray-400 font-normal">(선택)</span></label>
+                  <input type="text" value={refundAccount} onChange={(e) => setRefundAccount(e.target.value)} placeholder="예) 기업은행 123-456-789 홍길동"
+                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-300" />
+                </div>
+              )}
+
+              {cancelError && <p className="text-red-500 text-sm">{cancelError}</p>}
+
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setCancelModal(null)} disabled={cancelLoading}
+                  className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
+                  닫기
+                </button>
+                <button onClick={submitCancel} disabled={cancelLoading}
+                  className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50">
+                  {cancelLoading ? '처리 중...' : (cancelModal.isCard ? '토스 취소 실행' : '환불 처리 기록')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
