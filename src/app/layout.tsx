@@ -29,9 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="font-[family-name:var(--font-barlow-condensed)] font-bold text-white text-[1.8rem] tracking-tight">
                 SUPER HARD
               </div>
-              <div className="flex gap-6 text-gray-600">
-                <a href="/terms" className="hover:text-white transition-colors">이용약관</a>
-                <a href="/privacy" className="hover:text-white transition-colors">개인정보처리방침</a>
+              <div className="flex gap-6">
+                <a href="/terms" className="text-white hover:text-gray-300 transition-colors">이용약관</a>
+                <a href="/privacy" className="text-white hover:text-gray-300 transition-colors">개인정보처리방침</a>
               </div>
             </div>
 
