@@ -2,11 +2,12 @@ export const metadata = { title: '이용약관 · SUPER HARD' }
 
 export default function TermsPage() {
   return (
-    <div className="max-w-3xl mx-auto px-5 py-12 text-gray-700">
+    <div className="max-w-3xl mx-auto px-4 py-10">
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm px-6 py-8 sm:px-10 sm:py-10 text-gray-800">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">이용약관</h1>
-      <p className="text-sm text-gray-400 mb-8">시행일: 2026년 7월 3일</p>
+      <p className="text-sm text-gray-500 mb-8">시행일: 2026년 7월 3일</p>
 
-      <div className="space-y-8 text-sm leading-relaxed">
+      <div className="space-y-8 text-sm leading-relaxed text-gray-800">
         <section>
           <h2 className="font-bold text-gray-900 mb-2">제1조 (목적)</h2>
           <p>본 약관은 아유디스터디(이하 &quot;회사&quot;)가 운영하는 SUPER HARD DTF 출력 서비스(이하 &quot;서비스&quot;)의 이용과 관련하여 회사와 이용자의 권리·의무 및 책임사항을 규정함을 목적으로 합니다.</p>
@@ -56,16 +57,17 @@ export default function TermsPage() {
 
         <section className="border-t border-gray-200 pt-6">
           <h2 className="font-bold text-gray-900 mb-3">사업자 정보</h2>
-          <ul className="space-y-1 text-gray-600">
-            <li><span className="inline-block w-32 text-gray-400">상호</span>아유디스터디</li>
-            <li><span className="inline-block w-32 text-gray-400">대표자</span>조봉준</li>
-            <li><span className="inline-block w-32 text-gray-400">사업자등록번호</span>617-27-96956</li>
-            <li><span className="inline-block w-32 text-gray-400">통신판매업신고번호</span>2010-부산해운-0173</li>
-            <li><span className="inline-block w-32 text-gray-400">사업장 소재지</span>부산광역시 기장군 장안읍 명례산단6로 14 1층 (46028)</li>
-            <li><span className="inline-block w-32 text-gray-400">고객센터</span>010-2803-8603</li>
-            <li><span className="inline-block w-32 text-gray-400">이메일</span>superhard.int@gmail.com</li>
+          <ul className="space-y-1 text-gray-700">
+            <li><span className="inline-block w-32 text-gray-500">상호</span>아유디스터디</li>
+            <li><span className="inline-block w-32 text-gray-500">대표자</span>조봉준</li>
+            <li><span className="inline-block w-32 text-gray-500">사업자등록번호</span>617-27-96956</li>
+            <li><span className="inline-block w-32 text-gray-500">통신판매업신고번호</span>2010-부산해운-0173</li>
+            <li><span className="inline-block w-32 text-gray-500">사업장 소재지</span>부산광역시 기장군 장안읍 명례산단6로 14 1층 (46028)</li>
+            <li><span className="inline-block w-32 text-gray-500">고객센터</span>010-2803-8603</li>
+            <li><span className="inline-block w-32 text-gray-500">이메일</span>superhard.int@gmail.com</li>
           </ul>
         </section>
+      </div>
       </div>
     </div>
   )
