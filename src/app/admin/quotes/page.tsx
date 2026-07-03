@@ -30,7 +30,6 @@ const TABS = [
   { key: 'pending',              label: '검토 대기' },
   { key: 'quoted',               label: '견적 발송' },
   { key: 'bank_transfer_pending',label: '입금 확인' },
-  { key: 'order_pending',        label: '바로주문 입금' },
   { key: 'paid',                 label: '결제 완료' },
   { key: 'in_progress',          label: '작업 중' },
   { key: 'shipped',              label: '출고' },

@@ -161,31 +161,29 @@ function OrderPageContent() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 
-      // 결제 전 DB에 order 생성 (pending) → 성공 시 paid로 업데이트
       const displayName = orderName.trim() || (cart.length === 1 ? ALL_PRODUCTS.find(p=>p.id===cart[0].productId)?.name || cart[0].productId : `${ALL_PRODUCTS.find(p=>p.id===cart[0].productId)?.name || cart[0].productId} 외 ${cart.length-1}개`)
-      const res = await fetch('/api/order/bank-transfer', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderName: displayName, customer: buildCustomerPayload(),
-          cart: cart.map((item) => {
-            const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
-            const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
-            return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
-          }),
-          totalAmount: payable, shippingNote, paymentMethod: 'CARD',
+      // 주문은 결제 승인 성공 후에만 생성 → 결제 데이터를 sessionStorage에 임시 저장
+      const tossOrderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+      const orderPayload = {
+        orderName: displayName, customer: buildCustomerPayload(),
+        cart: cart.map((item) => {
+          const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
+          const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
+          return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
         }),
-      })
-      const { orderId: dbOrderId } = await res.json()
+        totalAmount: payable, shippingNote, paymentMethod: 'CARD',
+      }
+      sessionStorage.setItem(`order_${tossOrderId}`, JSON.stringify(orderPayload))
 
       const toss = await loadTossPayments(TOSS_CLIENT_KEY)
       const payment = toss.payment({ customerKey: user?.id || 'GUEST' })
       await payment.requestPayment({
         method: 'CARD', amount: { currency: 'KRW', value: payable },
-        orderId: dbOrderId || `ORDER-${Date.now()}`,
+        orderId: tossOrderId,
         orderName: displayName,
         customerName: customer.name, customerEmail: customer.email,
         customerMobilePhone: customer.phone.replace(/-/g, ''),
-        successUrl: `${window.location.origin}/payment/success?dbOrderId=${dbOrderId}`,
+        successUrl: `${window.location.origin}/payment/success?tossOrderId=${tossOrderId}`,
         failUrl: `${window.location.origin}/payment/fail`,
       })
     } catch (err: unknown) {

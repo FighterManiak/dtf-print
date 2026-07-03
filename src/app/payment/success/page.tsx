@@ -15,7 +15,7 @@ function PaymentSuccessContent() {
     const orderId = searchParams.get('orderId')
     const amount = searchParams.get('amount')
     const orderName = searchParams.get('orderName') || ''
-    const dbOrderId = searchParams.get('dbOrderId') || ''
+    const tossOrderId = searchParams.get('tossOrderId') || orderId || ''
 
     if (!paymentKey || !orderId || !amount) {
       setStatus('fail')
@@ -23,14 +23,22 @@ function PaymentSuccessContent() {
       return
     }
 
+    // 결제 전 저장해둔 주문 데이터 (결제 승인 성공 시 주문 생성용)
+    let orderPayload = null
+    try {
+      const raw = sessionStorage.getItem(`order_${tossOrderId}`)
+      if (raw) orderPayload = JSON.parse(raw)
+    } catch { /* 무시 */ }
+
     fetch('/api/payment/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentKey, orderId, amount: Number(amount), orderName, dbOrderId }),
+      body: JSON.stringify({ paymentKey, orderId, amount: Number(amount), orderName, orderPayload }),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
+          sessionStorage.removeItem(`order_${tossOrderId}`)
           setStatus('success')
         } else {
           setStatus('fail')
