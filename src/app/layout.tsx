@@ -30,8 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 SUPER HARD
               </div>
               <div className="flex gap-6 text-gray-600">
-                <span className="hover:text-white cursor-pointer transition-colors">이용약관</span>
-                <span className="hover:text-white cursor-pointer transition-colors">개인정보처리방침</span>
+                <a href="/terms" className="hover:text-white transition-colors">이용약관</a>
+                <a href="/privacy" className="hover:text-white transition-colors">개인정보처리방침</a>
               </div>
             </div>
 
