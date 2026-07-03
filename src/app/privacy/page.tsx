@@ -60,14 +60,14 @@ export default function PrivacyPage() {
 
         <section className="border-t border-gray-200 pt-6">
           <h2 className="font-bold text-gray-900 mb-3">사업자 정보</h2>
-          <ul className="space-y-1 text-gray-700">
-            <li><span className="inline-block w-32 text-gray-500">상호</span>아유디스터디</li>
-            <li><span className="inline-block w-32 text-gray-500">대표자</span>조봉준</li>
-            <li><span className="inline-block w-32 text-gray-500">사업자등록번호</span>617-27-96956</li>
-            <li><span className="inline-block w-32 text-gray-500">통신판매업신고번호</span>2010-부산해운-0173</li>
-            <li><span className="inline-block w-32 text-gray-500">사업장 소재지</span>부산광역시 기장군 장안읍 명례산단6로 14 1층 (46028)</li>
-            <li><span className="inline-block w-32 text-gray-500">고객센터</span>010-2803-8603</li>
-            <li><span className="inline-block w-32 text-gray-500">이메일</span>superhard.int@gmail.com</li>
+          <ul className="space-y-2 text-gray-700">
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">상호</span><span>아유디스터디</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">대표자</span><span>조봉준</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">사업자등록번호</span><span>617-27-96956</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">통신판매업신고번호</span><span>2010-부산해운-0173</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">사업장 소재지</span><span>부산광역시 기장군 장안읍 명례산단6로 14 1층 (46028)</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">고객센터</span><span>010-2803-8603</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">이메일</span><span>superhard.int@gmail.com</span></li>
           </ul>
         </section>
       </div>
