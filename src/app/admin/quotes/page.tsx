@@ -159,6 +159,10 @@ function AdminManagePageContent() {
     if (quote.user_email) {
       await fetch('/api/send-quote-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userEmail: quote.user_email, userName: quote.user_name || '고객', productType: PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type, quantity: form.quantity, unit: form.unit, unitPrice: form.unitPrice, cuttingPrice, totalAmount: total, adminNote: form.adminNote || '', quoteId: quote.id }) })
     }
+    // 카카오 알림톡 발송 (환경변수 설정 시에만 실제 전송)
+    if (quote.user_phone) {
+      await fetch('/api/send-quote-alimtalk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userName: quote.user_name || '고객', userPhone: quote.user_phone, productType: PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type, totalAmount: total }) }).catch(() => {})
+    }
     await loadAll(); setSending(null)
   }
 
