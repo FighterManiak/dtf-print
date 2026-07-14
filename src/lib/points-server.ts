@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveGrade, POINT_RATES, POINT_EXPIRY_MONTHS, isRollProduct, type Grade } from './grade'
+import { referralCodeFromUserId, REFERRER_REWARD, REFEREE_REWARD } from './referral'
 
 // 관리자 수동 지정 우선, 없으면 지난 달 미터 기반 등급
 export async function getEffectiveGrade(admin: SupabaseClient, userId: string): Promise<Grade> {
@@ -100,6 +101,32 @@ export async function awardPointsForDeliveredOrder(admin: SupabaseClient, orderI
   })
 
   return { earned }
+}
+
+// 피추천인 첫 주문 배송완료 시 추천인·피추천인 포인트 지급 (1회 한정)
+export async function awardReferralIfFirstDelivery(admin: SupabaseClient, userId: string): Promise<void> {
+  // 피추천인 메타데이터 확인
+  const { data: userRes } = await admin.auth.admin.getUserById(userId)
+  const meta = userRes?.user?.user_metadata || {}
+  const refCode: string | undefined = meta.referred_by_code
+  if (!refCode || meta.referral_rewarded) return
+
+  // 추천인 찾기 (코드는 유저 ID에서 결정적 생성이므로 전체 목록에서 매칭)
+  const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const referrer = (list?.users || []).find((u) => u.id !== userId && referralCodeFromUserId(u.id) === refCode.toUpperCase().trim())
+  if (!referrer) return
+
+  const expiresAt = new Date()
+  expiresAt.setMonth(expiresAt.getMonth() + POINT_EXPIRY_MONTHS)
+  const exp = expiresAt.toISOString()
+
+  await admin.from('points').insert([
+    { user_id: referrer.id, amount: REFERRER_REWARD, balance_remaining: REFERRER_REWARD, type: 'earn', expires_at: exp, memo: '추천인 보상 (친구 첫 주문 완료)' },
+    { user_id: userId, amount: REFEREE_REWARD, balance_remaining: REFEREE_REWARD, type: 'earn', expires_at: exp, memo: '추천 가입 보상 (첫 주문 완료)' },
+  ])
+
+  // 중복 지급 방지 플래그
+  await admin.auth.admin.updateUserById(userId, { user_metadata: { referral_rewarded: true } })
 }
 
 // 포인트 사용 (FIFO 소진, 오래된 적립분부터). 실제 사용된 금액 반환

@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase-browser'
 import { demoLogin, setDemoSession, DEMO_USERS } from '@/lib/demo-auth'
 import { Printer, Eye, EyeOff, FlaskConical } from 'lucide-react'
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 
 type Tab = 'social' | 'login' | 'signup'
 
@@ -19,6 +19,12 @@ function LoginContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // 추천인 링크(?ref=코드)로 진입 시 저장 → 가입 정보 등록 화면에서 자동 입력
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) localStorage.setItem('referral_code', ref.toUpperCase().trim())
+  }, [])
 
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({

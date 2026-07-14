@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { openPostcode } from '@/lib/daum-postcode'
@@ -16,8 +16,15 @@ function ProfileSetupForm() {
   const [zonecode, setZonecode] = useState('')
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
+  const [referralCode, setReferralCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // 추천인 링크로 진입했다면 자동 입력
+  useEffect(() => {
+    const saved = localStorage.getItem('referral_code')
+    if (saved) setReferralCode(saved)
+  }, [])
 
   const handlePostcodeSearch = async () => {
     const result = await openPostcode()
@@ -41,8 +48,11 @@ function ProfileSetupForm() {
         zonecode,
         address: address.trim(),
         address_detail: addressDetail.trim(),
+        ...(referralCode.trim() ? { referred_by_code: referralCode.toUpperCase().trim() } : {}),
       }
     })
+
+    if (!updateError) localStorage.removeItem('referral_code')
 
     if (updateError) {
       setError('저장에 실패했습니다: ' + updateError.message)
@@ -100,6 +110,20 @@ function ProfileSetupForm() {
               placeholder="회사명 또는 브랜드명"
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
+          </div>
+
+          {/* 추천인 코드 */}
+          <div>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">추천인 코드 (선택)</label>
+            <input
+              type="text"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              placeholder="예) SH3F7K2A"
+              maxLength={10}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+            />
+            <p className="text-xs text-gray-400 mt-1">첫 주문 배송완료 시 나와 추천인 모두 포인트를 받아요.</p>
           </div>
 
           {/* 주소 */}

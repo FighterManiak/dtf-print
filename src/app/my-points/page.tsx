@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
-import { Coins, Plus, Minus, Clock } from 'lucide-react'
+import { Coins, Plus, Minus, Clock, Gift, Copy, Check } from 'lucide-react'
 
 interface PointRow {
   id: string
@@ -25,12 +25,19 @@ export default function MyPointsPage() {
   const [threshold, setThreshold] = useState(10000)
   const [expiringSoon, setExpiringSoon] = useState(0)
   const [rows, setRows] = useState<PointRow[]>([])
+  const [referral, setReferral] = useState<{ code: string; link: string; referrerReward: number; refereeReward: number } | null>(null)
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null)
+
+  const copyText = async (text: string, which: 'code' | 'link') => {
+    try { await navigator.clipboard.writeText(text); setCopied(which); setTimeout(() => setCopied(null), 2000) } catch { /* 무시 */ }
+  }
 
   useEffect(() => {
     const init = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
+      fetch('/api/referral/me').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.code) setReferral(d) }).catch(() => {})
       const res = await fetch('/api/points/history')
       if (res.ok) {
         const d = await res.json()
@@ -68,6 +75,33 @@ export default function MyPointsPage() {
         <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl px-4 py-3 text-sm mb-6">
           <Clock className="w-4 h-4 shrink-0" />
           30일 내 <b className="mx-1">{expiringSoon.toLocaleString()}P</b> 가 만료 예정입니다.
+        </div>
+      )}
+
+      {/* 친구 추천 */}
+      {referral && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Gift className="w-4 h-4 text-pink-500" />
+            <span className="font-bold text-gray-800">친구 추천</span>
+          </div>
+          <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+            친구가 내 코드로 가입하고 첫 주문을 완료하면<br />
+            나는 <b className="text-violet-600">{referral.referrerReward.toLocaleString()}P</b>, 친구는 <b className="text-violet-600">{referral.refereeReward.toLocaleString()}P</b>를 받아요.
+          </p>
+          <div className="flex gap-2 mb-2">
+            <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold tracking-widest text-gray-800">{referral.code}</div>
+            <button onClick={() => copyText(referral.code, 'code')}
+              className="px-4 py-2.5 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+              {copied === 'code' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied === 'code' ? '복사됨' : '코드 복사'}
+            </button>
+          </div>
+          <button onClick={() => copyText(referral.link, 'link')}
+            className="w-full py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-colors flex items-center justify-center gap-1.5">
+            {copied === 'link' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied === 'link' ? '가입 링크 복사됨!' : '가입 링크 복사'}
+          </button>
         </div>
       )}
 
