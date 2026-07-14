@@ -15,12 +15,23 @@ export async function getEffectiveGrade(admin: SupabaseClient, userId: string): 
 
 const COUNTED_STATUSES = ['paid', 'in_progress', 'shipped', 'delivered']
 
+// DB에서 롤 상품 ID 집합 조회 (레거시 roll_58 prefix도 포함)
+export async function getRollProductIds(admin: SupabaseClient): Promise<Set<string>> {
+  const { data } = await admin.from('products').select('id').eq('is_roll', true)
+  return new Set((data || []).map((p) => p.id as string))
+}
+
+function checkRoll(id: string, rollIds: Set<string>): boolean {
+  return rollIds.has(id) || isRollProduct(id)
+}
+
 // 특정 회원의 지난 달 롤(58cm) 미터 → 등급 판정용
 export async function getUserLastMonthMeters(admin: SupabaseClient, userId: string): Promise<number> {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const end = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
+  const rollIds = await getRollProductIds(admin)
   const { data: orders } = await admin
     .from('orders')
     .select('id,order_items(product_id,quantity)')
@@ -32,7 +43,7 @@ export async function getUserLastMonthMeters(admin: SupabaseClient, userId: stri
   let meters = 0
   ;(orders || []).forEach((o) => {
     const items = (o.order_items as Array<{ product_id: string; quantity: number }>) || []
-    items.forEach((it) => { if (isRollProduct(it.product_id)) meters += Number(it.quantity) || 0 })
+    items.forEach((it) => { if (checkRoll(it.product_id, rollIds)) meters += Number(it.quantity) || 0 })
   })
   return meters
 }

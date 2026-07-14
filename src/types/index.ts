@@ -25,6 +25,20 @@ export interface Product {
   verifiedOnly?: boolean
 }
 
+// DB로 관리되는 바로주문 상품 (관리자 등록/수정/삭제)
+export interface DBProduct {
+  id: string
+  name: string
+  description: string
+  price: number
+  unit: string
+  is_roll: boolean          // 롤 출력(미터 단위 등급 집계 + 미터당 컷팅)
+  verified_only: boolean    // DTF 인증 회원 전용
+  cutting_available: boolean // 컷팅 옵션 제공 여부
+  active: boolean
+  sort_order: number
+}
+
 export interface OrderItem {
   id: string
   order_id: string

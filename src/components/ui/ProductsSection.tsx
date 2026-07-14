@@ -5,17 +5,16 @@ import { ArrowRight, ShieldCheck, ChevronRight } from 'lucide-react'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase-browser'
 import { getDemoSession } from '@/lib/demo-auth'
 import { useEffect, useState } from 'react'
-import type { Product } from '@/types'
+import type { DBProduct } from '@/types'
 
-interface Props {
-  products: Product[]
-  verifiedProducts: Product[]
-}
-
-export default function ProductsSection({ products, verifiedProducts }: Props) {
+export default function ProductsSection() {
   const [isVerified, setIsVerified] = useState(false)
+  const [all, setAll] = useState<DBProduct[]>([])
+  const products = all.filter((p) => !p.verified_only)
+  const verifiedProducts = all.filter((p) => p.verified_only)
 
   useEffect(() => {
+    fetch('/api/products').then((r) => r.ok ? r.json() : []).then((d) => setAll(Array.isArray(d) ? d : [])).catch(() => {})
     // 데모 세션 확인
     const demo = getDemoSession()
     if (demo) {

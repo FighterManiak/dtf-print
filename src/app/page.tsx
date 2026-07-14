@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { PRODUCTS, VERIFIED_PRODUCTS } from '@/types'
 import { ArrowRight, Upload, Zap, Truck, ShieldCheck, Star, Clock, CheckCircle2, Printer } from 'lucide-react'
 import ProductsSection from '@/components/ui/ProductsSection'
 
@@ -141,7 +140,7 @@ export default function Home() {
 
       {/* ── 상품 목록 ── */}
       <div id="products">
-        <ProductsSection products={PRODUCTS} verifiedProducts={VERIFIED_PRODUCTS} />
+        <ProductsSection />
       </div>
 
       {/* ── 고객 후기 ── */}

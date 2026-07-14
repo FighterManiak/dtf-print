@@ -153,6 +153,13 @@ export default function AdminPage() {
             <p className="text-gray-500 text-sm">가입 회원 목록 확인{isSuperAdmin ? ', 권한 변경' : ''}</p>
           </Link>
 
+          <Link href="/admin/products"
+            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-violet-300 hover:shadow-md transition-all">
+            <Package className="w-8 h-8 text-violet-500 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">상품 관리</h2>
+            <p className="text-gray-500 text-sm">바로주문 상품 등록·수정·삭제</p>
+          </Link>
+
           <Link href="/admin/chat"
             className="bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-md transition-all">
             <MessageCircle className="w-8 h-8 text-blue-500 mb-3" />

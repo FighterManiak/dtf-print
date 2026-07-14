@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Upload, X, CheckCircle, Scissors, Plus, Minus, Calendar, FileText, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
-import { PRODUCTS, VERIFIED_PRODUCTS, type ProductId } from '@/types'
+import type { DBProduct } from '@/types'
 import { getShippingFee } from '@/lib/shipping'
 import { openPostcode } from '@/lib/daum-postcode'
 
@@ -18,7 +18,6 @@ const PRODUCT_TYPES = [
   { id: 'other',  label: '기타',        desc: '직접 요구사항 입력' },
 ]
 
-const ROLL_PRODUCTS: ProductId[] = ['roll_58_1m', 'roll_58_50m', 'roll_58_100m']
 const CUTTING_PRICE_PER_M = 1000
 
 const formatPhone = (v: string) => {
@@ -29,7 +28,7 @@ const formatPhone = (v: string) => {
 }
 
 interface CartItem {
-  productId: ProductId; quantity: number; cutting: boolean
+  productId: string; quantity: number; cutting: boolean
   cuttingPrice: string; file: File | null; requestNote: string; dueDate: string
 }
 interface CustomerInfo { name: string; email: string; phone: string; address: string; zonecode: string; addressDetail: string }
@@ -58,7 +57,9 @@ function OrderPageContent() {
 
   // 바로주문 모드 전용
   const [cart, setCart] = useState<CartItem[]>([])
-  const [expandedProduct, setExpandedProduct] = useState<ProductId | null>(null)
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null)
+  const [products, setProducts] = useState<DBProduct[]>([])
+  const [isVerified, setIsVerified] = useState(false)
   const [payMethod, setPayMethod] = useState<'card'|'bank'>('card')
   const [bankDone, setBankDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -66,7 +67,10 @@ function OrderPageContent() {
   const [pointsUsable, setPointsUsable] = useState(false)
   const [usePointInput, setUsePointInput] = useState('')
 
-  const ALL_PRODUCTS = [...PRODUCTS, ...VERIFIED_PRODUCTS]
+  // 사용자 등급(DTF 인증)에 따라 노출 상품 필터
+  const ALL_PRODUCTS = products.filter((p) => !p.verified_only || isVerified)
+  const getProduct = (id: string) => products.find((p) => p.id === id)
+  const isRollItem = (id: string) => !!getProduct(id)?.is_roll
 
   useEffect(() => {
     const load = async () => {
@@ -74,6 +78,8 @@ function OrderPageContent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       setUserId(user.id)
+      const verified = user.user_metadata?.role === 'dtf_verified' || user.user_metadata?.verify_status === 'approved'
+      setIsVerified(verified)
       setCustomer({
         name: user.user_metadata?.full_name || user.user_metadata?.name || '',
         email: user.email || '',
@@ -84,6 +90,8 @@ function OrderPageContent() {
       })
     }
     load()
+    // 상품 목록 로드
+    fetch('/api/products').then((r) => r.ok ? r.json() : []).then((d) => setProducts(Array.isArray(d) ? d : [])).catch(() => {})
     // 보유 포인트 조회
     fetch('/api/points/balance').then((r) => r.ok ? r.json() : null).then((d) => {
       if (d) { setAvailablePoints(d.available || 0); setPointsUsable(!!d.usable) }
@@ -148,8 +156,9 @@ function OrderPageContent() {
 
   // ── 바로주문 결제 ──
   const totalAmount = cart.reduce((sum, item) => {
-    const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
-    const cut = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity * CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
+    const p = getProduct(item.productId)
+    if (!p) return sum
+    const cut = item.cutting ? (isRollItem(item.productId) ? item.quantity * CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
     return sum + p.price * item.quantity + cut
   }, 0)
 
@@ -180,7 +189,7 @@ function OrderPageContent() {
         orderName: displayName, customer: buildCustomerPayload(),
         cart: cart.map((item) => {
           const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
-          const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
+          const cutAmt = item.cutting ? (isRollItem(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
           return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
         }),
         totalAmount: finalPay, usedPoints, userId: user?.id || null, shippingNote, paymentMethod: 'CARD',
@@ -211,7 +220,7 @@ function OrderPageContent() {
         orderName: orderName.trim() || null, customer: buildCustomerPayload(),
         cart: cart.map((item) => {
           const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
-          const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
+          const cutAmt = item.cutting ? (isRollItem(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
           return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
         }),
         totalAmount: finalPay, usedPoints, shippingNote,
@@ -484,7 +493,7 @@ function OrderPageContent() {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-5">상품 선택 및 수량 입력</h2>
                 <div className="space-y-3 mb-6">
-                  {PRODUCTS.map((product) => {
+                  {ALL_PRODUCTS.map((product) => {
                     const inCart = cart.find((i) => i.productId===product.id)
                     const isExpanded = expandedProduct===product.id
                     return (
@@ -534,6 +543,7 @@ function OrderPageContent() {
                               </div>
                             </div>
                             {/* 컷팅 */}
+                            {product.cutting_available && (
                             <div>
                               <label className="text-sm font-semibold text-gray-700 block mb-2"><Scissors className="w-4 h-4 inline mr-1" />컷팅 옵션</label>
                               <div className="flex gap-3">
@@ -546,7 +556,7 @@ function OrderPageContent() {
                               </div>
                               {inCart.cutting && (
                                 <div className="mt-2">
-                                  {ROLL_PRODUCTS.includes(product.id) ? (
+                                  {isRollItem(product.id) ? (
                                     <div className="flex items-center gap-2 p-2.5 bg-violet-50 rounded-xl text-xs text-violet-700">
                                       컷팅 요금: 1M당 {CUTTING_PRICE_PER_M.toLocaleString()}원 × {inCart.quantity}M =
                                       <span className="font-bold">{(inCart.quantity*CUTTING_PRICE_PER_M).toLocaleString()}원</span>
@@ -563,6 +573,7 @@ function OrderPageContent() {
                                 </div>
                               )}
                             </div>
+                            )}
                             {/* 시안 파일 */}
                             <div>
                               <label className="text-sm font-semibold text-gray-700 block mb-2">시안 파일 업로드 (선택)</label>
@@ -598,7 +609,7 @@ function OrderPageContent() {
                             <div className="flex justify-between pt-2 border-t border-gray-100">
                               <span className="text-sm text-gray-500">소계</span>
                               <span className="font-bold text-violet-600">
-                                {(product.price*inCart.quantity+(inCart.cutting?(ROLL_PRODUCTS.includes(product.id)?inCart.quantity*CUTTING_PRICE_PER_M:(parseInt(inCart.cuttingPrice)||0)):0)).toLocaleString()}원
+                                {(product.price*inCart.quantity+(inCart.cutting?(isRollItem(product.id)?inCart.quantity*CUTTING_PRICE_PER_M:(parseInt(inCart.cuttingPrice)||0)):0)).toLocaleString()}원
                               </span>
                             </div>
                           </div>
@@ -707,7 +718,7 @@ function OrderPageContent() {
                   <div className="space-y-3">
                     {cart.map((item) => {
                       const p = ALL_PRODUCTS.find((x) => x.id===item.productId)!
-                      const cutAmt = item.cutting?(ROLL_PRODUCTS.includes(item.productId)?item.quantity*CUTTING_PRICE_PER_M:(parseInt(item.cuttingPrice)||0)):0
+                      const cutAmt = item.cutting?(isRollItem(item.productId)?item.quantity*CUTTING_PRICE_PER_M:(parseInt(item.cuttingPrice)||0)):0
                       return (
                         <div key={item.productId} className="flex justify-between items-start text-sm">
                           <div>

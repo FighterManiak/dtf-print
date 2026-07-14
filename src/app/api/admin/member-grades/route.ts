@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { isRollProduct } from '@/lib/grade'
+import { getRollProductIds } from '@/lib/points-server'
 
 // 지난 달(전월 1일~말일) 롤 출력(58cm) 미터를 회원별로 합산
 const supabaseAdmin = createClient(
@@ -15,6 +16,7 @@ export async function GET() {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const end = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const rollIds = await getRollProductIds(supabaseAdmin)
 
   // 지난 달 주문 (완료 계열 상태) + 상품
   const { data: orders } = await supabaseAdmin
@@ -42,7 +44,7 @@ export async function GET() {
     if (!o.user_id) return
     let m = 0
     const items = (o.order_items as Array<{ product_id: string; quantity: number }>) || []
-    items.forEach((it) => { if (isRollProduct(it.product_id)) m += Number(it.quantity) || 0 })
+    items.forEach((it) => { if (rollIds.has(it.product_id) || isRollProduct(it.product_id)) m += Number(it.quantity) || 0 })
     if (m === 0 && quoteMetersByOrder[o.id]) m += quoteMetersByOrder[o.id]
     metersByUser[o.user_id] = (metersByUser[o.user_id] || 0) + m
   })
