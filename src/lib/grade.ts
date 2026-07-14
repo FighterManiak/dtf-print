@@ -20,6 +20,28 @@ export function getGrade(meters: number): Grade {
   return { key: 'normal', label: '일반', color: 'bg-gray-100 text-gray-500' }
 }
 
+const GRADE_BY_KEY: Record<Grade['key'], Grade> = {
+  vip: { key: 'vip', label: 'VIP', color: 'bg-purple-100 text-purple-700' },
+  gold: { key: 'gold', label: 'GOLD', color: 'bg-amber-100 text-amber-700' },
+  silver: { key: 'silver', label: 'SILVER', color: 'bg-slate-200 text-slate-700' },
+  normal: { key: 'normal', label: '일반', color: 'bg-gray-100 text-gray-500' },
+}
+
+export function gradeByKey(key: string): Grade {
+  return GRADE_BY_KEY[key as Grade['key']] || GRADE_BY_KEY.normal
+}
+
+export interface GradeOverride { grade?: string; until?: string }
+
+// 관리자 수동 지정(기간 유효 시) 우선, 없으면 미터 기반 자동 등급
+export function resolveGrade(override: GradeOverride | null | undefined, meters: number): { grade: Grade; isOverride: boolean } {
+  if (override?.grade && override?.until) {
+    const today = new Date().toISOString().slice(0, 10)
+    if (override.until >= today) return { grade: gradeByKey(override.grade), isOverride: true }
+  }
+  return { grade: getGrade(meters), isOverride: false }
+}
+
 // 등급별 포인트 적립률
 export const POINT_RATES: Record<Grade['key'], number> = { vip: 0.03, gold: 0.02, silver: 0.01, normal: 0 }
 // 포인트 사용 가능 최소 보유 금액

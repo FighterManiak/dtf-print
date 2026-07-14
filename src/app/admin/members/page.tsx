@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, Shield, ShieldCheck, User, X, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
-import { getGrade } from '@/lib/grade'
+import { resolveGrade } from '@/lib/grade'
 
 interface Member {
   id: string
@@ -18,6 +18,7 @@ interface Member {
     phone?: string
     company?: string
     address?: string
+    grade_override?: { grade?: string; until?: string } | null
   }
   app_metadata: {
     provider?: string
@@ -42,6 +43,33 @@ export default function MembersPage() {
   const [error, setError] = useState('')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [metersByUser, setMetersByUser] = useState<Record<string, number>>({})
+
+  // 등급 수동 지정 모달
+  const [gradeModal, setGradeModal] = useState<{ memberId: string; memberName: string } | null>(null)
+  const [gradeSelect, setGradeSelect] = useState('vip')
+  const [gradeUntil, setGradeUntil] = useState('')
+  const [gradeSaving, setGradeSaving] = useState(false)
+
+  const openGradeModal = (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    const ov = member.user_metadata?.grade_override
+    setGradeModal({ memberId: member.id, memberName: name })
+    setGradeSelect(ov?.grade || 'vip')
+    setGradeUntil(ov?.until || '')
+  }
+
+  const saveGrade = async (clear = false) => {
+    if (!gradeModal) return
+    if (!clear && !gradeUntil) { alert('적용 종료일을 지정해주세요.'); return }
+    setGradeSaving(true)
+    const res = await fetch('/api/admin/set-grade', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: gradeModal.memberId, grade: clear ? 'clear' : gradeSelect, until: gradeUntil }),
+    })
+    if (res.ok) { setGradeModal(null); await loadMembers() }
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '저장 실패') }
+    setGradeSaving(false)
+  }
 
   // 비밀번호 확인 모달
   const [modal, setModal] = useState<ConfirmModal | null>(null)
@@ -178,7 +206,8 @@ export default function MembersPage() {
                 const isDtfVerified = role === 'dtf_verified' || member.user_metadata?.verify_status === 'approved'
                 const isSuperAdmin = currentRole === 'superadmin'
                 const meters = metersByUser[member.id] || 0
-                const grade = getGrade(meters)
+                const override = member.user_metadata?.grade_override as { grade?: string; until?: string } | undefined
+                const { grade, isOverride } = resolveGrade(override, meters)
                 return (
                   <tr key={member.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
@@ -195,9 +224,14 @@ export default function MembersPage() {
                       {new Date(member.created_at).toLocaleDateString('ko-KR')}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex flex-col gap-0.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold w-fit ${grade.color}`}>{grade.label}</span>
-                        <span className="text-xs text-gray-400">{meters.toLocaleString()}M</span>
+                      <div className="flex flex-col gap-0.5 items-start">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold w-fit ${grade.color}`}>
+                          {grade.label}{isOverride && <span className="text-[10px] font-normal opacity-70">지정</span>}
+                        </span>
+                        {isOverride && override?.until
+                          ? <span className="text-xs text-gray-400">~{override.until}</span>
+                          : <span className="text-xs text-gray-400">{meters.toLocaleString()}M</span>}
+                        <button onClick={() => openGradeModal(member)} className="text-[11px] text-violet-600 hover:underline mt-0.5">등급 지정</button>
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -264,6 +298,45 @@ export default function MembersPage() {
           )}
         </div>
       </div>
+
+      {/* 등급 수동 지정 모달 */}
+      {gradeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900">등급 지정</h2>
+              <button onClick={() => setGradeModal(null)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4"><b className="text-gray-900">{gradeModal.memberName}</b> 님의 등급을 기간 지정합니다.</p>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">등급</label>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[['vip','VIP'],['gold','GOLD'],['silver','SILVER'],['normal','일반']].map(([k, label]) => (
+                <button key={k} onClick={() => setGradeSelect(k)}
+                  className={`py-2 rounded-xl text-xs font-bold border-2 transition-colors ${gradeSelect===k ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">적용 종료일 <span className="text-red-500">*</span></label>
+            <input type="date" value={gradeUntil} min={new Date().toISOString().slice(0,10)} onChange={(e) => setGradeUntil(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            <p className="text-xs text-gray-400 mb-5">이 날짜까지 지정 등급이 유지되고, 이후 자동 등급으로 돌아갑니다.</p>
+
+            <div className="flex gap-2">
+              <button onClick={() => saveGrade(true)} disabled={gradeSaving}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+                지정 해제
+              </button>
+              <button onClick={() => saveGrade(false)} disabled={gradeSaving}
+                className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                {gradeSaving ? '저장 중...' : '지정'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 비밀번호 확인 모달 */}
       {modal && (

@@ -1,5 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getGrade, POINT_RATES, POINT_EXPIRY_MONTHS, isRollProduct } from './grade'
+import { resolveGrade, POINT_RATES, POINT_EXPIRY_MONTHS, isRollProduct, type Grade } from './grade'
+
+// 관리자 수동 지정 우선, 없으면 지난 달 미터 기반 등급
+export async function getEffectiveGrade(admin: SupabaseClient, userId: string): Promise<Grade> {
+  const meters = await getUserLastMonthMeters(admin, userId)
+  let override = null
+  try {
+    const { data } = await admin.auth.admin.getUserById(userId)
+    override = data.user?.user_metadata?.grade_override || null
+  } catch { /* 무시 */ }
+  return resolveGrade(override, meters).grade
+}
 
 const COUNTED_STATUSES = ['paid', 'in_progress', 'shipped', 'delivered']
 
@@ -67,8 +78,7 @@ export async function awardPointsForDeliveredOrder(admin: SupabaseClient, orderI
     .limit(1)
   if (existing && existing.length > 0) return null
 
-  const meters = await getUserLastMonthMeters(admin, order.user_id)
-  const grade = getGrade(meters)
+  const grade = await getEffectiveGrade(admin, order.user_id)
   const rate = POINT_RATES[grade.key]
   if (rate <= 0) return null
 
