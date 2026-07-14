@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { awardPointsForDeliveredOrder } from '@/lib/points-server'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,6 +84,11 @@ export async function POST(req: Request) {
     .eq('id', quoteId)
 
   if (quoteError) return NextResponse.json({ error: quoteError.message }, { status: 500 })
+
+  // 바로 배송완료로 생성된 경우 포인트 적립
+  if (finalStatus === 'delivered') {
+    try { await awardPointsForDeliveredOrder(supabaseAdmin, newOrder.id) } catch { /* 무시 */ }
+  }
 
   return NextResponse.json({ success: true, orderId: newOrder.id })
 }

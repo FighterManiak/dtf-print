@@ -62,6 +62,9 @@ function OrderPageContent() {
   const [payMethod, setPayMethod] = useState<'card'|'bank'>('card')
   const [bankDone, setBankDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [availablePoints, setAvailablePoints] = useState(0)
+  const [pointsUsable, setPointsUsable] = useState(false)
+  const [usePointInput, setUsePointInput] = useState('')
 
   const ALL_PRODUCTS = [...PRODUCTS, ...VERIFIED_PRODUCTS]
 
@@ -81,6 +84,10 @@ function OrderPageContent() {
       })
     }
     load()
+    // 보유 포인트 조회
+    fetch('/api/points/balance').then((r) => r.ok ? r.json() : null).then((d) => {
+      if (d) { setAvailablePoints(d.available || 0); setPointsUsable(!!d.usable) }
+    }).catch(() => {})
     // URL 파라미터로 모드 자동 선택
     const m = searchParams.get('mode')
     if (m === 'quote' || m === 'direct') setMode(m)
@@ -151,6 +158,11 @@ function OrderPageContent() {
   const payable = totalAmount + shipping.total
   const shippingNote = `배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${shipping.surcharge ? ` + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()}` : ''})`
 
+  // 포인트 사용 (보유 1만원 이상일 때만, 결제액 초과 불가, 카드 최소결제 100원 남김)
+  const maxUsablePoints = Math.max(0, Math.min(availablePoints, payable - 100))
+  const usedPoints = pointsUsable ? Math.min(Math.max(0, parseInt(usePointInput) || 0), maxUsablePoints) : 0
+  const finalPay = payable - usedPoints
+
   const buildCustomerPayload = () => ({
     ...customer,
     address: `${customer.zonecode ? `(${customer.zonecode}) ` : ''}${customer.address}${customer.addressDetail ? ` ${customer.addressDetail}` : ''}`.trim(),
@@ -171,14 +183,14 @@ function OrderPageContent() {
           const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
           return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
         }),
-        totalAmount: payable, shippingNote, paymentMethod: 'CARD',
+        totalAmount: finalPay, usedPoints, userId: user?.id || null, shippingNote, paymentMethod: 'CARD',
       }
       sessionStorage.setItem(`order_${tossOrderId}`, JSON.stringify(orderPayload))
 
       const toss = await loadTossPayments(TOSS_CLIENT_KEY)
       const payment = toss.payment({ customerKey: user?.id || 'GUEST' })
       await payment.requestPayment({
-        method: 'CARD', amount: { currency: 'KRW', value: payable },
+        method: 'CARD', amount: { currency: 'KRW', value: finalPay },
         orderId: tossOrderId,
         orderName: displayName,
         customerName: customer.name, customerEmail: customer.email,
@@ -202,7 +214,7 @@ function OrderPageContent() {
           const cutAmt = item.cutting ? (ROLL_PRODUCTS.includes(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
           return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
         }),
-        totalAmount: payable, shippingNote,
+        totalAmount: finalPay, usedPoints, shippingNote,
       }),
     })
     if (res.ok) setBankDone(true)
@@ -714,6 +726,26 @@ function OrderPageContent() {
                     <div key={l}><span className="font-medium text-gray-700 w-14 inline-block align-top">{l}</span><span className="inline-block" style={{width:'calc(100% - 3.5rem)'}}>{v}</span></div>
                   ))}
                 </div>
+                {/* 포인트 사용 */}
+                <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-gray-700">포인트 사용</span>
+                    <span className="text-xs text-gray-500">보유 <b className="text-violet-600">{availablePoints.toLocaleString()}P</b></span>
+                  </div>
+                  {pointsUsable ? (
+                    <div className="flex gap-2">
+                      <input type="number" value={usePointInput} onChange={(e) => setUsePointInput(e.target.value)} placeholder="0" min={0} max={maxUsablePoints}
+                        className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                      <button type="button" onClick={() => setUsePointInput(String(maxUsablePoints))}
+                        className="px-4 py-2.5 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors whitespace-nowrap">
+                        전액 사용
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">보유 포인트 10,000P 이상부터 사용할 수 있습니다.</p>
+                  )}
+                </div>
+
                 <div className="bg-violet-50 border border-violet-200 rounded-2xl p-5 mb-5 space-y-2">
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>상품 소계</span>
@@ -723,9 +755,15 @@ function OrderPageContent() {
                     <span>배송비 {shipping.surcharge > 0 ? `(기본 ${shipping.base.toLocaleString()} + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()})` : shipping.base === 0 ? '(무료)' : ''}</span>
                     <span className="font-semibold">{shipping.total.toLocaleString()}원</span>
                   </div>
+                  {usedPoints > 0 && (
+                    <div className="flex justify-between text-sm text-violet-600">
+                      <span>포인트 사용</span>
+                      <span className="font-semibold">-{usedPoints.toLocaleString()}원</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center border-t border-violet-200 pt-2">
                     <span className="font-bold text-gray-700">최종 결제 금액</span>
-                    <span className="text-2xl font-bold text-violet-600">{payable.toLocaleString()}원</span>
+                    <span className="text-2xl font-bold text-violet-600">{finalPay.toLocaleString()}원</span>
                   </div>
                   <p className="text-xs text-gray-500">* 부가세(VAT 10%) 포함</p>
                 </div>
@@ -744,7 +782,7 @@ function OrderPageContent() {
                     <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">아유디스터디 (조봉준)</span></div>
                     <div className="flex justify-between border-t border-orange-200 pt-2 mt-1">
                       <span className="text-gray-500">입금 금액</span>
-                      <span className="font-bold text-orange-700 text-base">{payable.toLocaleString()}원</span>
+                      <span className="font-bold text-orange-700 text-base">{finalPay.toLocaleString()}원</span>
                     </div>
                   </div>
                 )}

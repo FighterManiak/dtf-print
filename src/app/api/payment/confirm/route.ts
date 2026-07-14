@@ -1,6 +1,7 @@
 ﻿export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { usePoints } from '@/lib/points-server'
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
@@ -14,6 +15,8 @@ interface OrderPayload {
   customer: { name: string; email: string; phone: string; address: string }
   cart: Array<{ productId: string; quantity: number; unitPrice: number; cutting: boolean; cuttingPrice: number; requestNote: string; dueDate: string | null }>
   totalAmount: number
+  usedPoints?: number
+  userId?: string | null
   shippingNote?: string
 }
 
@@ -48,10 +51,11 @@ export async function POST(req: NextRequest) {
         user_address: p.customer.address,
         order_name: p.orderName || null,
         total_amount: p.totalAmount,
+        used_points: p.usedPoints || 0,
         status: 'paid',
         payment_method: 'CARD',
         payment_key: paymentKey,
-        memo: `카드결제 바로주문${p.orderName ? ` · ${p.orderName}` : ''}${p.shippingNote ? ` · ${p.shippingNote}` : ''}`,
+        memo: `카드결제 바로주문${p.orderName ? ` · ${p.orderName}` : ''}${p.shippingNote ? ` · ${p.shippingNote}` : ''}${p.usedPoints ? ` · 포인트 ${p.usedPoints.toLocaleString()}P 사용` : ''}`,
       })
       .select('id')
       .single()
@@ -69,6 +73,11 @@ export async function POST(req: NextRequest) {
           due_date: item.dueDate || null,
         }))
       )
+    }
+
+    // 포인트 사용 차감 (FIFO)
+    if (newOrder && p.usedPoints && p.usedPoints > 0 && p.userId) {
+      try { await usePoints(supabaseAdmin, p.userId, p.usedPoints, newOrder.id) } catch { /* 무시 */ }
     }
   } else if (dbOrderId) {
     // 구버전 호환: 이미 생성된 주문 업데이트
