@@ -56,10 +56,10 @@ export default function AdminProductsPage() {
   }
 
   const Flags = ({ v, onChange }: { v: DBProduct; onChange: (p: Partial<DBProduct>) => void }) => (
-    <div className="flex flex-wrap gap-3 text-xs">
+    <div className="flex flex-wrap gap-3 text-xs text-gray-700 font-medium">
       {([['is_roll', '롤(미터·컷팅)'], ['cutting_available', '컷팅 옵션'], ['verified_only', 'DTF인증 전용'], ['active', '판매중']] as const).map(([k, label]) => (
         <label key={k} className="flex items-center gap-1 cursor-pointer">
-          <input type="checkbox" checked={!!v[k as keyof DBProduct]} onChange={(e) => onChange({ [k]: e.target.checked })} />
+          <input type="checkbox" className="w-4 h-4 accent-violet-600" checked={!!v[k as keyof DBProduct]} onChange={(e) => onChange({ [k]: e.target.checked })} />
           {label}
         </label>
       ))}
@@ -89,12 +89,12 @@ export default function AdminProductsPage() {
               <button onClick={() => { setCreating(false); setDraft(EMPTY) }} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-gray-500">상품 ID (영문/숫자)</label><input value={draft.id} onChange={(e) => setDraft({ ...draft, id: e.target.value })} placeholder="roll_58_200m" className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-              <div><label className="text-xs text-gray-500">상품명</label><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="58cm × 200M 이상" className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-              <div className="col-span-2"><label className="text-xs text-gray-500">설명</label><input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-              <div><label className="text-xs text-gray-500">가격(원)</label><input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-              <div><label className="text-xs text-gray-500">단위</label><input value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="M / 장" className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
-              <div><label className="text-xs text-gray-500">정렬 순서</label><input type="number" value={draft.sort_order} onChange={(e) => setDraft({ ...draft, sort_order: Number(e.target.value) })} className="w-full border rounded-lg px-3 py-2 text-sm" /></div>
+              <div><label className="text-xs text-gray-600 font-medium">상품 ID (영문/숫자)</label><input value={draft.id} onChange={(e) => setDraft({ ...draft, id: e.target.value })} placeholder="roll_58_200m" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+              <div><label className="text-xs text-gray-600 font-medium">상품명</label><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="58cm × 200M 이상" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+              <div className="col-span-2"><label className="text-xs text-gray-600 font-medium">설명</label><input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+              <div><label className="text-xs text-gray-600 font-medium">가격(원)</label><input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+              <div><label className="text-xs text-gray-600 font-medium">단위</label><input value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} placeholder="M / 장" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+              <div><label className="text-xs text-gray-600 font-medium">정렬 순서</label><input type="number" value={draft.sort_order} onChange={(e) => setDraft({ ...draft, sort_order: Number(e.target.value) })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
             </div>
             <Flags v={draft as DBProduct} onChange={(p) => setDraft({ ...draft, ...p })} />
             <button onClick={create} disabled={saving === '__new__'} className="w-full bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
@@ -113,11 +113,11 @@ export default function AdminProductsPage() {
                 <div className="flex items-start gap-3">
                   <GripVertical className="w-4 h-4 text-gray-300 mt-2 shrink-0" />
                   <div className="flex-1 grid grid-cols-2 gap-2">
-                    <div><label className="text-xs text-gray-400">상품명</label><input value={cur.name} onChange={(e) => setField(p.id, { name: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm" /></div>
-                    <div><label className="text-xs text-gray-400">가격(원)</label><input type="number" value={cur.price} onChange={(e) => setField(p.id, { price: Number(e.target.value) })} className="w-full border rounded-lg px-3 py-1.5 text-sm" /></div>
-                    <div className="col-span-2"><label className="text-xs text-gray-400">설명</label><input value={cur.description} onChange={(e) => setField(p.id, { description: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm" /></div>
-                    <div><label className="text-xs text-gray-400">단위</label><input value={cur.unit} onChange={(e) => setField(p.id, { unit: e.target.value })} className="w-full border rounded-lg px-3 py-1.5 text-sm" /></div>
-                    <div><label className="text-xs text-gray-400">정렬</label><input type="number" value={cur.sort_order} onChange={(e) => setField(p.id, { sort_order: Number(e.target.value) })} className="w-full border rounded-lg px-3 py-1.5 text-sm" /></div>
+                    <div><label className="text-xs text-gray-600 font-medium">상품명</label><input value={cur.name} onChange={(e) => setField(p.id, { name: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+                    <div><label className="text-xs text-gray-600 font-medium">가격(원)</label><input type="number" value={cur.price} onChange={(e) => setField(p.id, { price: Number(e.target.value) })} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+                    <div className="col-span-2"><label className="text-xs text-gray-600 font-medium">설명</label><input value={cur.description} onChange={(e) => setField(p.id, { description: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+                    <div><label className="text-xs text-gray-600 font-medium">단위</label><input value={cur.unit} onChange={(e) => setField(p.id, { unit: e.target.value })} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
+                    <div><label className="text-xs text-gray-600 font-medium">정렬</label><input type="number" value={cur.sort_order} onChange={(e) => setField(p.id, { sort_order: Number(e.target.value) })} className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" /></div>
                     <div className="col-span-2 pt-1"><Flags v={cur} onChange={(patch) => setField(p.id, patch)} /></div>
                     <div className="col-span-2 text-[11px] text-gray-400">ID: {p.id}</div>
                   </div>
