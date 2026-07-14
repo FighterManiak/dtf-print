@@ -140,6 +140,9 @@ export default function Header() {
                       <Link href="/my-quotes" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                         내 주문 현황
                       </Link>
+                      <Link href="/my-points" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
+                        내 포인트
+                      </Link>
                       <Link href="/profile/edit" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
                         회원정보 변경
                       </Link>
@@ -201,6 +204,9 @@ export default function Header() {
                   <ShieldCheck className="w-4 h-4" />
                   {verifyBtn.label}
                 </button>
+                <Link href="/my-points" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                  내 포인트
+                </Link>
                 <Link href="/profile/edit" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
                   회원정보 변경
                 </Link>
