@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, Shield, ShieldCheck, User, X, Lock } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
+import { getGrade } from '@/lib/grade'
 
 interface Member {
   id: string
@@ -40,6 +41,7 @@ export default function MembersPage() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [metersByUser, setMetersByUser] = useState<Record<string, number>>({})
 
   // 비밀번호 확인 모달
   const [modal, setModal] = useState<ConfirmModal | null>(null)
@@ -53,6 +55,7 @@ export default function MembersPage() {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentRole(data.user?.user_metadata?.role || null)
     })
+    fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
     loadMembers()
   }, [])
 
@@ -158,6 +161,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold w-48">주소</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입일</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">등급 <span className="text-gray-400 font-normal">(전월)</span></th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">DTF인증</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">관리</th>
@@ -173,6 +177,8 @@ export default function MembersPage() {
                 const address = member.user_metadata?.address || '-'
                 const isDtfVerified = role === 'dtf_verified' || member.user_metadata?.verify_status === 'approved'
                 const isSuperAdmin = currentRole === 'superadmin'
+                const meters = metersByUser[member.id] || 0
+                const grade = getGrade(meters)
                 return (
                   <tr key={member.id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
@@ -187,6 +193,12 @@ export default function MembersPage() {
                     </td>
                     <td className="px-4 py-4 text-gray-500">
                       {new Date(member.created_at).toLocaleDateString('ko-KR')}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-0.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-bold w-fit ${grade.color}`}>{grade.label}</span>
+                        <span className="text-xs text-gray-400">{meters.toLocaleString()}M</span>
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       {role === 'superadmin' ? (
