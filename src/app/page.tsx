@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, Upload, Zap, Truck, ShieldCheck, Star, Clock, CheckCircle2, Printer } from 'lucide-react'
 import ProductsSection from '@/components/ui/ProductsSection'
+import ReviewsSection from '@/components/ui/ReviewsSection'
 
 export default function Home() {
   return (
@@ -141,6 +142,7 @@ export default function Home() {
       {/* ── 상품 목록 ── */}
       <div id="products">
         <ProductsSection />
+        <ReviewsSection />
       </div>
 
       {/* ── 고객 후기 ── */}

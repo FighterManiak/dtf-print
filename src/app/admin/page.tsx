@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, AlertCircle, CreditCard, ShoppingCart, DollarSign, HardDrive } from 'lucide-react'
+import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, AlertCircle, CreditCard, ShoppingCart, DollarSign, HardDrive, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 
 const formatBytes = (bytes: number) => {
@@ -158,6 +158,13 @@ export default function AdminPage() {
             <Package className="w-8 h-8 text-violet-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">상품 관리</h2>
             <p className="text-gray-500 text-sm">바로주문 상품 등록·수정·삭제</p>
+          </Link>
+
+          <Link href="/admin/reviews"
+            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-yellow-300 hover:shadow-md transition-all">
+            <Star className="w-8 h-8 text-yellow-500 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">리뷰 관리</h2>
+            <p className="text-gray-500 text-sm">고객 리뷰 노출 순서·고정·숨김·삭제</p>
           </Link>
 
           <Link href="/admin/chat"

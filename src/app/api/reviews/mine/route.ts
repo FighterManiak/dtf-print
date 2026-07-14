@@ -1,0 +1,19 @@
+export const dynamic = 'force-dynamic'
+import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
+import { NextResponse } from 'next/server'
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+// 로그인 유저가 이미 리뷰한 주문 ID 목록
+export async function GET() {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+
+  const { data } = await supabaseAdmin.from('reviews').select('order_id').eq('user_id', user.id)
+  return NextResponse.json({ reviewedOrderIds: (data || []).map((r) => r.order_id) })
+}

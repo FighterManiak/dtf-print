@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCircle, Download, Building2, Truck, Package, RotateCcw } from 'lucide-react'
+import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCircle, Download, Building2, Truck, Package, RotateCcw, Star, X, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 
@@ -121,6 +121,40 @@ export default function MyOrdersPage() {
   const [dateTo, setDateTo] = useState(() => getRangeDates('최근 3일').to)
   const userIdRef = React.useRef<string>('')
 
+  // 리뷰
+  const [reviewedOrderIds, setReviewedOrderIds] = useState<string[]>([])
+  const [reviewModal, setReviewModal] = useState<string | null>(null) // orderId
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewText, setReviewText] = useState('')
+  const [reviewFiles, setReviewFiles] = useState<File[]>([])
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
+
+  const loadReviewed = () => fetch('/api/reviews/mine').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.reviewedOrderIds) setReviewedOrderIds(d.reviewedOrderIds) }).catch(() => {})
+
+  const openReview = (orderId: string) => {
+    setReviewModal(orderId); setReviewRating(5); setReviewText(''); setReviewFiles([])
+  }
+
+  const submitReview = async () => {
+    if (!reviewModal || !user) return
+    setReviewSubmitting(true)
+    const supabase = createClient()
+    const imagePaths: string[] = []
+    for (const file of reviewFiles) {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const path = `reviews/${user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`
+      const { error } = await supabase.storage.from('order-files').upload(path, file)
+      if (!error) imagePaths.push(path)
+    }
+    const res = await fetch('/api/reviews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: reviewModal, rating: reviewRating, content: reviewText, imagePaths }),
+    })
+    if (res.ok) { setReviewModal(null); await loadReviewed() }
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '리뷰 등록 실패') }
+    setReviewSubmitting(false)
+  }
+
   const QUICK_RANGES: QuickRange[] = ['오늘', '어제', '최근 3일', '최근 7일', '최근 1달']
 
   useEffect(() => {
@@ -130,6 +164,7 @@ export default function MyOrdersPage() {
       if (!user) { router.push('/login'); return }
       setUser({ id: user.id, email: user.email || '' })
       userIdRef.current = user.id
+      loadReviewed()
       await loadData(user.id, dateFrom, dateTo)
     }
     init()
@@ -600,6 +635,18 @@ export default function MyOrdersPage() {
                       </div>
                     )}
 
+                    {/* 리뷰 쓰기 (배송완료 + 미작성) */}
+                    {quote.order?.status === 'delivered' && quote.order_id && (
+                      reviewedOrderIds.includes(quote.order_id) ? (
+                        <div className="text-center text-xs text-gray-400 py-1">리뷰를 작성한 주문입니다.</div>
+                      ) : (
+                        <button onClick={() => openReview(quote.order_id!)}
+                          className="w-full bg-yellow-400 text-yellow-900 py-2.5 rounded-xl text-sm font-bold hover:bg-yellow-500 transition-colors">
+                          ★ 리뷰 쓰기
+                        </button>
+                      )
+                    )}
+
                     {/* 환불 요청 */}
                     {quote.order?.status === 'refund_requested' && (
                       <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center text-sm text-orange-700">
@@ -695,6 +742,55 @@ export default function MyOrdersPage() {
               className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               {reordering ? '요청 중...' : '견적 요청'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* 리뷰 작성 모달 */}
+    {reviewModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-gray-900 text-lg">리뷰 작성</h2>
+            <button onClick={() => setReviewModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          </div>
+
+          <label className="text-sm font-semibold text-gray-700 block mb-2">별점</label>
+          <div className="flex gap-1 mb-5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <button key={i} onClick={() => setReviewRating(i)}>
+                <Star className={`w-8 h-8 ${i <= reviewRating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
+              </button>
+            ))}
+          </div>
+
+          <label className="text-sm font-semibold text-gray-700 block mb-2">사진 <span className="text-gray-400 font-normal">(선택)</span></label>
+          <div className="flex gap-2 flex-wrap mb-2">
+            {reviewFiles.map((f, i) => (
+              <div key={i} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 object-cover rounded-lg" />
+                <button onClick={() => setReviewFiles((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">×</button>
+              </div>
+            ))}
+            {reviewFiles.length < 5 && (
+              <label className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-yellow-400">
+                <Upload className="w-5 h-5 text-gray-400" />
+                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const sel = Array.from(e.target.files || []); setReviewFiles((p) => [...p, ...sel].slice(0, 5)); e.target.value = '' }} />
+              </label>
+            )}
+          </div>
+
+          <label className="text-sm font-semibold text-gray-700 block mb-2 mt-3">내용 <span className="text-gray-400 font-normal">(선택)</span></label>
+          <textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} rows={3} placeholder="상품은 어떠셨나요?"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-5" />
+
+          <div className="flex gap-2">
+            <button onClick={() => setReviewModal(null)} className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">취소</button>
+            <button onClick={submitReview} disabled={reviewSubmitting} className="flex-1 bg-yellow-400 text-yellow-900 py-2.5 rounded-xl text-sm font-bold hover:bg-yellow-500 disabled:opacity-50">
+              {reviewSubmitting ? '등록 중...' : '등록'}
             </button>
           </div>
         </div>
