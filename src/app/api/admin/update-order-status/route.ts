@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery } from '@/lib/points-server'
+import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery, awardReferralCommission, revokePointsForOrder } from '@/lib/points-server'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,13 +32,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `orders 테이블에 해당 ID 없음: ${orderId}` }, { status: 404 })
   }
 
-  // 배송 완료 시 등급별 포인트 적립 + 추천인 보상 (중복 방지)
+  // 배송 완료 시 등급별 포인트 적립 + 추천인 보상 + 추천 커미션 (중복 방지)
   if (status === 'delivered') {
     try {
       await awardPointsForDeliveredOrder(supabaseAdmin, orderId)
+      await awardReferralCommission(supabaseAdmin, orderId)
       const { data: o } = await supabaseAdmin.from('orders').select('user_id').eq('id', orderId).single()
       if (o?.user_id) await awardReferralIfFirstDelivery(supabaseAdmin, o.user_id)
     } catch { /* 적립 실패는 상태변경에 영향 없음 */ }
+  }
+
+  // 취소/환불 시 해당 주문으로 적립된 포인트 자동 환수
+  if (status === 'cancelled' || status === 'refunded') {
+    try { await revokePointsForOrder(supabaseAdmin, orderId) } catch { /* 무시 */ }
   }
 
   return NextResponse.json({ success: true })

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveGrade, POINT_RATES, POINT_EXPIRY_MONTHS, isRollProduct, type Grade } from './grade'
-import { referralCodeFromUserId, REFERRER_REWARD, REFEREE_REWARD } from './referral'
+import { referralCodeFromUserId, REFERRER_REWARD, REFEREE_REWARD, REFERRAL_COMMISSION_RATE, REFERRAL_COMMISSION_MONTHS } from './referral'
 
 // 관리자 수동 지정 우선, 없으면 지난 달 미터 기반 등급
 export async function getEffectiveGrade(admin: SupabaseClient, userId: string): Promise<Grade> {
@@ -127,6 +127,86 @@ export async function awardReferralIfFirstDelivery(admin: SupabaseClient, userId
 
   // 중복 지급 방지 플래그
   await admin.auth.admin.updateUserById(userId, { user_metadata: { referral_rewarded: true } })
+}
+
+// 추천 회원 주문 커미션: 배송완료 시 상품금액의 2%를 추천인에게 적립
+// 조건: 피추천인 가입 후 1년 이내 주문, 주문당 1회
+export async function awardReferralCommission(admin: SupabaseClient, orderId: string): Promise<void> {
+  const { data: order } = await admin
+    .from('orders')
+    .select('id,user_id,status,total_amount,order_items(unit_price,quantity,cutting_price)')
+    .eq('id', orderId)
+    .single()
+  if (!order?.user_id || order.status !== 'delivered') return
+
+  // 피추천인 정보
+  const { data: userRes } = await admin.auth.admin.getUserById(order.user_id)
+  const buyer = userRes?.user
+  const refCode: string | undefined = buyer?.user_metadata?.referred_by_code
+  if (!buyer || !refCode) return
+
+  // 가입 후 1년 이내인지
+  const signup = new Date(buyer.created_at).getTime()
+  const limit = new Date(buyer.created_at)
+  limit.setMonth(limit.getMonth() + REFERRAL_COMMISSION_MONTHS)
+  if (Date.now() > limit.getTime() || !signup) return
+
+  // 추천인 찾기
+  const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const referrer = (list?.users || []).find((u) => u.id !== order.user_id && referralCodeFromUserId(u.id) === refCode.toUpperCase().trim())
+  if (!referrer) return
+
+  // 주문당 1회 (같은 주문에 대한 추천인 적립 존재 여부)
+  const { data: existing } = await admin
+    .from('points')
+    .select('id')
+    .eq('order_id', orderId)
+    .eq('user_id', referrer.id)
+    .eq('type', 'earn')
+    .limit(1)
+  if (existing && existing.length > 0) return
+
+  const productAmount = getProductAmount(order)
+  const earned = Math.floor(productAmount * REFERRAL_COMMISSION_RATE)
+  if (earned <= 0) return
+
+  const expiresAt = new Date()
+  expiresAt.setMonth(expiresAt.getMonth() + POINT_EXPIRY_MONTHS)
+
+  await admin.from('points').insert({
+    user_id: referrer.id,
+    amount: earned,
+    balance_remaining: earned,
+    type: 'earn',
+    expires_at: expiresAt.toISOString(),
+    order_id: orderId,
+    memo: `추천 회원 주문 적립 ${(REFERRAL_COMMISSION_RATE * 100).toFixed(0)}%`,
+  })
+}
+
+// 주문 취소/환불 시 해당 주문으로 적립된 포인트 자동 환수
+// (본인 등급 적립 + 추천인 커미션 모두, 남은 잔액만큼 회수)
+export async function revokePointsForOrder(admin: SupabaseClient, orderId: string): Promise<void> {
+  const { data: earns } = await admin
+    .from('points')
+    .select('id,user_id,amount,balance_remaining,memo')
+    .eq('order_id', orderId)
+    .eq('type', 'earn')
+    .gt('balance_remaining', 0)
+
+  for (const e of earns || []) {
+    const revoke = Number(e.balance_remaining) || 0
+    if (revoke <= 0) continue
+    await admin.from('points').update({ balance_remaining: 0 }).eq('id', e.id)
+    await admin.from('points').insert({
+      user_id: e.user_id,
+      amount: -revoke,
+      balance_remaining: 0,
+      type: 'revoke',
+      order_id: orderId,
+      memo: `주문 취소/환불 포인트 환수 (${e.memo || '적립'})`,
+    })
+  }
 }
 
 // 포인트 사용 (FIFO 소진, 오래된 적립분부터). 실제 사용된 금액 반환

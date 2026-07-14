@@ -10,3 +10,7 @@ export function referralCodeFromUserId(userId: string): string {
 // 추천인 보상 금액
 export const REFERRER_REWARD = 5000   // 추천인 (기존 회원)
 export const REFEREE_REWARD = 3000    // 피추천인 (신규 회원)
+
+// 추천 회원 주문 커미션: 배송완료된 상품금액의 2%를 추천인에게 (가입 후 1년간)
+export const REFERRAL_COMMISSION_RATE = 0.02
+export const REFERRAL_COMMISSION_MONTHS = 12
