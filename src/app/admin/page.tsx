@@ -49,11 +49,10 @@ export default function AdminPage() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
 
-      // orders는 RLS 우회를 위해 서비스롤 API로 조회 후 클라이언트에서 집계
-      const [orders, pendingQuotesRes, pendingPaymentRes] = await Promise.all([
+      // orders / quotes 모두 RLS 우회를 위해 서비스롤 API로 조회 후 클라이언트에서 집계
+      const [orders, quotes] = await Promise.all([
         fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => []) as Promise<Array<{ status: string; total_amount: number | null; created_at: string; updated_at: string }>>,
-        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('quotes').select('id', { count: 'exact', head: true }).eq('status', 'quoted'),
+        fetch('/api/admin/list-quotes').then((r) => r.ok ? r.json() : []).catch(() => []) as Promise<Array<{ status: string }>>,
       ])
 
       // 스토리지 통계 (병렬)
@@ -69,8 +68,8 @@ export default function AdminPage() {
         todayOrders: orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart).length,
         todayRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart)),
         todayShipped: orders.filter((o) => o.status === 'shipped' && o.updated_at >= todayStart).length,
-        pendingQuotes: pendingQuotesRes.count || 0,
-        pendingPayment: pendingPaymentRes.count || 0,
+        pendingQuotes: quotes.filter((q) => q.status === 'pending').length,
+        pendingPayment: quotes.filter((q) => q.status === 'quoted').length,
       })
       setLoading(false)
     }

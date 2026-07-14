@@ -129,10 +129,11 @@ function AdminManagePageContent() {
 
   const loadAll = async () => {
     setLoading(true)
-    const supabase = createClient()
-    const { data: quotesData } = await supabase.from('quotes').select('*').order('created_at', { ascending: false })
-    // orders는 RLS 우회를 위해 서비스롤 API로 조회
-    const directData: DirectOrder[] = await fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => [])
+    // quotes / orders 모두 RLS 우회를 위해 서비스롤 API로 조회
+    const [quotesData, directData]: [Quote[], DirectOrder[]] = await Promise.all([
+      fetch('/api/admin/list-quotes').then((r) => r.ok ? r.json() : []).catch(() => []),
+      fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => []),
+    ])
     const orderIds = (quotesData || []).map((q) => q.order_id).filter(Boolean) as string[]
     const ordersMap: Record<string, OrderInfo> = {}
     directData.forEach((o) => { ordersMap[o.id] = o })
