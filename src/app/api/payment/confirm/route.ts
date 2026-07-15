@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(
 interface OrderPayload {
   orderName: string
   customer: { name: string; email: string; phone: string; address: string }
-  cart: Array<{ productId: string; quantity: number; unitPrice: number; cutting: boolean; cuttingPrice: number; requestNote: string; dueDate: string | null }>
+  cart: Array<{ productId: string; quantity: number; unitPrice: number; cutting: boolean; cuttingPrice: number; requestNote: string; dueDate: string | null; filePath?: string | null; fileName?: string | null }>
   totalAmount: number
   usedPoints?: number
   userId?: string | null
@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
           cutting_price: item.cuttingPrice,
           request_note: item.requestNote || null,
           due_date: item.dueDate || null,
+          file_url: item.filePath || null,
+          file_name: item.fileName || null,
         }))
       )
     }

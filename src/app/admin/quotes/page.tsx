@@ -57,7 +57,7 @@ interface DirectOrder {
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
   memo: string | null; refund_reason: string | null; payment_method: string | null
-  order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null }[]
+  order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
 }
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
 interface QuoteForm { quantity: string; unit: string; unitPrice: string; cutting: boolean; cuttingPrice: string; adminNote: string }
@@ -364,9 +364,29 @@ function AdminManagePageContent() {
                         </div>
                       </div>
 
-                      {/* 파일 다운로드 */}
+                      {/* 파일 다운로드 (견적) */}
                       {item.type === 'quote' && (() => {
                         const files = parseFiles((d as Quote).file_url, (d as Quote).file_name)
+                        return files.length > 0 ? (
+                          <div className="space-y-2">
+                            {files.map((f, i) => (
+                              <button key={i} onClick={() => downloadFile(f.url, f.name)}
+                                className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors">
+                                <Download className="w-4 h-4" />
+                                시안 다운로드{files.length > 1 ? ` (${i+1}/${files.length})` : ''} — {f.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            첨부 파일 없음 — 요구사항 내용으로 확인하세요.
+                          </div>
+                        )
+                      })()}
+
+                      {/* 파일 다운로드 (바로주문) */}
+                      {item.type === 'order' && (() => {
+                        const files = ((d as DirectOrder).order_items || []).filter((oi) => oi.file_url).map((oi) => ({ url: oi.file_url as string, name: oi.file_name || oi.product_id }))
                         return files.length > 0 ? (
                           <div className="space-y-2">
                             {files.map((f, i) => (

@@ -177,6 +177,27 @@ function OrderPageContent() {
     address: `${customer.zonecode ? `(${customer.zonecode}) ` : ''}${customer.address}${customer.addressDetail ? ` ${customer.addressDetail}` : ''}`.trim(),
   })
 
+  // 장바구니 → 결제 payload (시안 파일을 스토리지에 업로드 후 경로 포함)
+  const buildCartPayload = async () => {
+    const supabase = createClient()
+    const uid = userId || 'guest'
+    const out = []
+    for (const item of cart) {
+      const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
+      const cutAmt = item.cutting ? (isRollItem(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
+      let filePath: string | null = null
+      let fileName: string | null = null
+      if (item.file) {
+        const ext = item.file.name.split('.').pop()?.toLowerCase() || 'bin'
+        const path = `${uid}/orders/${Date.now()}_${Math.random().toString(36).slice(2,7)}.${ext}`
+        const { error } = await supabase.storage.from('order-files').upload(path, item.file)
+        if (!error) { filePath = path; fileName = item.file.name }
+      }
+      out.push({ productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null, filePath, fileName })
+    }
+    return out
+  }
+
   const handlePayment = async () => {
     try {
       const supabase = createClient()
@@ -185,13 +206,10 @@ function OrderPageContent() {
       const displayName = orderName.trim() || (cart.length === 1 ? ALL_PRODUCTS.find(p=>p.id===cart[0].productId)?.name || cart[0].productId : `${ALL_PRODUCTS.find(p=>p.id===cart[0].productId)?.name || cart[0].productId} 외 ${cart.length-1}개`)
       // 주문은 결제 승인 성공 후에만 생성 → 결제 데이터를 sessionStorage에 임시 저장
       const tossOrderId = `ORDER-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+      const cartPayload = await buildCartPayload()
       const orderPayload = {
         orderName: displayName, customer: buildCustomerPayload(),
-        cart: cart.map((item) => {
-          const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
-          const cutAmt = item.cutting ? (isRollItem(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
-          return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
-        }),
+        cart: cartPayload,
         totalAmount: finalPay, usedPoints, userId: user?.id || null, shippingNote, paymentMethod: 'CARD',
       }
       sessionStorage.setItem(`order_${tossOrderId}`, JSON.stringify(orderPayload))
@@ -214,15 +232,12 @@ function OrderPageContent() {
 
   const handleBankTransfer = async () => {
     setSubmitting(true)
+    const cartPayload = await buildCartPayload()
     const res = await fetch('/api/order/bank-transfer', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         orderName: orderName.trim() || null, customer: buildCustomerPayload(),
-        cart: cart.map((item) => {
-          const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
-          const cutAmt = item.cutting ? (isRollItem(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
-          return { productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null }
-        }),
+        cart: cartPayload,
         totalAmount: finalPay, usedPoints, shippingNote,
       }),
     })

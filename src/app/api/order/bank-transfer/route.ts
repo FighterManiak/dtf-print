@@ -51,6 +51,8 @@ export async function POST(req: Request) {
     cuttingPrice: number
     requestNote: string
     dueDate: string | null
+    filePath?: string | null
+    fileName?: string | null
   }) => ({
     order_id: newOrder.id,
     product_id: item.productId,
@@ -60,6 +62,8 @@ export async function POST(req: Request) {
     cutting_price: item.cuttingPrice,
     request_note: item.requestNote || null,
     due_date: item.dueDate || null,
+    file_url: item.filePath || null,
+    file_name: item.fileName || null,
   }))
 
   await supabaseAdmin.from('order_items').insert(items)
