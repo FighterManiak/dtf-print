@@ -78,6 +78,8 @@ function AdminManagePageContent() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<string>(searchParams.get('status') || 'all')
   const [search, setSearch] = useState('')
+  const [pageSize, setPageSize] = useState(30)
+  const [page, setPage] = useState(1)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [forms, setForms] = useState<Record<string, QuoteForm>>({})
   const [sending, setSending] = useState<string | null>(null)
@@ -169,6 +171,8 @@ function AdminManagePageContent() {
   }
 
   useEffect(() => { loadAll() }, [])
+  // 필터/검색/페이지크기 변경 시 1페이지로
+  useEffect(() => { setPage(1) }, [tab, search, dateFrom, dateTo, pageSize])
 
   const loadAll = async () => {
     setLoading(true)
@@ -255,6 +259,11 @@ function AdminManagePageContent() {
 
   const counts: Record<string, number> = {}
   items.forEach((item) => { const s = getEffectiveStatus(item); counts[s] = (counts[s] || 0) + 1 })
+
+  // 페이지네이션
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
@@ -392,6 +401,20 @@ function AdminManagePageContent() {
           })}
         </div>
 
+        {/* 페이지당 개수 + 결과 수 */}
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <span className="text-sm text-gray-500">총 {filtered.length}건</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400 mr-1">페이지당</span>
+            {[30, 50, 100, 500].map((n) => (
+              <button key={n} onClick={() => setPageSize(n)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${pageSize === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 리스트 */}
         {loading ? (
           <div className="text-center py-24 text-gray-400 text-sm">불러오는 중...</div>
@@ -399,7 +422,7 @@ function AdminManagePageContent() {
           <div className="text-center py-24 text-gray-400 text-sm">해당하는 주문이 없습니다.</div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((item) => {
+            {paged.map((item) => {
               const itemKey = item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`
               const isExpanded = expanded === itemKey
               const effectiveStatus = getEffectiveStatus(item)
@@ -887,6 +910,27 @@ function AdminManagePageContent() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* 페이지 넘버링 */}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 mt-6 flex-wrap">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40">이전</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 2)
+              .map((n, idx, arr) => (
+                <span key={n} className="flex items-center">
+                  {idx > 0 && arr[idx - 1] !== n - 1 && <span className="px-1 text-gray-300">…</span>}
+                  <button onClick={() => setPage(n)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${safePage === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                    {n}
+                  </button>
+                </span>
+              ))}
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40">다음</button>
           </div>
         )}
       </div>
