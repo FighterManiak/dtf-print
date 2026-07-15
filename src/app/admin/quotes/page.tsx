@@ -213,6 +213,34 @@ function AdminManagePageContent() {
   const counts: Record<string, number> = {}
   items.forEach((item) => { const s = getEffectiveStatus(item); counts[s] = (counts[s] || 0) + 1 })
 
+  // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
+  const exportExcel = () => {
+    const headers = ['주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '결제수단', '금액', '택배사', '송장번호']
+    const rows = filtered.map((item) => {
+      const d = item.data
+      const s = getEffectiveStatus(item)
+      const label = STATUS_CONFIG[s]?.label || s
+      const type = item.type === 'quote' ? '견적주문' : '바로주문'
+      const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
+      const pmLabel = pm === 'bank_transfer' ? '무통장' : pm === 'CARD' || pm === 'card' ? '카드' : ''
+      const carrier = (item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || ''
+      const tracking = (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
+      let detail = ''
+      if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
+      else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
+      const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, pmLabel, d.total_amount ? String(d.total_amount) : '', carrier, tracking]
+    })
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`
+    const csv = [headers, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `주문내역_${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -223,6 +251,10 @@ function AdminManagePageContent() {
             <h1 className="text-2xl font-bold text-gray-900">주문 관리 <span className="text-xs text-gray-400 font-normal">v7</span></h1>
             <p className="text-sm text-gray-500 mt-0.5">전체 {items.length}건</p>
           </div>
+          <button onClick={exportExcel} disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
+            <Download className="w-4 h-4" /> 엑셀 다운로드 ({filtered.length})
+          </button>
         </div>
 
         {/* 검색 + 날짜 필터 */}
