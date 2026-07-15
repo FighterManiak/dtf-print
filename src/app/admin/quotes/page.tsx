@@ -283,7 +283,7 @@ function AdminManagePageContent() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-gray-900 text-sm">{d.user_name || d.user_email || '—'}</span>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${item.type === 'quote' ? 'bg-blue-50 text-blue-600 ring-blue-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
-                          {item.type === 'quote' ? '견적' : '바로주문'}
+                          {item.type === 'quote' ? '📋 견적주문' : '⚡ 바로주문'}
                         </span>
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 ${cfg.badge}`}>
                           <StatusIcon className="w-3 h-3" />{cfg.label}
