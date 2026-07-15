@@ -82,13 +82,14 @@ function getDisplayStatus(quote: Quote): string {
   return quote.status
 }
 
-type QuickRange = '오늘' | '어제' | '최근 3일' | '최근 7일' | '최근 1달'
+type QuickRange = '전체' | '오늘' | '어제' | '최근 3일' | '최근 7일' | '최근 1달'
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10)
 
 function getRangeDates(range: QuickRange): { from: string; to: string } {
   const now = new Date()
   const today = fmt(now)
+  if (range === '전체') return { from: '2000-01-01', to: today }
   if (range === '오늘') return { from: today, to: today }
   if (range === '어제') {
     const y = new Date(now); y.setDate(y.getDate() - 1)
@@ -116,9 +117,9 @@ export default function MyOrdersPage() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
   const [reorderModal, setReorderModal] = useState<ReorderModal | null>(null)
   const [reordering, setReordering] = useState(false)
-  const [quickRange, setQuickRange] = useState<QuickRange>('최근 3일')
-  const [dateFrom, setDateFrom] = useState(() => getRangeDates('최근 3일').from)
-  const [dateTo, setDateTo] = useState(() => getRangeDates('최근 3일').to)
+  const [quickRange, setQuickRange] = useState<QuickRange>('전체')
+  const [dateFrom, setDateFrom] = useState(() => getRangeDates('전체').from)
+  const [dateTo, setDateTo] = useState(() => getRangeDates('전체').to)
   const userIdRef = React.useRef<string>('')
 
   // 리뷰
@@ -155,7 +156,7 @@ export default function MyOrdersPage() {
     setReviewSubmitting(false)
   }
 
-  const QUICK_RANGES: QuickRange[] = ['오늘', '어제', '최근 3일', '최근 7일', '최근 1달']
+  const QUICK_RANGES: QuickRange[] = ['전체', '오늘', '어제', '최근 3일', '최근 7일', '최근 1달']
 
   useEffect(() => {
     const init = async () => {
