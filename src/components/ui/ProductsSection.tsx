@@ -24,7 +24,8 @@ export default function ProductsSection() {
     if (!isSupabaseConfigured()) return
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
-      setIsVerified(data.user?.user_metadata?.role === 'dtf_verified')
+      const m = data.user?.user_metadata
+      setIsVerified(m?.role === 'dtf_verified' || m?.verify_status === 'approved')
     })
   }, [])
 

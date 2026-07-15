@@ -50,6 +50,19 @@ export default function MembersPage() {
   const [gradeUntil, setGradeUntil] = useState('')
   const [gradeSaving, setGradeSaving] = useState(false)
 
+  const toggleVerify = async (member: Member, approve: boolean) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    if (!confirm(`${name} 님을 DTF 보유인증 ${approve ? '승인' : '해제'} 하시겠습니까?`)) return
+    setProcessing(member.id)
+    const res = await fetch('/api/admin/set-verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: member.id, approve }),
+    })
+    if (res.ok) await loadMembers()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패') }
+    setProcessing(null)
+  }
+
   const openGradeModal = (member: Member) => {
     const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
     const ov = member.user_metadata?.grade_override
@@ -254,13 +267,19 @@ export default function MembersPage() {
                       )}
                     </td>
                     <td className="px-4 py-4">
-                      {isDtfVerified ? (
-                        <span className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded-lg text-xs font-bold w-fit whitespace-nowrap">
-                          <ShieldCheck className="w-3 h-3" /> 인증완료
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">미인증</span>
-                      )}
+                      <div className="flex flex-col gap-1 items-start">
+                        {isDtfVerified ? (
+                          <span className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded-lg text-xs font-bold w-fit whitespace-nowrap">
+                            <ShieldCheck className="w-3 h-3" /> 인증완료
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">미인증</span>
+                        )}
+                        <button onClick={() => toggleVerify(member, !isDtfVerified)} disabled={processing === member.id}
+                          className={`text-[11px] hover:underline disabled:opacity-50 ${isDtfVerified ? 'text-red-500' : 'text-green-600'}`}>
+                          {isDtfVerified ? '인증 해제' : '인증 승인'}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-4 py-4">
                       {isSuperAdmin ? (
