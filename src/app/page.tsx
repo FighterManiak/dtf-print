@@ -107,6 +107,52 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── 생산 역량 / 인프라 ── */}
+      <section className="relative overflow-hidden bg-[#0f0f0f] text-white py-24 px-6">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-blue-400 font-semibold text-sm uppercase tracking-widest mb-3">Our Infrastructure</p>
+            <h2 className="text-4xl font-extrabold">압도적 생산 인프라</h2>
+            <p className="text-white/50 mt-3">규모가 다른 설비, 멈추지 않는 생산력으로 증명합니다.</p>
+          </div>
+
+          {/* 지표 카드 — 한 줄에 3개 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/10 border border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="text-blue-300 text-sm font-semibold mb-2">자체 대형 생산 공장</div>
+              <div className="text-4xl font-extrabold tracking-tight mb-2">1,500<span className="text-xl font-bold text-white/70 ml-1">평</span></div>
+              <p className="text-white/50 text-xs leading-relaxed mt-auto">넓은 공장 부지에서 대량 생산부터 물류까지 한 번에.</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="text-white/50 text-sm font-semibold mb-2">DTF 프린터</div>
+              <div className="text-4xl font-extrabold tracking-tight mb-2">16<span className="text-xl font-bold text-white/70 ml-1">대</span></div>
+              <p className="text-white/50 text-xs leading-relaxed mt-auto">동시 가동으로 대량 주문도 밀림 없이.</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="text-white/50 text-sm font-semibold mb-2">듀얼 프레스</div>
+              <div className="text-4xl font-extrabold tracking-tight mb-2">16<span className="text-xl font-bold text-white/70 ml-1">대</span></div>
+              <p className="text-white/50 text-xs leading-relaxed mt-auto">대규모 프레스 설비로 외주 생산까지 가능.</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="text-white/50 text-sm font-semibold mb-2">목표 일일 생산 CAPA</div>
+              <div className="text-4xl font-extrabold tracking-tight mb-2">6,000<span className="text-xl font-bold text-white/70 ml-1">M / 일</span></div>
+              <p className="text-white/50 text-xs leading-relaxed mt-auto">하루 수천 미터를 소화하는 압도적 생산력.</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="text-white/50 text-sm font-semibold mb-2">차세대 고속 장비 증설</div>
+              <div className="text-4xl font-extrabold tracking-tight mb-2">5HEAD 20<span className="text-xl font-bold text-white/70 ml-1">대</span></div>
+              <p className="text-white/50 text-xs leading-relaxed mt-auto">2027년까지 5HEAD 프린터 20대 셋팅, 멈추지 않는 투자.</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-3xl p-7 flex flex-col">
+              <div className="text-white/50 text-sm font-semibold mb-2">재주문 시 동일 장비 출력</div>
+              <div className="text-3xl font-extrabold tracking-tight mb-2 flex items-center gap-1.5"><Printer className="w-7 h-7 text-blue-400" /> 장비 지정</div>
+              <p className="text-white/50 text-xs leading-relaxed mt-auto">쓰던 기계 그대로 선택 출력 — 색·품질 편차 없는 일관성.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── 주문 프로세스 ── */}
       <section className="py-24 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
