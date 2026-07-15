@@ -110,10 +110,10 @@ export default function ProductsSection() {
 
         <div className="text-center mt-12">
           <Link
-            href="/order"
+            href="/order?mode=quote"
             className="inline-flex items-center gap-2 bg-gray-900 text-white font-bold px-10 py-4 rounded-2xl hover:bg-gray-700 transition-colors"
           >
-            전체 상품 주문하기 <ArrowRight className="w-4 h-4" />
+            지금 바로 견적받기 <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>
