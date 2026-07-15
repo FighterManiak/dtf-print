@@ -510,7 +510,7 @@ function OrderPageContent() {
                           </div>
                           <div className="flex items-center gap-2 ml-4">
                             {locked ? (
-                              <button onClick={() => alert('DTF 장비 보유 인증 고객 전용 상품입니다.\n상단의 \'DTF 보유인증\' 버튼으로 인증 후 이용해주세요.')}
+                              <button onClick={() => alert('DTF 장비 보유 인증 고객 전용 상품입니다.\n\nPC: 상단의 \'DTF 보유인증\' 버튼\n모바일: 우측 상단 메뉴(≡)를 열고 \'DTF 보유인증\' 버튼\n\n으로 인증 후 이용해주세요.')}
                                 className="flex items-center gap-1 bg-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-gray-300 transition-colors">
                                 🔒 인증 필요
                               </button>

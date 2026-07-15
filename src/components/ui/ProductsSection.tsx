@@ -98,7 +98,7 @@ export default function ProductsSection() {
                     {inner}
                   </Link>
                 ) : (
-                  <button key={product.id} onClick={() => alert('DTF 장비 보유 인증 고객 전용 상품입니다.\n로그인 후 \'DTF 보유인증\'을 완료하면 주문할 수 있습니다.')}
+                  <button key={product.id} onClick={() => alert('DTF 장비 보유 인증 고객 전용 상품입니다.\n\n로그인 후 아래에서 \'DTF 보유인증\'을 완료하면 주문할 수 있습니다.\nPC: 상단의 \'DTF 보유인증\' 버튼\n모바일: 우측 상단 메뉴(≡)를 열고 \'DTF 보유인증\' 버튼')}
                     className="text-left border-2 border-gray-200 bg-gray-50 rounded-xl p-6 hover:border-green-300 transition-all block">
                     {inner}
                   </button>
