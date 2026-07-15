@@ -87,6 +87,48 @@ function AdminManagePageContent() {
   const [dateTo, setDateTo] = useState('')
   const [memoInputs, setMemoInputs] = useState<Record<string, string>>({})
   const [memoSaving, setMemoSaving] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkRunning, setBulkRunning] = useState(false)
+
+  const BULK_NEXT: Record<string, string> = { paid: 'in_progress', in_progress: 'shipped', shipped: 'delivered' }
+  const BULK_NEXT_LABEL: Record<string, string> = { in_progress: '작업 시작', shipped: '출고 진행', delivered: '배송 완료' }
+
+  const toggleSelect = (key: string) => setSelected((p) => { const n = new Set(p); n.has(key) ? n.delete(key) : n.add(key); return n })
+
+  // 한 주문을 다음 단계로 이동
+  const advanceItem = async (item: Item): Promise<boolean> => {
+    const d = item.data
+    const s = getEffectiveStatus(item)
+    const next = BULK_NEXT[s]
+    if (!next) return false
+    const orderId = item.type === 'quote' ? (d as Quote).order_id : d.id
+    if (orderId) {
+      const res = await fetch('/api/admin/update-order-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId, status: next }) })
+      return res.ok
+    }
+    if (item.type === 'quote') {
+      let res = await fetch('/api/admin/confirm-bank-transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, targetStatus: next }) })
+      if (!res.ok) res = await fetch('/api/admin/update-quote-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quoteId: d.id, status: next }) })
+      return res.ok
+    }
+    return false
+  }
+
+  const advanceSelected = async () => {
+    const targets = filtered.filter((item) => {
+      const key = item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`
+      return selected.has(key) && BULK_NEXT[getEffectiveStatus(item)]
+    })
+    if (targets.length === 0) { alert('다음 단계로 넘길 수 있는 주문이 없습니다.\n(결제완료·작업중·출고 상태만 가능)'); return }
+    if (!confirm(`선택한 ${targets.length}건을 각각 다음 단계로 넘기시겠습니까?`)) return
+    setBulkRunning(true)
+    let ok = 0
+    for (const item of targets) { if (await advanceItem(item)) ok++ }
+    setBulkRunning(false)
+    setSelected(new Set())
+    await loadAll()
+    alert(`${ok}건 처리 완료${ok < targets.length ? ` (${targets.length - ok}건 실패)` : ''}`)
+  }
 
   // 취소/환불 모달
   const [cancelModal, setCancelModal] = useState<{ orderId: string; itemKey: string; total: number; isCard: boolean } | null>(null)
@@ -242,7 +284,7 @@ function AdminManagePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-5xl mx-auto px-4 py-8">
 
         {/* 헤더 */}
@@ -308,6 +350,9 @@ function AdminManagePageContent() {
                 <div key={itemKey} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
                   {/* 카드 헤더 */}
                   <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExpanded(isExpanded ? null : itemKey)}>
+                    {/* 일괄 선택 체크박스 */}
+                    <input type="checkbox" checked={selected.has(itemKey)} onClick={(e) => e.stopPropagation()} onChange={() => toggleSelect(itemKey)}
+                      className="w-4 h-4 accent-gray-900 shrink-0 cursor-pointer" />
                     {/* 상태 도트 */}
                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
 
@@ -784,6 +829,22 @@ function AdminManagePageContent() {
           </div>
         )}
       </div>
+
+      {/* 일괄 처리 바 */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 text-white shadow-2xl">
+          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <div className="text-sm font-medium">
+              <b className="text-base">{selected.size}</b>건 선택됨
+              <button onClick={() => setSelected(new Set())} className="ml-3 text-white/50 hover:text-white text-xs underline">선택 해제</button>
+            </div>
+            <button onClick={advanceSelected} disabled={bulkRunning}
+              className="flex items-center gap-1.5 bg-violet-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
+              {bulkRunning ? '처리 중...' : '다음 단계로 일괄 처리 →'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 취소/환불 모달 */}
       {cancelModal && (
