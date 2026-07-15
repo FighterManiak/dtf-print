@@ -60,6 +60,14 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          {/* 문의 전화 */}
+          <div className="mt-6 text-center">
+            <a href="tel:010-8231-8604" className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+              <span className="text-sm text-white/50">문의</span>
+              <span className="text-lg md:text-xl font-bold tracking-wide">010-8231-8604</span>
+            </a>
+          </div>
         </div>
       </section>
 
