@@ -67,8 +67,8 @@ function OrderPageContent() {
   const [pointsUsable, setPointsUsable] = useState(false)
   const [usePointInput, setUsePointInput] = useState('')
 
-  // 사용자 등급(DTF 인증)에 따라 노출 상품 필터
-  const ALL_PRODUCTS = products.filter((p) => !p.verified_only || isVerified)
+  // 모든 활성 상품 노출 (인증 전용도 노출하되 비인증은 클릭 잠금)
+  const ALL_PRODUCTS = products
   const getProduct = (id: string) => products.find((p) => p.id === id)
   const isRollItem = (id: string) => !!getProduct(id)?.is_roll
 
@@ -496,16 +496,25 @@ function OrderPageContent() {
                   {ALL_PRODUCTS.map((product) => {
                     const inCart = cart.find((i) => i.productId===product.id)
                     const isExpanded = expandedProduct===product.id
+                    const locked = product.verified_only && !isVerified
                     return (
-                      <div key={product.id} className={`border rounded-2xl overflow-hidden transition-all ${inCart ? 'border-violet-300 bg-violet-50' : 'border-gray-200 bg-white'}`}>
+                      <div key={product.id} className={`border rounded-2xl overflow-hidden transition-all ${inCart ? 'border-violet-300 bg-violet-50' : locked ? 'border-gray-200 bg-gray-50' : 'border-gray-200 bg-white'}`}>
                         <div className="flex items-center justify-between p-4">
                           <div className="flex-1">
-                            <div className="font-bold text-gray-900">{product.name}</div>
+                            <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                              {product.name}
+                              {product.verified_only && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">인증 전용</span>}
+                            </div>
                             <div className="text-sm text-gray-500">{product.description}</div>
                             <div className="text-violet-600 font-bold mt-1">{product.price.toLocaleString()}원 / {product.unit}</div>
                           </div>
                           <div className="flex items-center gap-2 ml-4">
-                            {inCart ? (
+                            {locked ? (
+                              <button onClick={() => alert('DTF 장비 보유 인증 고객 전용 상품입니다.\n상단의 \'DTF 보유인증\' 버튼으로 인증 후 이용해주세요.')}
+                                className="flex items-center gap-1 bg-gray-200 text-gray-500 px-4 py-2 rounded-xl text-sm font-bold cursor-pointer hover:bg-gray-300 transition-colors">
+                                🔒 인증 필요
+                              </button>
+                            ) : inCart ? (
                               <>
                                 <button onClick={() => setExpandedProduct(isExpanded?null:product.id)} className="text-violet-600 hover:bg-violet-100 p-2 rounded-lg">
                                   {isExpanded ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}

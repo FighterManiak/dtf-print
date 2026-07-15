@@ -61,8 +61,8 @@ export default function ProductsSection() {
           ))}
         </div>
 
-        {/* DTF 인증 전용 상품 */}
-        {isVerified && (
+        {/* DTF 인증 전용 상품 (모두에게 노출, 비인증은 클릭 시 안내) */}
+        {verifiedProducts.length > 0 && (
           <div className="border-t border-gray-100 pt-10">
             <div className="flex items-center gap-2 mb-6">
               <ShieldCheck className="w-5 h-5 text-green-600" />
@@ -70,30 +70,40 @@ export default function ProductsSection() {
               <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">인증 회원 전용</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {verifiedProducts.map((product) => (
-                <Link
-                  key={product.id}
-                  href={`/order?product=${product.id}`}
-                  className="group border-2 border-green-300 bg-green-50 rounded-xl p-6 hover:shadow-md hover:border-green-500 transition-all block"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-green-600" />
-                      <span className="text-xs font-bold text-green-600">인증 전용</span>
+              {verifiedProducts.map((product) => {
+                const inner = (
+                  <>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-green-600" />
+                        <span className="text-xs font-bold text-green-600">인증 전용</span>
+                      </div>
+                      {isVerified
+                        ? <ChevronRight className="w-5 h-5 text-green-300 group-hover:text-green-500 transition-colors shrink-0" />
+                        : <span className="text-sm">🔒</span>}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-green-300 group-hover:text-green-500 transition-colors shrink-0" />
-                  </div>
-                  <h3 className="font-bold text-gray-800 text-lg mb-2 group-hover:text-green-700 transition-colors">{product.name}</h3>
-                  <p className="text-gray-500 text-sm mb-4">{product.description}</p>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <span className="text-2xl font-bold text-green-600">{product.price.toLocaleString()}원</span>
-                      <span className="text-gray-400 text-sm ml-1">/ {product.unit}</span>
+                    <h3 className="font-bold text-gray-800 text-lg mb-2">{product.name}</h3>
+                    <p className="text-gray-500 text-sm mb-4">{product.description}</p>
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <span className="text-2xl font-bold text-green-600">{product.price.toLocaleString()}원</span>
+                        <span className="text-gray-400 text-sm ml-1">/ {product.unit}</span>
+                      </div>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">{isVerified ? '주문 가능' : '인증 필요'}</span>
                     </div>
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">컷팅 옵션 가능</span>
-                  </div>
-                </Link>
-              ))}
+                  </>
+                )
+                return isVerified ? (
+                  <Link key={product.id} href={`/order?product=${product.id}`} className="group border-2 border-green-300 bg-green-50 rounded-xl p-6 hover:shadow-md hover:border-green-500 transition-all block">
+                    {inner}
+                  </Link>
+                ) : (
+                  <button key={product.id} onClick={() => alert('DTF 장비 보유 인증 고객 전용 상품입니다.\n로그인 후 \'DTF 보유인증\'을 완료하면 주문할 수 있습니다.')}
+                    className="text-left border-2 border-gray-200 bg-gray-50 rounded-xl p-6 hover:border-green-300 transition-all block">
+                    {inner}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
