@@ -64,7 +64,7 @@ export default function Home() {
           {/* 문의 전화 */}
           <div className="mt-6 text-center">
             <a href="tel:010-8231-8604" className="inline-flex items-center gap-2.5 text-white/90 hover:text-white transition-colors">
-              <span className="text-lg md:text-xl text-white/60">문의</span>
+              <span className="text-lg md:text-xl text-white">문의</span>
               <span className="text-2xl md:text-3xl font-bold tracking-wide">010-8231-8604</span>
             </a>
           </div>
