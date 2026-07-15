@@ -282,6 +282,57 @@ function AdminManagePageContent() {
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
+  // 송장 일괄등록 양식 다운로드 (송장 입력이 필요한 주문 = 주문ID 있는 결제완료·작업중·출고)
+  const exportShippingTemplate = () => {
+    const shippable = filtered.filter((item) => {
+      const orderId = item.type === 'quote' ? (item.data as Quote).order_id : item.data.id
+      return orderId && ['paid', 'in_progress', 'shipped'].includes(getEffectiveStatus(item))
+    })
+    if (shippable.length === 0) { alert('송장 등록 대상 주문이 없습니다.\n(주문ID가 있는 결제완료·작업중·출고 주문만 대상)'); return }
+    const headers = ['주문ID', '이름', '연락처', '주문명', '상태', '택배사', '송장번호']
+    const rows = shippable.map((item) => {
+      const d = item.data
+      const orderId = item.type === 'quote' ? (d as Quote).order_id : d.id
+      const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
+      return [orderId, d.user_name || '', d.user_phone || '', (d as { order_name?: string }).order_name || '', label, '', '']
+    })
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 18 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '송장등록')
+    XLSX.writeFile(wb, `송장양식_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  // 송장 엑셀 업로드 → 일괄 등록
+  const importTracking = async (file: File) => {
+    setBulkRunning(true)
+    try {
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws)
+      const rows = json
+        .map((r) => ({
+          orderId: String(r['주문ID'] ?? '').trim(),
+          carrier: String(r['택배사'] ?? '').trim(),
+          tracking_number: String(r['송장번호'] ?? '').trim(),
+        }))
+        .filter((r) => r.orderId && r.tracking_number)
+      if (rows.length === 0) { alert('송장번호가 입력된 행이 없습니다.\n양식의 "송장번호" 열을 채웠는지 확인해주세요.'); setBulkRunning(false); return }
+      const res = await fetch('/api/admin/bulk-tracking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) })
+      const data = await res.json()
+      if (res.ok) {
+        await loadAll()
+        alert(`송장 ${data.updated}건 등록 완료 (출고 처리)${data.failed?.length ? `\n실패 ${data.failed.length}건 (주문ID 불일치)` : ''}`)
+      } else {
+        alert(data.error || '일괄 등록 실패')
+      }
+    } catch {
+      alert('엑셀 파일을 읽지 못했습니다. 양식 파일인지 확인해주세요.')
+    }
+    setBulkRunning(false)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -292,10 +343,21 @@ function AdminManagePageContent() {
             <h1 className="text-2xl font-bold text-gray-900">주문 관리 <span className="text-xs text-gray-400 font-normal">v7</span></h1>
             <p className="text-sm text-gray-500 mt-0.5">전체 {items.length}건</p>
           </div>
-          <button onClick={exportExcel} disabled={filtered.length === 0}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
-            <Download className="w-4 h-4" /> 엑셀 다운로드 ({filtered.length})
-          </button>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button onClick={exportExcel} disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
+              <Download className="w-4 h-4" /> 엑셀 다운로드 ({filtered.length})
+            </button>
+            <button onClick={exportShippingTemplate}
+              className="flex items-center gap-1.5 border border-gray-300 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
+              <Download className="w-4 h-4" /> 송장 양식
+            </button>
+            <label className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors cursor-pointer">
+              <Truck className="w-4 h-4" /> {bulkRunning ? '처리 중...' : '송장 일괄등록'}
+              <input type="file" accept=".xlsx,.xls" className="hidden" disabled={bulkRunning}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) importTracking(f); e.target.value = '' }} />
+            </label>
+          </div>
         </div>
 
         {/* 검색 + 날짜 필터 */}
