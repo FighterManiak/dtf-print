@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, ChevronUp, Send, Truck, Package, RotateCcw, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
+import * as XLSX from 'xlsx'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   A4: 'A4 출력', A3: 'A3 출력', roll_58: '58cm 롤 출력', other: '기타',
@@ -271,16 +272,14 @@ function AdminManagePageContent() {
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
       else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, pmLabel, d.total_amount ? String(d.total_amount) : '', carrier, tracking]
+      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, pmLabel, d.total_amount || 0, carrier, tracking]
     })
-    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`
-    const csv = [headers, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `주문내역_${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    // 열 너비 지정
+    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '주문내역')
+    XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   return (
