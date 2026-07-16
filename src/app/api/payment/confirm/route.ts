@@ -18,6 +18,7 @@ interface OrderPayload {
   usedPoints?: number
   userId?: string | null
   shippingNote?: string
+  machineNo?: number
 }
 
 export async function POST(req: NextRequest) {
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
         order_name: p.orderName || null,
         total_amount: p.totalAmount,
         used_points: p.usedPoints || 0,
+        machine_no: p.machineNo || null,
         status: 'paid',
         payment_method: 'CARD',
         payment_key: paymentKey,

@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { orderName, customer, cart, totalAmount, paymentMethod, shippingNote, usedPoints } = await req.json()
+  const { orderName, customer, cart, totalAmount, paymentMethod, shippingNote, usedPoints, machineNo } = await req.json()
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       order_name: orderName || null,
       total_amount: totalAmount,
       used_points: usedPoints || 0,
+      machine_no: machineNo || null,
       status: 'pending',
       payment_method: paymentMethod || 'bank_transfer',
       memo: `${paymentMethod === 'CARD' ? '카드결제' : '무통장입금'} 바로주문${orderName ? ` · ${orderName}` : ''}${shippingNote ? ` · ${shippingNote}` : ''}${usedPoints ? ` · 포인트 ${Number(usedPoints).toLocaleString()}P 사용` : ''}`,

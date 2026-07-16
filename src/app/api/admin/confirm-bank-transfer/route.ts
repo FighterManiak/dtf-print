@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       user_phone: quote.user_phone || '',
       user_address: quote.user_address || '',
       total_amount: quote.total_amount ?? 0,
+      machine_no: quote.machine_no ?? null,
       status: finalStatus,
       payment_method: quote.payment_method || 'bank_transfer',
       memo: `견적 입금 (${quote.product_type || ''})${quote.admin_note ? ' · ' + quote.admin_note : ''}`,

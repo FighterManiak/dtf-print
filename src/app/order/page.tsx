@@ -19,6 +19,7 @@ const PRODUCT_TYPES = [
 ]
 
 const CUTTING_PRICE_PER_M = 1000
+const MACHINE_COUNT = 10  // DTF 장비 총 대수
 
 const formatPhone = (v: string) => {
   const n = v.replace(/[^0-9]/g, '')
@@ -46,6 +47,9 @@ function OrderPageContent() {
   const [customer, setCustomer] = useState<CustomerInfo>({ name:'', email:'', phone:'', address:'', zonecode:'', addressDetail:'' })
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
   const [orderNameError, setOrderNameError] = useState('')
+
+  // 출력 장비 선택 (0 = 무관/지정없음)
+  const [machineNo, setMachineNo] = useState(0)
 
   // 견적 모드 전용
   const [productType, setProductType] = useState('')
@@ -146,6 +150,7 @@ function OrderPageContent() {
       user_phone: customer.phone, user_address: customer.address,
       product_type: productType, order_name: orderName.trim() || null,
       request_note: requestNote,
+      machine_no: machineNo || null,
       file_url: uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null,
       file_name: uploadedNames.length > 0 ? JSON.stringify(uploadedNames) : null,
       status: 'pending',
@@ -210,7 +215,7 @@ function OrderPageContent() {
       const orderPayload = {
         orderName: displayName, customer: buildCustomerPayload(),
         cart: cartPayload,
-        totalAmount: finalPay, usedPoints, userId: user?.id || null, shippingNote, paymentMethod: 'CARD',
+        totalAmount: finalPay, usedPoints, userId: user?.id || null, shippingNote, machineNo, paymentMethod: 'CARD',
       }
       sessionStorage.setItem(`order_${tossOrderId}`, JSON.stringify(orderPayload))
 
@@ -238,7 +243,7 @@ function OrderPageContent() {
       body: JSON.stringify({
         orderName: orderName.trim() || null, customer: buildCustomerPayload(),
         cart: cartPayload,
-        totalAmount: finalPay, usedPoints, shippingNote,
+        totalAmount: finalPay, usedPoints, shippingNote, machineNo,
       }),
     })
     if (res.ok) setBankDone(true)
@@ -406,10 +411,24 @@ function OrderPageContent() {
                   ))}
                 </div>
                 {productType && (
-                  <div className="mb-6">
-                    <label className="text-sm font-semibold text-gray-700 block mb-2">주문명 <span className="text-red-500">*</span></label>
-                    <input type="text" value={orderName} onChange={(e) => setOrderName(e.target.value)} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400" />
+                  <div className="mb-6 space-y-4">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-2">주문명 <span className="text-red-500">*</span></label>
+                      <input type="text" value={orderName} onChange={(e) => setOrderName(e.target.value)} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
+                        className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-1">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
+                      <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button type="button" onClick={() => setMachineNo(0)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>무관</button>
+                        {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => (
+                          <button type="button" key={n} onClick={() => setMachineNo(n)}
+                            className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${machineNo===n ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
                 <button disabled={!productType || !orderName.trim()} onClick={() => setStep(2)}
@@ -671,6 +690,20 @@ function OrderPageContent() {
                   <input type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치" maxLength={50}
                     className={`w-full border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400 ${orderNameError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
                   {orderNameError && <p className="text-red-500 text-xs mt-1">{orderNameError}</p>}
+
+                  {/* 출력 장비 선택 */}
+                  <div className="mt-4">
+                    <label className="text-sm font-semibold text-gray-700 block mb-1.5">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
+                    <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button type="button" onClick={() => setMachineNo(0)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>무관</button>
+                      {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => (
+                        <button type="button" key={n} onClick={() => setMachineNo(n)}
+                          className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${machineNo===n ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>{n}</button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 mb-6">
                   {[{key:'name',label:'주문자 이름',ph:'홍길동',type:'text'},{key:'email',label:'이메일',ph:'example@email.com',type:'email'},{key:'phone',label:'연락처',ph:'010-1234-5678',type:'tel'}].map(({key,label,ph,type}) => (

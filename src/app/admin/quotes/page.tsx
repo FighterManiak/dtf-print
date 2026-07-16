@@ -52,12 +52,13 @@ interface Quote {
   quoted_quantity: number | null; quoted_unit: string | null
   cutting: boolean; cutting_price: number; unit_price: number | null; total_amount: number | null
   admin_note: string | null; order_id: string | null; order?: OrderInfo | null
+  machine_no: number | null
 }
 interface DirectOrder {
   id: string; created_at: string; status: string
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
-  memo: string | null; refund_reason: string | null; payment_method: string | null
+  memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
 }
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
@@ -267,7 +268,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
-    const headers = ['주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '결제수단', '금액', '택배사', '송장번호']
+    const headers = ['주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '출력장비', '결제수단', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
       const s = getEffectiveStatus(item)
@@ -280,12 +281,13 @@ function AdminManagePageContent() {
       let detail = ''
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
       else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
+      const machine = (d as { machine_no?: number | null }).machine_no
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, pmLabel, d.total_amount || 0, carrier, tracking]
+      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '무관', pmLabel, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
     // 열 너비 지정
-    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '주문내역')
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -472,6 +474,10 @@ function AdminManagePageContent() {
                           return <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${isBank ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>{isBank ? '무통장' : '카드'}</span>
                         })()}
                         {d.user_phone && <span className="text-xs text-gray-400">{d.user_phone}</span>}
+                        {(() => {
+                          const m = (d as { machine_no?: number | null }).machine_no
+                          return m ? <span className="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">장비 {m}번</span> : null
+                        })()}
                         {/* 송장 미리보기 */}
                         {(() => {
                           const carrier = item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier
