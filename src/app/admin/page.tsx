@@ -86,7 +86,7 @@ export default function AdminPage() {
   const monthCards = [
     { label: '전체 주문', value: loading ? '—' : `${stats.total}건`, icon: ClipboardList, color: 'text-gray-500', href: '/admin/quotes' },
     { label: '작업 중', value: loading ? '—' : `${stats.inProgress}건`, icon: Package, color: 'text-blue-500', href: '/admin/quotes?status=in_progress' },
-    { label: '입금 확인 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', href: '/admin/quotes?status=bank_transfer_pending' },
+    { label: '입금 확인 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', href: '/admin/quotes?status=paid' },
     { label: '이번 달 매출', value: loading ? '—' : `${stats.monthRevenue.toLocaleString()}원`, icon: TrendingUp, color: 'text-indigo-500', href: '/admin/quotes' },
   ]
 

@@ -30,7 +30,7 @@ const TABS = [
   { key: 'all',                  label: '전체' },
   { key: 'pending',              label: '검토 대기' },
   { key: 'quoted',               label: '견적 발송' },
-  { key: 'bank_transfer_pending',label: '입금 확인' },
+  { key: 'order_pending',        label: '입금 대기' },
   { key: 'paid',                 label: '결제 완료' },
   { key: 'in_progress',          label: '작업 중' },
   { key: 'shipped',              label: '출고' },
@@ -38,6 +38,11 @@ const TABS = [
   { key: 'refund_requested',     label: '환불 요청' },
   { key: 'cancelled',            label: '취소' },
 ] as const
+
+// 하나의 탭이 여러 상태를 포함 (결제완료 = 입금확인 + 결제완료)
+const TAB_STATUSES: Record<string, string[]> = {
+  paid: ['paid', 'bank_transfer_pending'],
+}
 
 interface OrderInfo {
   id: string; status: string; carrier: string | null
@@ -247,7 +252,7 @@ function AdminManagePageContent() {
 
   const filtered = items.filter((item) => {
     const s = getEffectiveStatus(item)
-    if (tab !== 'all' && s !== tab) return false
+    if (tab !== 'all' && !(TAB_STATUSES[tab] || [tab]).includes(s)) return false
     if (dateFrom && item.data.created_at < dateFrom + 'T00:00:00') return false
     if (dateTo && item.data.created_at > dateTo + 'T23:59:59') return false
     if (search) {
@@ -387,7 +392,7 @@ function AdminManagePageContent() {
         {/* 상태 탭 */}
         <div className="flex flex-wrap gap-1.5 mb-5">
           {TABS.map(({ key, label }) => {
-            const cnt = key === 'all' ? items.length : (counts[key] || 0)
+            const cnt = key === 'all' ? items.length : (TAB_STATUSES[key] || [key]).reduce((sum, s) => sum + (counts[s] || 0), 0)
             const isActive = tab === key
             return (
               <button key={key} onClick={() => setTab(key)}
