@@ -20,6 +20,7 @@ const PRODUCT_TYPES = [
 
 const CUTTING_PRICE_PER_M = 1000
 const MACHINE_COUNT = 10  // DTF 장비 총 대수
+const ACTIVE_MACHINE_COUNT = 6  // 현재 운용 중인 장비 (7~10번은 2027년 오픈 예정)
 
 const formatPhone = (v: string) => {
   const n = v.replace(/[^0-9]/g, '')
@@ -423,10 +424,14 @@ function OrderPageContent() {
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => setMachineNo(0)}
                           className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>자동 배정</button>
-                        {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => (
-                          <button type="button" key={n} onClick={() => setMachineNo(n)}
-                            className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${machineNo===n ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>{n}</button>
-                        ))}
+                        {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => {
+                          const disabled = n > ACTIVE_MACHINE_COUNT
+                          return (
+                            <button type="button" key={n} disabled={disabled} onClick={() => setMachineNo(n)}
+                              title={disabled ? '2027년 오픈 예정' : undefined}
+                              className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${disabled ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : machineNo===n ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>{n}</button>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
@@ -698,10 +703,14 @@ function OrderPageContent() {
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => setMachineNo(0)}
                         className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>자동 배정</button>
-                      {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => (
-                        <button type="button" key={n} onClick={() => setMachineNo(n)}
-                          className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${machineNo===n ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>{n}</button>
-                      ))}
+                      {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => {
+                        const disabled = n > ACTIVE_MACHINE_COUNT
+                        return (
+                          <button type="button" key={n} disabled={disabled} onClick={() => setMachineNo(n)}
+                            title={disabled ? '2027년 오픈 예정' : undefined}
+                            className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${disabled ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : machineNo===n ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>{n}</button>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
