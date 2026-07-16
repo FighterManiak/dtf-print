@@ -69,7 +69,7 @@ export default function AdminPage() {
         todayRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart)),
         todayShipped: orders.filter((o) => o.status === 'shipped' && o.updated_at >= todayStart).length,
         pendingQuotes: quotes.filter((q) => q.status === 'pending').length,
-        pendingPayment: quotes.filter((q) => q.status === 'quoted').length,
+        pendingPayment: quotes.filter((q) => q.status === 'bank_transfer_pending').length,
       })
       setLoading(false)
     }
