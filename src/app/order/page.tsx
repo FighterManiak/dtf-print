@@ -419,10 +419,10 @@ function OrderPageContent() {
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-1">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
-                      <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 처음 주문하는 디자인은 <b className="text-gray-500">&apos;무관&apos;</b>을 선택하시고, 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
+                      <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 처음 주문하는 디자인은 <b className="text-gray-500">&apos;자동 배정&apos;</b>을 선택하시고, 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => setMachineNo(0)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>무관</button>
+                          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>자동 배정</button>
                         {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => (
                           <button type="button" key={n} onClick={() => setMachineNo(n)}
                             className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${machineNo===n ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>{n}</button>
@@ -694,10 +694,10 @@ function OrderPageContent() {
                   {/* 출력 장비 선택 */}
                   <div className="mt-4">
                     <label className="text-sm font-semibold text-gray-700 block mb-1.5">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
-                    <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 처음 주문하는 디자인은 <b className="text-gray-500">&apos;무관&apos;</b>을 선택하시고, 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
+                    <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 처음 주문하는 디자인은 <b className="text-gray-500">&apos;자동 배정&apos;</b>을 선택하시고, 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => setMachineNo(0)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>무관</button>
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>자동 배정</button>
                       {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => (
                         <button type="button" key={n} onClick={() => setMachineNo(n)}
                           className={`w-9 h-9 rounded-lg text-sm font-bold border transition-colors ${machineNo===n ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>{n}</button>
