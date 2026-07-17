@@ -182,6 +182,11 @@ function LoginContent() {
           {/* 간편 로그인 탭 */}
           {tab === 'social' && (
             <div className="space-y-3">
+              {/* 베타 안내 */}
+              <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-xs text-violet-700 leading-relaxed">
+                <b>📢 베타 오픈 안내</b> — <b>2026년 8월 1일 정식 오픈</b> 예정.
+                지금 가입하셔도 계정·주문·포인트는 그대로 유지됩니다.
+              </div>
               <button
                 onClick={signInWithGoogle}
                 className="w-full flex items-center justify-center gap-3 bg-white text-gray-700 font-bold py-3.5 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
@@ -292,6 +297,12 @@ function LoginContent() {
           {/* 회원가입 탭 */}
           {tab === 'signup' && (
             <form onSubmit={handleSignup} className="space-y-4">
+              {/* 베타 안내 */}
+              <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-xs text-violet-700 leading-relaxed">
+                <b>📢 베타 오픈 안내</b><br />
+                현재 베타 버전으로 운영 중이며 <b>2026년 8월 1일 정식 오픈</b> 예정입니다.
+                지금 가입하셔도 계정·주문·포인트는 정식 오픈 후 그대로 유지됩니다.
+              </div>
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-1.5">이름</label>
                 <input

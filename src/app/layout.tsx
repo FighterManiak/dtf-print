@@ -20,6 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko" className={`${geist.className} ${barlowCondensed.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-gray-50">
+        {/* 베타 오픈 안내 배너 */}
+        <div className="bg-violet-600 text-white text-center text-xs sm:text-sm px-4 py-2 font-medium">
+          🎉 현재 <b>베타 버전</b>으로 운영 중입니다 — <b>2026년 8월 1일 정식 오픈</b> 예정 · 회원가입은 지금 바로 가능합니다
+        </div>
         <Header />
         <main className="flex-1">{children}</main>
         <ChatWidget />
