@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             <p style="color: #374151; font-size: 14px; margin: 0;">${adminNote}</p>
           </div>` : ''}
 
-          <a href="https://dtf-print.vercel.app/my-quotes"
+          <a href="https://www.superhard.co.kr/my-quotes"
             style="display: block; background: #2563eb; color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 15px; text-decoration: none;">
             결제하러 가기 →
           </a>
