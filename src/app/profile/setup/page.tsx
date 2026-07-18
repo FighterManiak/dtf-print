@@ -174,13 +174,7 @@ function ProfileSetupForm() {
             {loading ? '저장 중...' : '저장하고 시작하기'}
           </button>
 
-          <button
-            type="button"
-            onClick={() => router.push(next)}
-            className="w-full text-gray-400 text-sm py-2 hover:text-gray-600 transition-colors"
-          >
-            나중에 입력하기
-          </button>
+          <p className="text-center text-xs text-gray-400 pt-1">서비스 이용을 위해 연락처와 주소 등록이 필요합니다.</p>
         </form>
       </div>
     </div>

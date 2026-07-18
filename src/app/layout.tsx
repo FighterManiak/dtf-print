@@ -3,6 +3,7 @@ import { Geist, Barlow_Condensed } from 'next/font/google'
 import './globals.css'
 import Header from '@/components/ui/Header'
 import ChatWidget from '@/components/ui/ChatWidget'
+import ProfileGuard from '@/components/ui/ProfileGuard'
 
 const geist = Geist({ subsets: ['latin'] })
 const barlowCondensed = Barlow_Condensed({
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           🎉 현재 <b>베타 버전</b>으로 운영 중입니다 — <b>2026년 8월 1일 정식 오픈</b> 예정 · 회원가입은 지금 바로 가능합니다
         </div>
         <Header />
+        <ProfileGuard />
         <main className="flex-1">{children}</main>
         <ChatWidget />
         <footer className="bg-[#0f0f0f] text-gray-500 text-sm py-10 px-6">
