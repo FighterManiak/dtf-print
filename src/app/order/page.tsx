@@ -421,9 +421,14 @@ function OrderPageContent() {
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-1">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
                       <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 처음 주문하는 디자인은 <b className="text-gray-500">&apos;자동 배정&apos;</b>을 선택하시고, 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-2 text-xs text-blue-700">
+                        ⚡ <b>자동 배정</b>이 <b>가장 빠르게 출고</b>됩니다 — 비어 있는 장비에 바로 투입되어 대기 없이 작업이 시작돼요. 특정 장비를 지정하면 해당 장비의 작업 대기열에 따라 <b>출고가 늦어질 수 있습니다.</b>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => setMachineNo(0)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>자동 배정</button>
+                          className={`relative px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'}`}>
+                          ⚡ 자동 배정 <span className={`ml-0.5 text-[10px] font-bold ${machineNo===0 ? 'text-blue-100' : 'text-blue-500'}`}>가장 빠름</span>
+                        </button>
                         {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => {
                           const disabled = n > ACTIVE_MACHINE_COUNT
                           return (
@@ -700,9 +705,14 @@ function OrderPageContent() {
                   <div className="mt-4">
                     <label className="text-sm font-semibold text-gray-700 block mb-1.5">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
                     <p className="text-xs text-gray-400 mb-2">장비마다 색감이 미세하게 달라요. 처음 주문하는 디자인은 <b className="text-gray-500">&apos;자동 배정&apos;</b>을 선택하시고, 재주문 시 이전과 같은 장비를 선택하면 색을 맞출 수 있습니다.</p>
+                    <div className="bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-2 text-xs text-violet-700">
+                      ⚡ <b>자동 배정</b>이 <b>가장 빠르게 출고</b>됩니다 — 비어 있는 장비에 바로 투입되어 대기 없이 작업이 시작돼요. 특정 장비를 지정하면 해당 장비의 작업 대기열에 따라 <b>출고가 늦어질 수 있습니다.</b>
+                    </div>
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => setMachineNo(0)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>자동 배정</button>
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-colors ${machineNo===0 ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>
+                        ⚡ 자동 배정 <span className={`ml-0.5 text-[10px] font-bold ${machineNo===0 ? 'text-violet-100' : 'text-violet-500'}`}>가장 빠름</span>
+                      </button>
                       {Array.from({length: MACHINE_COUNT}, (_, i) => i+1).map((n) => {
                         const disabled = n > ACTIVE_MACHINE_COUNT
                         return (
