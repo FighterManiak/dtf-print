@@ -420,10 +420,10 @@ function OrderPageContent() {
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-1">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 mb-2 text-xs text-blue-700 space-y-1.5">
-                        <p>🎨 장비마다 <b>색감이 미세하게 다릅니다.</b> 처음 주문하는 디자인은 <b>&apos;자동 배정&apos; 선택을 추천드립니다.</b></p>
-                        <p>⚡ <b>자동 배정</b>이 <b>가장 빠르게 출고</b>됩니다 — 비어 있는 장비에 바로 투입되어 대기 없이 작업이 시작돼요. 특정 장비를 지정하면 해당 장비의 작업 대기열에 따라 <b>출고가 늦어질 수 있습니다.</b></p>
-                        <p>✅ 자동 배정으로 주문하셔도 <b>실제 작업된 장비 번호가 기록</b>되며, <b>내 주문 현황에서 확인</b>하실 수 있습니다. 재주문 시 그 번호를 선택하면 동일한 색감으로 출력됩니다.</p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 mb-2 text-xs text-blue-700 space-y-1">
+                        <p>🎨 장비마다 색감이 미세하게 다릅니다. 첫 주문은 <b>&apos;자동 배정&apos; 추천</b></p>
+                        <p>⚡ <b>자동 배정이 가장 빠른 출고</b> — 장비 지정 시 대기열로 지연될 수 있어요</p>
+                        <p>✅ 작업 장비 번호는 <b>내 주문 현황</b>에서 확인 → 재주문 시 같은 색감</p>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <button type="button" onClick={() => setMachineNo(0)}
@@ -705,10 +705,10 @@ function OrderPageContent() {
                   {/* 출력 장비 선택 */}
                   <div className="mt-4">
                     <label className="text-sm font-semibold text-gray-700 block mb-1.5">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
-                    <div className="bg-violet-50 border border-violet-200 rounded-xl px-3 py-2.5 mb-2 text-xs text-violet-700 space-y-1.5">
-                      <p>🎨 장비마다 <b>색감이 미세하게 다릅니다.</b> 처음 주문하는 디자인은 <b>&apos;자동 배정&apos; 선택을 추천드립니다.</b></p>
-                      <p>⚡ <b>자동 배정</b>이 <b>가장 빠르게 출고</b>됩니다 — 비어 있는 장비에 바로 투입되어 대기 없이 작업이 시작돼요. 특정 장비를 지정하면 해당 장비의 작업 대기열에 따라 <b>출고가 늦어질 수 있습니다.</b></p>
-                      <p>✅ 자동 배정으로 주문하셔도 <b>실제 작업된 장비 번호가 기록</b>되며, <b>내 주문 현황에서 확인</b>하실 수 있습니다. 재주문 시 그 번호를 선택하면 동일한 색감으로 출력됩니다.</p>
+                    <div className="bg-violet-50 border border-violet-200 rounded-xl px-3 py-2.5 mb-2 text-xs text-violet-700 space-y-1">
+                      <p>🎨 장비마다 색감이 미세하게 다릅니다. 첫 주문은 <b>&apos;자동 배정&apos; 추천</b></p>
+                      <p>⚡ <b>자동 배정이 가장 빠른 출고</b> — 장비 지정 시 대기열로 지연될 수 있어요</p>
+                      <p>✅ 작업 장비 번호는 <b>내 주문 현황</b>에서 확인 → 재주문 시 같은 색감</p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" onClick={() => setMachineNo(0)}
