@@ -43,6 +43,8 @@ export default function MembersPage() {
   const [error, setError] = useState('')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
   const [metersByUser, setMetersByUser] = useState<Record<string, number>>({})
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(30)
 
   // 등급 수동 지정 모달
   const [gradeModal, setGradeModal] = useState<{ memberId: string; memberName: string } | null>(null)
@@ -99,6 +101,9 @@ export default function MembersPage() {
     fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
     loadMembers()
   }, [])
+
+  // 검색/페이지크기 변경 시 1페이지로
+  useEffect(() => { setPage(1) }, [search, pageSize])
 
   useEffect(() => {
     if (modal) {
@@ -172,6 +177,11 @@ export default function MembersPage() {
     )
   })
 
+  // 페이지네이션
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
+
   if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">불러오는 중...</div>
 
   return (
@@ -189,6 +199,20 @@ export default function MembersPage() {
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="이름, 이메일, 전화번호, 회사명, 주소 검색"
             className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
+        </div>
+
+        {/* 페이지당 개수 */}
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <span className="text-sm text-gray-500">총 {filtered.length}명</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400 mr-1">페이지당</span>
+            {[30, 50, 100].map((n) => (
+              <button key={n} onClick={() => setPageSize(n)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${pageSize === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                {n}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
@@ -209,7 +233,7 @@ export default function MembersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((member) => {
+              {paged.map((member) => {
                 const name = member.user_metadata?.full_name || member.user_metadata?.name || '-'
                 const role = member.user_metadata?.role || 'user'
                 const provider = member.app_metadata?.provider || 'email'
@@ -316,6 +340,27 @@ export default function MembersPage() {
             <div className="text-center py-12 text-gray-400 text-sm">회원이 없습니다.</div>
           )}
         </div>
+
+        {/* 페이지 넘버링 */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 mt-6 flex-wrap">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40">이전</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 2)
+              .map((n, idx, arr) => (
+                <span key={n} className="flex items-center">
+                  {idx > 0 && arr[idx - 1] !== n - 1 && <span className="px-1 text-gray-300">…</span>}
+                  <button onClick={() => setPage(n)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${safePage === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                    {n}
+                  </button>
+                </span>
+              ))}
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+              className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40">다음</button>
+          </div>
+        )}
       </div>
 
       {/* 등급 수동 지정 모달 */}
