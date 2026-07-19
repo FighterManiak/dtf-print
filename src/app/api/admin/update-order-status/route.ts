@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { orderId, status, refund_reason } = await req.json()
+  const { orderId, status, refund_reason, assignedMachine } = await req.json()
 
   if (!orderId || !status) {
     return NextResponse.json({ error: 'orderId and status required' }, { status: 400 })
@@ -17,6 +17,8 @@ export async function POST(req: Request) {
 
   const updateData: Record<string, unknown> = { status }
   if (refund_reason !== undefined) updateData.refund_reason = refund_reason
+  // 작업 시작 시 실제 사용 장비 지정
+  if (assignedMachine !== undefined) updateData.assigned_machine = assignedMachine || null
 
   const { data, error } = await supabaseAdmin
     .from('orders')

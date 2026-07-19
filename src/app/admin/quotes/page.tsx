@@ -47,7 +47,7 @@ const TAB_STATUSES: Record<string, string[]> = {
 interface OrderInfo {
   id: string; status: string; carrier: string | null
   tracking_number: string | null; refund_reason: string | null
-  payment_method: string | null
+  payment_method: string | null; assigned_machine: number | null
 }
 interface Quote {
   id: string; created_at: string; status: string
@@ -63,7 +63,7 @@ interface DirectOrder {
   id: string; created_at: string; status: string
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
-  memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null
+  memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
 }
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
@@ -98,6 +98,25 @@ function AdminManagePageContent() {
   const [memoSaving, setMemoSaving] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkRunning, setBulkRunning] = useState(false)
+
+  // 작업 시작 시 장비 지정 모달
+  const [machineModal, setMachineModal] = useState<{ orderId: string; itemKey: string; requested: number; value: number } | null>(null)
+  const MACHINE_COUNT = 10
+  const ACTIVE_MACHINE_COUNT = 6
+
+  const confirmStartWork = async () => {
+    if (!machineModal) return
+    if (!machineModal.value) { alert('작업할 장비 번호를 선택해주세요.'); return }
+    setProcessing(machineModal.itemKey)
+    const res = await fetch('/api/admin/update-order-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: machineModal.orderId, status: 'in_progress', assignedMachine: machineModal.value }),
+    })
+    if (!res.ok) { const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패') }
+    setMachineModal(null)
+    await loadAll()
+    setProcessing(null)
+  }
 
   const BULK_NEXT: Record<string, string> = { paid: 'in_progress', in_progress: 'shipped', shipped: 'delivered' }
   const BULK_NEXT_LABEL: Record<string, string> = { in_progress: '작업 시작', shipped: '출고 진행', delivered: '배송 완료' }
@@ -273,7 +292,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
-    const headers = ['주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '출력장비', '결제수단', '금액', '택배사', '송장번호']
+    const headers = ['주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
       const s = getEffectiveStatus(item)
@@ -287,12 +306,13 @@ function AdminManagePageContent() {
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
       else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
       const machine = (d as { machine_no?: number | null }).machine_no
+      const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '자동 배정', pmLabel, d.total_amount || 0, carrier, tracking]
+      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
     // 열 너비 지정
-    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '주문내역')
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -480,8 +500,10 @@ function AdminManagePageContent() {
                         })()}
                         {d.user_phone && <span className="text-xs text-gray-400">{d.user_phone}</span>}
                         {(() => {
+                          const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
                           const m = (d as { machine_no?: number | null }).machine_no
-                          return m ? <span className="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">장비 {m}번</span> : null
+                          if (assigned) return <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">작업 {assigned}번</span>
+                          return m ? <span className="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">요청 {m}번</span> : null
                         })()}
                         {/* 송장 미리보기 */}
                         {(() => {
@@ -767,7 +789,16 @@ function AdminManagePageContent() {
                         return (
                           <div className="space-y-3">
                             {NEXT[orderStatus] && (
-                              <button onClick={async () => { if (confirm(`'${NEXT_LABEL[orderStatus]}'으로 변경하시겠습니까?`)) await updateOrderStatus(orderId, NEXT[orderStatus], itemKey) }}
+                              <button onClick={async () => {
+                                // 작업 시작(paid → in_progress) 시에는 장비 지정 모달
+                                if (orderStatus === 'paid') {
+                                  const requested = (d as { machine_no?: number | null }).machine_no || 0
+                                  const current = (d as { assigned_machine?: number | null }).assigned_machine || requested
+                                  setMachineModal({ orderId, itemKey, requested, value: current })
+                                  return
+                                }
+                                if (confirm(`'${NEXT_LABEL[orderStatus]}'으로 변경하시겠습니까?`)) await updateOrderStatus(orderId, NEXT[orderStatus], itemKey)
+                              }}
                                 disabled={processing === itemKey}
                                 className={`w-full text-white py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${NEXT_COLOR[orderStatus] || 'bg-gray-700 hover:bg-gray-800'}`}>
                                 {NEXT_LABEL[orderStatus]} →
@@ -945,6 +976,47 @@ function AdminManagePageContent() {
           </div>
         )}
       </div>
+
+      {/* 작업 시작 — 장비 지정 모달 */}
+      {machineModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">작업 장비 지정</h2>
+              <button onClick={() => setMachineModal(null)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
+            </div>
+
+            <div className={`rounded-xl px-4 py-3 mb-4 text-sm ${machineModal.requested ? 'bg-violet-50 text-violet-700' : 'bg-gray-50 text-gray-600'}`}>
+              {machineModal.requested
+                ? <>고객 요청 장비: <b>{machineModal.requested}번</b></>
+                : <>고객이 <b>자동 배정</b>을 선택했습니다. 작업할 장비를 지정해주세요.</>}
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-2">실제 작업 장비 <span className="text-red-500">*</span></label>
+            <div className="flex flex-wrap gap-1.5 mb-5">
+              {Array.from({ length: MACHINE_COUNT }, (_, i) => i + 1).map((n) => {
+                const disabled = n > ACTIVE_MACHINE_COUNT
+                return (
+                  <button key={n} disabled={disabled} onClick={() => setMachineModal({ ...machineModal, value: n })}
+                    title={disabled ? '2027년 오픈 예정' : undefined}
+                    className={`w-10 h-10 rounded-lg text-sm font-bold border transition-colors ${disabled ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : machineModal.value === n ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-300 hover:border-violet-300'}`}>
+                    {n}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex gap-2">
+              <button onClick={() => setMachineModal(null)}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">취소</button>
+              <button onClick={confirmStartWork} disabled={processing === machineModal.itemKey}
+                className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                {processing === machineModal.itemKey ? '처리 중...' : '작업 시작'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 일괄 처리 바 */}
       {selected.size > 0 && (

@@ -43,6 +43,7 @@ interface Order {
   carrier: string | null
   tracking_number: string | null
   refund_reason: string | null
+  assigned_machine: number | null
 }
 
 interface Quote {
@@ -205,7 +206,7 @@ export default function MyOrdersPage() {
     if (orderIds.length > 0) {
       const { data: ordersData } = await supabase
         .from('orders')
-        .select('id, status, carrier, tracking_number, refund_reason')
+        .select('id, status, carrier, tracking_number, refund_reason, assigned_machine')
         .in('id', orderIds)
       if (ordersData) {
         ordersData.forEach((o) => { ordersMap[o.id] = o })
@@ -252,6 +253,7 @@ export default function MyOrdersPage() {
             carrier: (o.carrier as string) || null,
             tracking_number: (o.tracking_number as string) || null,
             refund_reason: (o.refund_reason as string) || null,
+            assigned_machine: (o.assigned_machine as number) ?? null,
           },
         }))
     } catch { /* 바로주문 조회 실패 시 견적만 표시 */ }
@@ -612,6 +614,14 @@ export default function MyOrdersPage() {
                           <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">{BANK_INFO.holder}</span></div>
                         </div>
                         <p className="text-xs text-orange-600">관리자가 입금 확인 후 작업을 시작합니다.</p>
+                      </div>
+                    )}
+
+                    {/* 작업 장비 안내 (작업중 이후 단계에서 표시) */}
+                    {quote.order?.assigned_machine && ['in_progress', 'shipped', 'delivered'].includes(quote.order.status) && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 text-sm text-indigo-700 flex items-center justify-between">
+                        <span>🖨️ 작업 장비</span>
+                        <b className="text-base">{quote.order.assigned_machine}번</b>
                       </div>
                     )}
 
