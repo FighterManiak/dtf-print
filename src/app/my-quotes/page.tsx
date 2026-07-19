@@ -112,7 +112,7 @@ export default function MyOrdersPage() {
   const router = useRouter()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [page, setPage] = useState(1)
-  const PAGE_SIZE = 10
+  const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [paying, setPaying] = useState<string | null>(null)
@@ -174,12 +174,12 @@ export default function MyOrdersPage() {
     init()
   }, [])
 
-  // 목록이 바뀌면 1페이지로
-  useEffect(() => { setPage(1) }, [quotes.length, dateFrom, dateTo])
+  // 목록/페이지크기가 바뀌면 1페이지로
+  useEffect(() => { setPage(1) }, [quotes.length, dateFrom, dateTo, pageSize])
 
-  const totalPages = Math.max(1, Math.ceil(quotes.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(quotes.length / pageSize))
   const safePage = Math.min(page, totalPages)
-  const pagedQuotes = quotes.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pagedQuotes = quotes.slice((safePage - 1) * pageSize, safePage * pageSize)
 
   const applyQuickRange = (range: QuickRange) => {
     const { from, to } = getRangeDates(range)
@@ -453,6 +453,20 @@ export default function MyOrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* 페이지당 개수 */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-sm text-gray-500">총 {quotes.length}건</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-gray-400 mr-1">페이지당</span>
+              {[10, 30, 50, 100].map((n) => (
+                <button key={n} onClick={() => setPageSize(n)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${pageSize === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {pagedQuotes.map((quote) => {
             const displayStatus = getDisplayStatus(quote)
             const cfg = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.pending
