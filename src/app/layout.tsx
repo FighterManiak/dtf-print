@@ -4,6 +4,7 @@ import './globals.css'
 import Header from '@/components/ui/Header'
 import ChatWidget from '@/components/ui/ChatWidget'
 import ProfileGuard from '@/components/ui/ProfileGuard'
+import VisitTracker from '@/components/ui/VisitTracker'
 
 const geist = Geist({ subsets: ['latin'] })
 const barlowCondensed = Barlow_Condensed({
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <Header />
         <ProfileGuard />
+        <VisitTracker />
         <main className="flex-1">{children}</main>
         <ChatWidget />
         <footer className="bg-[#0f0f0f] text-gray-500 text-sm py-10 px-6">

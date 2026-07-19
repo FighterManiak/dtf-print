@@ -30,8 +30,16 @@ interface Stats {
   pendingPayment: number
 }
 
+interface VisitStats {
+  today: { uv: number; pv: number }
+  yesterday: { uv: number; pv: number }
+  daily: { date: string; uv: number; pv: number }[]
+  referrers: { name: string; count: number }[]
+}
+
 export default function AdminPage() {
   const [storage, setStorage] = useState<StorageStats | null>(null)
+  const [visits, setVisits] = useState<VisitStats | null>(null)
 
   const [stats, setStats] = useState<Stats>({
     total: 0, inProgress: 0, monthRevenue: 0,
@@ -57,6 +65,7 @@ export default function AdminPage() {
 
       // 스토리지 통계 (병렬)
       fetch('/api/admin/storage-stats').then((r) => r.json()).then((s) => { if (!s.error) setStorage(s) })
+      fetch('/api/admin/visit-stats').then((r) => r.json()).then((v) => { if (!v.error) setVisits(v) }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
       const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
@@ -174,10 +183,71 @@ export default function AdminPage() {
             <p className="text-gray-500 text-sm">고객 1:1 문의 실시간 채팅 관리</p>
           </Link>
 
-          <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-6 opacity-50">
-            <TrendingUp className="w-8 h-8 text-gray-400 mb-3" />
-            <h2 className="font-bold text-gray-500 text-lg mb-1">매출 통계</h2>
-            <p className="text-gray-400 text-sm">준비 중</p>
+          {/* 방문 통계 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 md:col-span-2">
+            <div className="flex items-center gap-3 mb-4">
+              <TrendingUp className="w-6 h-6 text-gray-500" />
+              <h2 className="font-bold text-gray-800 text-lg">방문 통계</h2>
+              <span className="text-xs text-gray-400 ml-auto">최근 7일</span>
+            </div>
+
+            {!visits ? (
+              <p className="text-sm text-gray-400">불러오는 중...</p>
+            ) : (
+              <>
+                {/* 오늘/어제 */}
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <p className="text-xs text-blue-500 font-semibold mb-1">오늘 방문자</p>
+                    <p className="text-2xl font-bold text-gray-900">{visits.today.uv}<span className="text-sm font-medium text-gray-400 ml-1">명</span></p>
+                    <p className="text-xs text-gray-400 mt-0.5">페이지뷰 {visits.today.pv}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 font-semibold mb-1">어제 방문자</p>
+                    <p className="text-2xl font-bold text-gray-700">{visits.yesterday.uv}<span className="text-sm font-medium text-gray-400 ml-1">명</span></p>
+                    <p className="text-xs text-gray-400 mt-0.5">페이지뷰 {visits.yesterday.pv}</p>
+                  </div>
+                </div>
+
+                {/* 최근 7일 추이 */}
+                <p className="text-xs font-bold text-gray-500 mb-2">최근 7일 추이</p>
+                <div className="flex items-end gap-1.5 h-24 mb-5">
+                  {visits.daily.map((d) => {
+                    const max = Math.max(...visits.daily.map((x) => x.uv), 1)
+                    const h = Math.round((d.uv / max) * 100)
+                    return (
+                      <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
+                        <span className="text-[10px] text-gray-500 mb-0.5">{d.uv}</span>
+                        <div className="w-full bg-blue-500 rounded-t" style={{ height: `${Math.max(h, 3)}%` }} title={`${d.date}: ${d.uv}명`} />
+                        <span className="text-[10px] text-gray-400 mt-1">{d.date.slice(5).replace('-', '/')}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 유입 경로 */}
+                <p className="text-xs font-bold text-gray-500 mb-2">유입 경로</p>
+                {visits.referrers.length === 0 ? (
+                  <p className="text-xs text-gray-400">데이터 없음</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {visits.referrers.map((r) => {
+                      const total = visits.referrers.reduce((s, x) => s + x.count, 0)
+                      const pct = Math.round((r.count / total) * 100)
+                      return (
+                        <div key={r.name} className="flex items-center gap-2 text-xs">
+                          <span className="w-24 shrink-0 text-gray-600 truncate">{r.name}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="w-14 text-right text-gray-500">{r.count}회 ({pct}%)</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           {/* 스토리지 현황 */}
@@ -185,7 +255,7 @@ export default function AdminPage() {
             <div className="flex items-center gap-3 mb-4">
               <HardDrive className="w-6 h-6 text-gray-500" />
               <h2 className="font-bold text-gray-800 text-lg">스토리지 현황</h2>
-              <span className="text-xs text-gray-400 ml-auto">Supabase 무료 플랜 · 1GB 한도</span>
+              <span className="text-xs text-gray-400 ml-auto">Supabase Pro 플랜</span>
             </div>
             {!storage ? (
               <div className="text-sm text-gray-400">불러오는 중...</div>
