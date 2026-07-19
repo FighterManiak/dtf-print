@@ -7,7 +7,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const STORAGE_LIMIT_BYTES = 1 * 1024 * 1024 * 1024 // 1GB (Supabase 臾대즺 ?뚮옖)
+// 스토리지 한도 (GB) — 플랜 변경 시 STORAGE_LIMIT_GB 환경변수로 조정
+// Free: 1GB / Pro: 100GB
+const STORAGE_LIMIT_GB = Number(process.env.STORAGE_LIMIT_GB) || 100
+const STORAGE_LIMIT_BYTES = STORAGE_LIMIT_GB * 1024 * 1024 * 1024
 
 async function listAllFiles(bucket: string, folder = ''): Promise<number> {
   const { data, error } = await supabaseAdmin.storage.from(bucket).list(folder, {
@@ -21,7 +24,7 @@ async function listAllFiles(bucket: string, folder = ''): Promise<number> {
     if (item.metadata?.size) {
       total += item.metadata.size
     } else if (!item.metadata) {
-      // ?대뜑??寃쎌슦 ?ш? ?먯깋
+      // 폴더인 경우 재귀 탐색
       const path = folder ? `${folder}/${item.name}` : item.name
       total += await listAllFiles(bucket, path)
     }
@@ -31,7 +34,6 @@ async function listAllFiles(bucket: string, folder = ''): Promise<number> {
 
 export async function GET() {
   try {
-    // ?ъ슜 以묒씤 踰꾪궥 紐⑸줉
     const { data: buckets } = await supabaseAdmin.storage.listBuckets()
     const bucketNames = (buckets || []).map((b) => b.name)
 
