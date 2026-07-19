@@ -127,16 +127,20 @@ export default function MyOrdersPage() {
 
   // 리뷰
   const [reviewedOrderIds, setReviewedOrderIds] = useState<string[]>([])
-  const [reviewModal, setReviewModal] = useState<string | null>(null) // orderId
+  const [reviewedQuoteIds, setReviewedQuoteIds] = useState<string[]>([])
+  const [reviewModal, setReviewModal] = useState<{ orderId: string | null; quoteId: string } | null>(null)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewText, setReviewText] = useState('')
   const [reviewFiles, setReviewFiles] = useState<File[]>([])
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
 
-  const loadReviewed = () => fetch('/api/reviews/mine').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.reviewedOrderIds) setReviewedOrderIds(d.reviewedOrderIds) }).catch(() => {})
+  const loadReviewed = () => fetch('/api/reviews/mine').then((r) => r.ok ? r.json() : null).then((d) => {
+    if (d?.reviewedOrderIds) setReviewedOrderIds(d.reviewedOrderIds)
+    if (d?.reviewedQuoteIds) setReviewedQuoteIds(d.reviewedQuoteIds)
+  }).catch(() => {})
 
-  const openReview = (orderId: string) => {
-    setReviewModal(orderId); setReviewRating(5); setReviewText(''); setReviewFiles([])
+  const openReview = (orderId: string | null, quoteId: string) => {
+    setReviewModal({ orderId, quoteId }); setReviewRating(5); setReviewText(''); setReviewFiles([])
   }
 
   const submitReview = async () => {
@@ -152,7 +156,7 @@ export default function MyOrdersPage() {
     }
     const res = await fetch('/api/reviews', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: reviewModal, rating: reviewRating, content: reviewText, imagePaths }),
+      body: JSON.stringify({ orderId: reviewModal.orderId, quoteId: reviewModal.quoteId, rating: reviewRating, content: reviewText, imagePaths }),
     })
     if (res.ok) { setReviewModal(null); await loadReviewed() }
     else { const e = await res.json().catch(() => ({})); alert(e.error || '리뷰 등록 실패') }
@@ -669,12 +673,12 @@ export default function MyOrdersPage() {
                       </div>
                     )}
 
-                    {/* 리뷰 쓰기 (배송완료 + 미작성) */}
-                    {quote.order?.status === 'delivered' && quote.order_id && (
-                      reviewedOrderIds.includes(quote.order_id) ? (
+                    {/* 리뷰 쓰기 (배송완료 + 미작성) — 주문 레코드 없으면 견적 기준 */}
+                    {displayStatus === 'delivered' && (
+                      (quote.order_id ? reviewedOrderIds.includes(quote.order_id) : reviewedQuoteIds.includes(quote.id)) ? (
                         <div className="text-center text-xs text-gray-400 py-1">리뷰를 작성한 주문입니다.</div>
                       ) : (
-                        <button onClick={() => openReview(quote.order_id!)}
+                        <button onClick={() => openReview(quote.order_id, quote.id)}
                           className="w-full bg-yellow-400 text-yellow-900 py-2.5 rounded-xl text-sm font-bold hover:bg-yellow-500 transition-colors">
                           ★ 리뷰 쓰기
                         </button>

@@ -48,33 +48,51 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  const { orderId, rating, content, imagePaths } = await req.json()
-  if (!orderId || !rating || rating < 1 || rating > 5) {
+  const { orderId, quoteId, rating, content, imagePaths } = await req.json()
+  if ((!orderId && !quoteId) || !rating || rating < 1 || rating > 5) {
     return NextResponse.json({ error: '주문과 별점(1~5)은 필수입니다.' }, { status: 400 })
   }
 
-  // 주문 소유·배송완료 확인
-  const { data: order } = await supabaseAdmin
-    .from('orders')
-    .select('id,user_id,status,order_name')
-    .eq('id', orderId)
-    .single()
-  if (!order || order.user_id !== user.id) return NextResponse.json({ error: '본인 주문만 리뷰할 수 있습니다.' }, { status: 403 })
-  if (order.status !== 'delivered') return NextResponse.json({ error: '배송 완료된 주문만 리뷰할 수 있습니다.' }, { status: 400 })
+  let orderName: string | null = null
 
-  // 중복 방지
-  const { data: dup } = await supabaseAdmin.from('reviews').select('id').eq('order_id', orderId).limit(1)
-  if (dup && dup.length > 0) return NextResponse.json({ error: '이미 리뷰를 작성한 주문입니다.' }, { status: 400 })
+  if (orderId) {
+    // 주문 레코드 기준 — 소유·배송완료 확인
+    const { data: order } = await supabaseAdmin
+      .from('orders')
+      .select('id,user_id,status,order_name')
+      .eq('id', orderId)
+      .single()
+    if (!order || order.user_id !== user.id) return NextResponse.json({ error: '본인 주문만 리뷰할 수 있습니다.' }, { status: 403 })
+    if (order.status !== 'delivered') return NextResponse.json({ error: '배송 완료된 주문만 리뷰할 수 있습니다.' }, { status: 400 })
+    orderName = order.order_name || null
+
+    const { data: dup } = await supabaseAdmin.from('reviews').select('id').eq('order_id', orderId).limit(1)
+    if (dup && dup.length > 0) return NextResponse.json({ error: '이미 리뷰를 작성한 주문입니다.' }, { status: 400 })
+  } else {
+    // 주문 레코드가 없는 견적 기준 — 소유·배송완료 확인
+    const { data: quote } = await supabaseAdmin
+      .from('quotes')
+      .select('id,user_id,status,order_name')
+      .eq('id', quoteId)
+      .single()
+    if (!quote || quote.user_id !== user.id) return NextResponse.json({ error: '본인 주문만 리뷰할 수 있습니다.' }, { status: 403 })
+    if (quote.status !== 'delivered') return NextResponse.json({ error: '배송 완료된 주문만 리뷰할 수 있습니다.' }, { status: 400 })
+    orderName = quote.order_name || null
+
+    const { data: dup } = await supabaseAdmin.from('reviews').select('id').eq('quote_id', quoteId).limit(1)
+    if (dup && dup.length > 0) return NextResponse.json({ error: '이미 리뷰를 작성한 주문입니다.' }, { status: 400 })
+  }
 
   const userName = user.user_metadata?.full_name || user.user_metadata?.name || (user.email?.split('@')[0]) || '고객'
   const { error } = await supabaseAdmin.from('reviews').insert({
     user_id: user.id,
-    order_id: orderId,
+    order_id: orderId || null,
+    quote_id: orderId ? null : quoteId,
     user_name: userName,
     rating: Math.round(rating),
     content: (content || '').trim() || null,
     image_paths: Array.isArray(imagePaths) && imagePaths.length ? imagePaths : null,
-    order_name: order.order_name || null,
+    order_name: orderName,
     hidden: false,
     pinned: false,
     sort_order: 0,
