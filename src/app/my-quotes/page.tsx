@@ -111,6 +111,8 @@ function getRangeDates(range: QuickRange): { from: string; to: string } {
 export default function MyOrdersPage() {
   const router = useRouter()
   const [quotes, setQuotes] = useState<Quote[]>([])
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 10
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [paying, setPaying] = useState<string | null>(null)
@@ -171,6 +173,13 @@ export default function MyOrdersPage() {
     }
     init()
   }, [])
+
+  // 목록이 바뀌면 1페이지로
+  useEffect(() => { setPage(1) }, [quotes.length, dateFrom, dateTo])
+
+  const totalPages = Math.max(1, Math.ceil(quotes.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pagedQuotes = quotes.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   const applyQuickRange = (range: QuickRange) => {
     const { from, to } = getRangeDates(range)
@@ -444,7 +453,7 @@ export default function MyOrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {quotes.map((quote) => {
+          {pagedQuotes.map((quote) => {
             const displayStatus = getDisplayStatus(quote)
             const cfg = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.pending
             const StatusIcon = cfg.icon
@@ -703,6 +712,27 @@ export default function MyOrdersPage() {
             )
           })}
           <p className="text-xs text-gray-400 text-center pt-2">총 {quotes.length}건</p>
+
+          {/* 페이지 넘버링 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 pt-2 flex-wrap">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+                className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40">이전</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((n) => n === 1 || n === totalPages || Math.abs(n - safePage) <= 2)
+                .map((n, idx, arr) => (
+                  <span key={n} className="flex items-center">
+                    {idx > 0 && arr[idx - 1] !== n - 1 && <span className="px-1 text-gray-300">…</span>}
+                    <button onClick={() => { setPage(n); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-colors ${safePage === n ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                      {n}
+                    </button>
+                  </span>
+                ))}
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+                className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40">다음</button>
+            </div>
+          )}
         </div>
       )}
     </div>
