@@ -20,6 +20,41 @@ export async function POST(req: Request) {
   // 작업 시작 시 실제 사용 장비 지정
   if (assignedMachine !== undefined) updateData.assigned_machine = assignedMachine || null
 
+  // 장비 지정 시 진행 관리 내역에 자동 기록 — 고객 요청값과 실제 배정값을 함께 남김
+  let historyEntry: string | null = null
+  if (assignedMachine) {
+    const { data: cur } = await supabaseAdmin
+      .from('orders')
+      .select('memo, machine_no')
+      .eq('id', orderId)
+      .single()
+    // 연결된 견적이 있으면 견적의 machine_no를 우선 (견적 주문은 요청값이 quotes에 있음)
+    const { data: linkedQuote } = await supabaseAdmin
+      .from('quotes')
+      .select('id, admin_note, machine_no')
+      .eq('order_id', orderId)
+      .maybeSingle()
+
+    const requested = linkedQuote?.machine_no ?? cur?.machine_no
+    const now = new Date().toLocaleString('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    })
+    const requestedLabel = requested ? `고객 요청 ${requested}번` : '고객 요청: 자동 배정'
+    historyEntry = `[${now}] 작업 시작 · ${requestedLabel} → 실제 작업 장비 ${assignedMachine}번`
+
+    if (linkedQuote?.id) {
+      // 견적 주문: 진행 내역이 quotes.admin_note에 표시됨
+      await supabaseAdmin
+        .from('quotes')
+        .update({ admin_note: linkedQuote.admin_note ? `${linkedQuote.admin_note}\n${historyEntry}` : historyEntry })
+        .eq('id', linkedQuote.id)
+    } else {
+      // 바로주문: orders.memo에 기록
+      updateData.memo = cur?.memo ? `${cur.memo}\n${historyEntry}` : historyEntry
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('orders')
     .update(updateData)
