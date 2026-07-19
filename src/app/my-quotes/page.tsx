@@ -703,8 +703,8 @@ export default function MyOrdersPage() {
                       </button>
                     )}
 
-                    {/* 재구매 버튼 */}
-                    {(quote.order?.status === 'delivered' || quote.order?.status === 'paid' || quote.order?.status === 'shipped') && (
+                    {/* 재구매 버튼 — 주문 레코드 유무와 무관하게 표시 상태 기준 */}
+                    {['delivered', 'paid', 'shipped', 'in_progress'].includes(displayStatus) && (
                       <button
                         onClick={() => setReorderModal({ quote, quantity: '' })}
                         className="w-full bg-gray-800 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors"
