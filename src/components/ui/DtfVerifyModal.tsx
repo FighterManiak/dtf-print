@@ -16,13 +16,13 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
-  const MAX_FILE_MB = 100
+  const MAX_FILE_MB = 50
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || [])
     const tooBig = selected.filter((f) => f.size > MAX_FILE_MB * 1024 * 1024)
     if (tooBig.length > 0) {
-      setError(`파일 1개당 최대 ${MAX_FILE_MB}MB까지 첨부 가능합니다. (${tooBig.map((f) => f.name).join(', ')})`)
+      setError(`파일 1개당 최대 ${MAX_FILE_MB}MB까지 첨부 가능합니다. ${MAX_FILE_MB}MB 초과 파일은 superhard.int@gmail.com 으로 보내주세요. (${tooBig.map((f) => f.name).join(', ')})`)
       return
     }
     if (files.length + selected.length > 5) {

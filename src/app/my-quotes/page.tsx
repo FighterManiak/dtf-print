@@ -839,9 +839,9 @@ export default function MyOrdersPage() {
                 <Upload className="w-5 h-5 text-gray-400" />
                 <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
                   const all = Array.from(e.target.files || [])
-                  const tooBig = all.filter((f) => f.size > 100 * 1024 * 1024)
-                  if (tooBig.length > 0) alert(`파일 1개당 최대 100MB까지 첨부할 수 있습니다.\n${tooBig.map((f) => `· ${f.name}`).join('\n')}`)
-                  const sel = all.filter((f) => f.size <= 100 * 1024 * 1024)
+                  const tooBig = all.filter((f) => f.size > 50 * 1024 * 1024)
+                  if (tooBig.length > 0) alert(`파일 1개당 최대 50MB까지 첨부할 수 있습니다.\n${tooBig.map((f) => `· ${f.name}`).join('\n')}`)
+                  const sel = all.filter((f) => f.size <= 50 * 1024 * 1024)
                   setReviewFiles((p) => [...p, ...sel].slice(0, 5)); e.target.value = ''
                 }} />
               </label>
