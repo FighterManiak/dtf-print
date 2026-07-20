@@ -304,7 +304,7 @@ function LoginContent() {
                 지금 가입하셔도 계정·주문·포인트는 정식 오픈 후 그대로 유지됩니다.
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">이름</label>
+                <label className="text-sm font-semibold text-gray-700 block mb-1.5">이름 <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   required
@@ -315,7 +315,7 @@ function LoginContent() {
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">이메일</label>
+                <label className="text-sm font-semibold text-gray-700 block mb-1.5">이메일 <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   required
@@ -358,7 +358,7 @@ function LoginContent() {
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">비밀번호 <span className="text-gray-400 font-normal">(8자 이상)</span></label>
+                <label className="text-sm font-semibold text-gray-700 block mb-1.5">비밀번호 <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">(8자 이상)</span></label>
                 <div className="relative">
                   <input
                     type={showPw ? 'text' : 'password'}
@@ -374,7 +374,7 @@ function LoginContent() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">비밀번호 확인</label>
+                <label className="text-sm font-semibold text-gray-700 block mb-1.5">비밀번호 확인 <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <input
                     type={showPwConfirm ? 'text' : 'password'}
