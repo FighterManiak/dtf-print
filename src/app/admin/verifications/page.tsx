@@ -44,12 +44,9 @@ export default function VerificationsPage() {
   }, [])
 
   const loadVerifications = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('dtf_verifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (!error && data) setItems(data)
+    // RLS 우회를 위해 서비스롤 API로 조회 (브라우저 직접 조회 시 본인 신청만 보임)
+    const res = await fetch('/api/admin/list-verifications')
+    if (res.ok) setItems(await res.json())
     setLoading(false)
   }
 
