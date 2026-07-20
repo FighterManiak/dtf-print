@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, Clock, Download } from 'lucide-react'
 import type { VerificationStatus } from '@/types'
-import { createClient } from '@/lib/supabase-browser'
+import JSZip from 'jszip'
 
 const STATUS_CONFIG: Record<VerificationStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending:  { label: '심사 중', color: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200',   icon: <Clock className="w-4 h-4" /> },
@@ -38,6 +38,7 @@ export default function VerificationsPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
   const [tab, setTab] = useState<'all' | VerificationStatus>('all')
+  const [downloadingAll, setDownloadingAll] = useState<string | null>(null)
 
   useEffect(() => {
     loadVerifications()
@@ -82,6 +83,48 @@ export default function VerificationsPage() {
     } catch {
       alert('파일 다운로드 중 오류가 발생했습니다.')
     }
+  }
+
+  // 첨부 파일 전체를 ZIP으로 묶어 다운로드
+  const downloadAllFiles = async (item: VerificationItem) => {
+    if (!item.file_urls?.length) return
+    setDownloadingAll(item.id)
+    try {
+      const zip = new JSZip()
+      const safeName = (item.user_name || '고객').replace(/[\\/:*?"<>|]/g, '')
+      let added = 0
+
+      for (let i = 0; i < item.file_urls.length; i++) {
+        const path = item.file_urls[i]
+        const res = await fetch('/api/admin/verify-file-url', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path }),
+        })
+        if (!res.ok) continue
+        const { url } = await res.json()
+        const fileRes = await fetch(url)
+        if (!fileRes.ok) continue
+        const blob = await fileRes.blob()
+        const ext = path.split('.').pop() || 'bin'
+        zip.file(`${safeName}_${i + 1}.${ext}`, blob)
+        added++
+      }
+
+      if (added === 0) { alert('내려받을 수 있는 파일이 없습니다.'); return }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const objectUrl = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = `${safeName}_인증파일.zip`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      alert('전체 다운로드 중 오류가 발생했습니다.')
+    }
+    setDownloadingAll(null)
   }
 
   const process = async (item: VerificationItem, action: 'approve' | 'reject') => {
@@ -160,7 +203,16 @@ export default function VerificationsPage() {
               {isExpanded && (
                 <div className="border-t border-gray-100 p-5 space-y-4">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">첨부 파일</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">첨부 파일 ({item.file_urls.length}개)</p>
+                      {item.file_urls.length > 1 && (
+                        <button onClick={() => downloadAllFiles(item)} disabled={downloadingAll === item.id}
+                          className="flex items-center gap-1.5 text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors font-bold disabled:opacity-50">
+                          <Download className="w-3.5 h-3.5" />
+                          {downloadingAll === item.id ? '압축 중...' : '전체 다운로드 (ZIP)'}
+                        </button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {item.file_urls.map((url, idx) => (
                         <button key={idx} onClick={() => downloadVerifyFile(url, item.user_name, idx + 1)}
