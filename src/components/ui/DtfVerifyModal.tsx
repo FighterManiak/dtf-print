@@ -137,11 +137,20 @@ export default function DtfVerifyModal({ onClose, currentStatus }: Props) {
                   이전 신청이 반려되었습니다. 서류를 보완하여 재신청해주세요.
                 </div>
               )}
+              {/* 인증 자격 안내 */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-800">
+                <p className="font-bold mb-1">⚙️ 인증 가능 기준</p>
+                <p className="leading-relaxed">
+                  <b>i3200 2HEAD 이상</b> 장비 보유 시 인증이 가능합니다.
+                  <span className="block text-amber-700 text-xs mt-1">기준 미달 장비는 인증이 반려될 수 있습니다.</span>
+                </p>
+              </div>
+
               {!currentStatus && (
                 <div className="bg-blue-50 rounded-xl p-4 mb-5 text-sm text-blue-700">
                   <p className="font-semibold mb-1">제출 서류 안내</p>
                   <ul className="space-y-1 text-blue-600 list-disc list-inside">
-                    <li>DTF 장비 사진 (장비 전체가 보이는 사진)</li>
+                    <li>DTF 장비 사진 (장비 전체와 모델명이 보이는 사진)</li>
                     <li>사업자 등록증</li>
                   </ul>
                 </div>
