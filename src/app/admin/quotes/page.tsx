@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, ChevronUp, Send, Truck, Package, RotateCcw, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import * as XLSX from 'xlsx'
+import JSZip from 'jszip'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   A4: 'A4 출력', A3: 'A3 출력', roll_58: '58cm 롤 출력', other: '기타',
@@ -98,6 +99,7 @@ function AdminManagePageContent() {
   const [memoSaving, setMemoSaving] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkRunning, setBulkRunning] = useState(false)
+  const [zipping, setZipping] = useState<string | null>(null)
 
   // 작업 시작 시 장비 지정 모달
   const [machineModal, setMachineModal] = useState<{ orderId: string; itemKey: string; requested: number; value: number } | null>(null)
@@ -261,6 +263,42 @@ function AdminManagePageContent() {
     if (!data?.signedUrl) return
     const a = document.createElement('a'); a.href = data.signedUrl; a.download = fileName
     document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  }
+
+  // 시안 파일 전체를 ZIP으로 묶어 다운로드
+  const downloadAllFiles = async (files: { url: string; name: string }[], customerName: string, key: string) => {
+    if (files.length === 0) return
+    setZipping(key)
+    try {
+      const supabase = createClient()
+      const zip = new JSZip()
+      const safeName = (customerName || '고객').replace(/[\\/:*?"<>|]/g, '')
+      let added = 0
+
+      for (let i = 0; i < files.length; i++) {
+        const { data } = await supabase.storage.from('order-files').createSignedUrl(files[i].url, 300)
+        if (!data?.signedUrl) continue
+        const res = await fetch(data.signedUrl)
+        if (!res.ok) continue
+        const blob = await res.blob()
+        const ext = files[i].name.split('.').pop() || files[i].url.split('.').pop() || 'bin'
+        zip.file(`${safeName}_${i + 1}.${ext}`, blob)
+        added++
+      }
+
+      if (added === 0) { alert('내려받을 수 있는 파일이 없습니다.'); setZipping(null); return }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const objectUrl = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = `${safeName}_시안파일.zip`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      alert('전체 다운로드 중 오류가 발생했습니다.')
+    }
+    setZipping(null)
   }
 
   const parseFiles = (fileUrl: string | null, fileName: string | null) => {
@@ -563,6 +601,13 @@ function AdminManagePageContent() {
                         const files = parseFiles((d as Quote).file_url, (d as Quote).file_name)
                         return files.length > 0 ? (
                           <div className="space-y-2">
+                            {files.length > 1 && (
+                              <button onClick={() => downloadAllFiles(files, d.user_name || '고객', itemKey)} disabled={zipping === itemKey}
+                                className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors disabled:opacity-50">
+                                <Download className="w-4 h-4" />
+                                {zipping === itemKey ? '압축 중...' : `전체 다운로드 (ZIP · ${files.length}개)`}
+                              </button>
+                            )}
                             {files.map((f, i) => (
                               <button key={i} onClick={() => downloadFile(f.url, f.name)}
                                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors">
@@ -583,6 +628,13 @@ function AdminManagePageContent() {
                         const files = ((d as DirectOrder).order_items || []).filter((oi) => oi.file_url).map((oi) => ({ url: oi.file_url as string, name: oi.file_name || oi.product_id }))
                         return files.length > 0 ? (
                           <div className="space-y-2">
+                            {files.length > 1 && (
+                              <button onClick={() => downloadAllFiles(files, d.user_name || '고객', itemKey)} disabled={zipping === itemKey}
+                                className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors disabled:opacity-50">
+                                <Download className="w-4 h-4" />
+                                {zipping === itemKey ? '압축 중...' : `전체 다운로드 (ZIP · ${files.length}개)`}
+                              </button>
+                            )}
                             {files.map((f, i) => (
                               <button key={i} onClick={() => downloadFile(f.url, f.name)}
                                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors">
