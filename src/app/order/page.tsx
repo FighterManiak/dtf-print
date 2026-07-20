@@ -19,6 +19,16 @@ const PRODUCT_TYPES = [
 ]
 
 const CUTTING_PRICE_PER_M = 1000
+const MAX_FILE_MB = 100  // 파일 1개당 최대 용량
+
+// 용량 초과 파일 걸러내기 (초과 시 안내)
+const filterBySize = (files: File[]): File[] => {
+  const tooBig = files.filter((f) => f.size > MAX_FILE_MB * 1024 * 1024)
+  if (tooBig.length > 0) {
+    alert(`파일 1개당 최대 ${MAX_FILE_MB}MB까지 업로드할 수 있습니다.\n\n초과 파일:\n${tooBig.map((f) => `· ${f.name} (${(f.size/1024/1024).toFixed(1)}MB)`).join('\n')}`)
+  }
+  return files.filter((f) => f.size <= MAX_FILE_MB * 1024 * 1024)
+}
 const MACHINE_COUNT = 10  // DTF 장비 총 대수
 const ACTIVE_MACHINE_COUNT = 6  // 현재 운용 중인 장비 (7~10번은 2027년 오픈 예정)
 
@@ -475,8 +485,8 @@ function OrderPageContent() {
                     <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-white hover:border-blue-400 hover:bg-blue-50 transition-all">
                       <Upload className="w-7 h-7 text-gray-400 mb-2" />
                       <span className="text-sm text-gray-600 font-medium">{files.length===0 ? '파일을 선택하거나 드래그하세요' : '파일 추가'}</span>
-                      <span className="text-xs text-gray-400 mt-1">PNG, JPG, AI, PDF, PSD · 최대 10개 ({files.length}/10)</span>
-                      <input type="file" className="hidden" accept="image/*,.pdf,.ai,.psd,.eps" multiple onChange={(e) => { const sel=Array.from(e.target.files||[]); setFiles((p) => [...p,...sel].slice(0,10)); e.target.value='' }} />
+                      <span className="text-xs text-gray-400 mt-1">PNG, JPG, AI, PDF, PSD · 최대 10개 ({files.length}/10) · 개당 {MAX_FILE_MB}MB 이하</span>
+                      <input type="file" className="hidden" accept="image/*,.pdf,.ai,.psd,.eps" multiple onChange={(e) => { const sel=filterBySize(Array.from(e.target.files||[])); setFiles((p) => [...p,...sel].slice(0,10)); e.target.value='' }} />
                     </label>
                   )}
                 </div>
@@ -646,9 +656,9 @@ function OrderPageContent() {
                                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-all">
                                     <Upload className="w-6 h-6 text-gray-400 mb-1.5" />
                                     <span className="text-sm text-gray-500">{inCart.files.length === 0 ? '파일 선택 또는 드래그' : '파일 추가'}</span>
-                                    <span className="text-xs text-gray-400 mt-0.5">PNG, JPG, PDF, AI, PSD · {inCart.files.length}/10</span>
+                                    <span className="text-xs text-gray-400 mt-0.5">PNG, JPG, PDF, AI, PSD · {inCart.files.length}/10 · 개당 {MAX_FILE_MB}MB 이하</span>
                                     <input type="file" className="hidden" multiple accept=".png,.jpg,.jpeg,.pdf,.ai,.psd,.eps"
-                                      onChange={(e) => { const sel = Array.from(e.target.files || []); setCart((p) => p.map((i) => i.productId===product.id ? {...i, files: [...i.files, ...sel].slice(0, 10)} : i)); e.target.value = '' }} />
+                                      onChange={(e) => { const sel = filterBySize(Array.from(e.target.files || [])); setCart((p) => p.map((i) => i.productId===product.id ? {...i, files: [...i.files, ...sel].slice(0, 10)} : i)); e.target.value = '' }} />
                                   </label>
                                 )}
                               </div>
