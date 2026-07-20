@@ -51,17 +51,33 @@ export default function VerificationsPage() {
   }
 
   const getFileUrl = async (path: string) => {
-    // RLS 우회를 위해 서비스롤 API로 서명 URL 발급
-    const res = await fetch('/api/admin/verify-file-url', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path }),
-    })
-    if (res.ok) {
+    try {
+      // RLS 우회를 위해 서비스롤 API로 서명 URL 발급
+      const res = await fetch('/api/admin/verify-file-url', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      })
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}))
+        alert(e.error || '파일을 불러오지 못했습니다.')
+        return
+      }
       const { url } = await res.json()
-      window.open(url, '_blank')
-    } else {
-      const e = await res.json().catch(() => ({}))
-      alert(e.error || '파일을 불러오지 못했습니다.')
+
+      // 팝업 차단을 피하기 위해 blob으로 받아 직접 다운로드
+      const fileRes = await fetch(url)
+      if (!fileRes.ok) { alert('파일을 내려받지 못했습니다.'); return }
+      const blob = await fileRes.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = path.split('/').pop() || 'verify-file'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      alert('파일 다운로드 중 오류가 발생했습니다.')
     }
   }
 
