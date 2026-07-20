@@ -45,6 +45,41 @@ export default function MembersPage() {
   const [metersByUser, setMetersByUser] = useState<Record<string, number>>({})
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(30)
+  const [balances, setBalances] = useState<Record<string, number>>({})
+
+  // 포인트 지급/차감 모달
+  const [pointModal, setPointModal] = useState<{ memberId: string; memberName: string; balance: number } | null>(null)
+  const [pointAmount, setPointAmount] = useState('')
+  const [pointMemo, setPointMemo] = useState('')
+  const [pointSaving, setPointSaving] = useState(false)
+
+  const loadBalances = () => fetch('/api/admin/point-balances')
+    .then((r) => r.ok ? r.json() : null)
+    .then((d) => { if (d?.balances) setBalances(d.balances) })
+    .catch(() => {})
+
+  const openPointModal = (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    setPointModal({ memberId: member.id, memberName: name, balance: balances[member.id] || 0 })
+    setPointAmount('')
+    setPointMemo('')
+  }
+
+  const savePoints = async () => {
+    if (!pointModal) return
+    const amt = parseInt(pointAmount)
+    if (!amt || Number.isNaN(amt)) { alert('지급(또는 차감)할 포인트를 입력해주세요.'); return }
+    const label = amt > 0 ? `${amt.toLocaleString()}P 지급` : `${Math.abs(amt).toLocaleString()}P 차감`
+    if (!confirm(`${pointModal.memberName} 님에게 ${label} 하시겠습니까?`)) return
+    setPointSaving(true)
+    const res = await fetch('/api/admin/grant-points', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: pointModal.memberId, amount: amt, memo: pointMemo }),
+    })
+    if (res.ok) { setPointModal(null); await loadBalances() }
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패') }
+    setPointSaving(false)
+  }
 
   // 등급 수동 지정 모달
   const [gradeModal, setGradeModal] = useState<{ memberId: string; memberName: string } | null>(null)
@@ -99,6 +134,7 @@ export default function MembersPage() {
       setCurrentRole(data.user?.user_metadata?.role || null)
     })
     fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
+    loadBalances()
     loadMembers()
   }, [])
 
@@ -227,6 +263,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입일</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">등급 <span className="text-gray-400 font-normal">(전월)</span></th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">포인트</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">DTF인증</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">관리</th>
@@ -269,6 +306,14 @@ export default function MembersPage() {
                           ? <span className="text-xs text-gray-400">~{override.until}</span>
                           : <span className="text-xs text-gray-400">{meters.toLocaleString()}M</span>}
                         <button onClick={() => openGradeModal(member)} className="text-[11px] text-violet-600 hover:underline mt-0.5">등급 지정</button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-0.5 items-start">
+                        <span className="font-bold text-violet-600 text-sm">{(balances[member.id] || 0).toLocaleString()}P</span>
+                        {isSuperAdmin && (
+                          <button onClick={() => openPointModal(member)} className="text-[11px] text-violet-600 hover:underline">포인트 지급</button>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -362,6 +407,51 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* 포인트 지급/차감 모달 */}
+      {pointModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">포인트 지급</h2>
+              <button onClick={() => setPointModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="bg-violet-50 rounded-xl px-4 py-3 mb-4 text-sm">
+              <p className="text-gray-700"><b className="text-gray-900">{pointModal.memberName}</b> 님</p>
+              <p className="text-xs text-gray-500 mt-0.5">현재 보유 <b className="text-violet-600">{pointModal.balance.toLocaleString()}P</b></p>
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">지급 포인트 <span className="text-red-500">*</span></label>
+            <input type="number" value={pointAmount} onChange={(e) => setPointAmount(e.target.value)} placeholder="예) 5000"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            <p className="text-xs text-gray-400 mb-4">음수를 입력하면 차감됩니다. (예: -3000)</p>
+
+            <div className="flex gap-1.5 mb-4">
+              {[1000, 3000, 5000, 10000].map((n) => (
+                <button key={n} onClick={() => setPointAmount(String(n))}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-bold border border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-600 transition-colors">
+                  +{(n / 1000)}천
+                </button>
+              ))}
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">사유 <span className="text-gray-400 font-normal">(선택)</span></label>
+            <input value={pointMemo} onChange={(e) => setPointMemo(e.target.value)} placeholder="예) 이벤트 보상, 보상 지급"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            <p className="text-xs text-gray-400 mb-5">고객의 포인트 내역에 표시됩니다. 유효기간 6개월.</p>
+
+            <div className="flex gap-2">
+              <button onClick={() => setPointModal(null)} disabled={pointSaving}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
+              <button onClick={savePoints} disabled={pointSaving}
+                className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                {pointSaving ? '처리 중...' : '지급하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 등급 수동 지정 모달 */}
       {gradeModal && (
