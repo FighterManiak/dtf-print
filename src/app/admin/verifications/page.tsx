@@ -51,9 +51,18 @@ export default function VerificationsPage() {
   }
 
   const getFileUrl = async (path: string) => {
-    const supabase = createClient()
-    const { data } = await supabase.storage.from('verify-files').createSignedUrl(path, 60)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+    // RLS 우회를 위해 서비스롤 API로 서명 URL 발급
+    const res = await fetch('/api/admin/verify-file-url', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    })
+    if (res.ok) {
+      const { url } = await res.json()
+      window.open(url, '_blank')
+    } else {
+      const e = await res.json().catch(() => ({}))
+      alert(e.error || '파일을 불러오지 못했습니다.')
+    }
   }
 
   const process = async (item: VerificationItem, action: 'approve' | 'reject') => {
