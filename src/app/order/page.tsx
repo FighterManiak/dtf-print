@@ -83,6 +83,12 @@ function OrderPageContent() {
   const [products, setProducts] = useState<DBProduct[]>([])
   const [isVerified, setIsVerified] = useState(false)
   const [payMethod, setPayMethod] = useState<'card'|'bank'>('card')
+  // 무통장 입금 시 증빙 발행
+  const [receiptType, setReceiptType] = useState<'none'|'tax_invoice'|'cash_receipt'>('none')
+  const [receipt, setReceipt] = useState({
+    bizNo: '', company: '', ceo: '', email: '',   // 세금계산서
+    cashPurpose: 'personal' as 'personal'|'business', cashNo: '', // 현금영수증
+  })
   const [bankDone, setBankDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [availablePoints, setAvailablePoints] = useState(0)
@@ -257,6 +263,18 @@ function OrderPageContent() {
   }
 
   const handleBankTransfer = async () => {
+    // 증빙 발행 정보 검증
+    if (receiptType === 'tax_invoice') {
+      if (!receipt.bizNo.trim() || !receipt.company.trim() || !receipt.ceo.trim() || !receipt.email.trim()) {
+        alert('세금계산서 발행 정보를 모두 입력해주세요.\n(사업자등록번호 · 상호 · 대표자명 · 수신 이메일)')
+        return
+      }
+    }
+    if (receiptType === 'cash_receipt' && !receipt.cashNo.trim()) {
+      alert(receipt.cashPurpose === 'personal' ? '현금영수증 발행용 휴대폰 번호를 입력해주세요.' : '현금영수증 발행용 사업자등록번호를 입력해주세요.')
+      return
+    }
+
     setSubmitting(true)
     const cartPayload = await buildCartPayload()
     const res = await fetch('/api/order/bank-transfer', {
@@ -265,6 +283,11 @@ function OrderPageContent() {
         orderName: orderName.trim() || null, customer: buildCustomerPayload(),
         cart: cartPayload,
         totalAmount: finalPay, usedPoints, shippingNote, machineNo,
+        receiptType,
+        receiptInfo: receiptType === 'none' ? null
+          : receiptType === 'tax_invoice'
+            ? { bizNo: receipt.bizNo.trim(), company: receipt.company.trim(), ceo: receipt.ceo.trim(), email: receipt.email.trim() }
+            : { purpose: receipt.cashPurpose, number: receipt.cashNo.trim() },
       }),
     })
     if (res.ok) setBankDone(true)
@@ -907,6 +930,81 @@ function OrderPageContent() {
                       <span className="text-gray-500">입금 금액</span>
                       <span className="font-bold text-orange-700 text-base">{finalPay.toLocaleString()}원</span>
                     </div>
+                  </div>
+                )}
+
+                {/* 무통장 — 증빙 발행 */}
+                {payMethod === 'bank' && (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-3">증빙 발행 <span className="text-gray-400 font-normal">(선택)</span></p>
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {([
+                        { v: 'none', l: '발행 안함' },
+                        { v: 'tax_invoice', l: '세금계산서' },
+                        { v: 'cash_receipt', l: '현금영수증' },
+                      ] as const).map(({ v, l }) => (
+                        <button key={v} type="button" onClick={() => setReceiptType(v)}
+                          className={`py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${receiptType===v ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+
+                    {receiptType === 'tax_invoice' && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-600 block mb-1">사업자등록번호 <span className="text-red-500">*</span></label>
+                          <input value={receipt.bizNo} onChange={(e) => setReceipt((p) => ({ ...p, bizNo: e.target.value }))} placeholder="000-00-00000" inputMode="numeric"
+                            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">상호 <span className="text-red-500">*</span></label>
+                            <input value={receipt.company} onChange={(e) => setReceipt((p) => ({ ...p, company: e.target.value }))} placeholder="(주)슈퍼하드"
+                              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-gray-600 block mb-1">대표자명 <span className="text-red-500">*</span></label>
+                            <input value={receipt.ceo} onChange={(e) => setReceipt((p) => ({ ...p, ceo: e.target.value }))} placeholder="홍길동"
+                              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-600 block mb-1">계산서 수신 이메일 <span className="text-red-500">*</span></label>
+                          <input type="email" value={receipt.email} onChange={(e) => setReceipt((p) => ({ ...p, email: e.target.value }))} placeholder="tax@company.com"
+                            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        </div>
+                        <p className="text-xs text-gray-400">※ 입금 확인 후 영업일 기준 1~2일 내 발행됩니다.</p>
+                      </div>
+                    )}
+
+                    {receiptType === 'cash_receipt' && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-600 block mb-1.5">용도</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([
+                              { v: 'personal', l: '소득공제 (개인)' },
+                              { v: 'business', l: '지출증빙 (사업자)' },
+                            ] as const).map(({ v, l }) => (
+                              <button key={v} type="button" onClick={() => setReceipt((p) => ({ ...p, cashPurpose: v, cashNo: '' }))}
+                                className={`py-2 rounded-xl text-sm font-medium border transition-colors ${receipt.cashPurpose===v ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}>
+                                {l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-gray-600 block mb-1">
+                            {receipt.cashPurpose === 'personal' ? '휴대폰 번호' : '사업자등록번호'} <span className="text-red-500">*</span>
+                          </label>
+                          <input value={receipt.cashNo} onChange={(e) => setReceipt((p) => ({ ...p, cashNo: e.target.value }))} inputMode="numeric"
+                            placeholder={receipt.cashPurpose === 'personal' ? '010-0000-0000' : '000-00-00000'}
+                            className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        </div>
+                        <p className="text-xs text-gray-400">※ 입금 확인 후 국세청에 신고됩니다.</p>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex gap-3">

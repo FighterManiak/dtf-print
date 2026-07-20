@@ -65,6 +65,8 @@ interface DirectOrder {
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
   memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
+  receipt_type: string | null
+  receipt_info: Record<string, string> | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
 }
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
@@ -575,6 +577,33 @@ function AdminManagePageContent() {
                               if (!pm) return null
                               const isBank = pm === 'bank_transfer'
                               return <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">결제</span><span className={`font-semibold ${isBank ? 'text-orange-600' : 'text-blue-600'}`}>{isBank ? '🏦 무통장 입금' : '💳 카드 결제'}</span></div>
+                            })()}
+                            {/* 증빙 발행 정보 */}
+                            {item.type === 'order' && (d as DirectOrder).receipt_type && (() => {
+                              const rt = (d as DirectOrder).receipt_type
+                              const ri = (d as DirectOrder).receipt_info || {}
+                              return (
+                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                  <div className="flex gap-3 mb-1">
+                                    <span className="w-12 shrink-0 text-gray-400">증빙</span>
+                                    <span className="font-bold text-emerald-700">
+                                      {rt === 'tax_invoice' ? '🧾 세금계산서' : '🧾 현금영수증'}
+                                    </span>
+                                  </div>
+                                  {rt === 'tax_invoice' ? (
+                                    <div className="pl-[3.75rem] space-y-0.5 text-xs text-gray-600">
+                                      <div>사업자번호: <b className="text-gray-800">{ri.bizNo || '—'}</b></div>
+                                      <div>상호: <b className="text-gray-800">{ri.company || '—'}</b> / 대표: <b className="text-gray-800">{ri.ceo || '—'}</b></div>
+                                      <div>수신 이메일: <b className="text-gray-800">{ri.email || '—'}</b></div>
+                                    </div>
+                                  ) : (
+                                    <div className="pl-[3.75rem] space-y-0.5 text-xs text-gray-600">
+                                      <div>용도: <b className="text-gray-800">{ri.purpose === 'business' ? '지출증빙 (사업자)' : '소득공제 (개인)'}</b></div>
+                                      <div>번호: <b className="text-gray-800">{ri.number || '—'}</b></div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
                             })()}
                           </div>
                         </div>
