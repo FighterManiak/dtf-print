@@ -50,7 +50,7 @@ export default function VerificationsPage() {
     setLoading(false)
   }
 
-  const getFileUrl = async (path: string) => {
+  const downloadVerifyFile = async (path: string, userName: string, index: number) => {
     try {
       // RLS 우회를 위해 서비스롤 API로 서명 URL 발급
       const res = await fetch('/api/admin/verify-file-url', {
@@ -71,7 +71,10 @@ export default function VerificationsPage() {
       const objectUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = objectUrl
-      a.download = path.split('/').pop() || 'verify-file'
+      // 파일명: 이름_순번.확장자
+      const ext = path.split('.').pop() || 'bin'
+      const safeName = (userName || '고객').replace(/[\\/:*?"<>|]/g, '')
+      a.download = `${safeName}_${index}.${ext}`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -160,9 +163,9 @@ export default function VerificationsPage() {
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">첨부 파일</p>
                     <div className="flex flex-wrap gap-2">
                       {item.file_urls.map((url, idx) => (
-                        <button key={idx} onClick={() => getFileUrl(url)}
-                          className="flex items-center gap-1.5 text-sm text-blue-700 bg-blue-50 ring-1 ring-blue-200 px-3 py-2 rounded-xl hover:bg-blue-100 transition-colors font-semibold">
-                          <Download className="w-4 h-4" />파일 {idx + 1}
+                        <button key={idx} onClick={() => downloadVerifyFile(url, item.user_name, idx + 1)}
+                          className="flex items-center gap-1.5 text-sm text-white bg-emerald-600 px-3 py-2 rounded-xl hover:bg-emerald-700 transition-colors font-bold">
+                          <Download className="w-4 h-4" />파일 {idx + 1} 다운로드
                         </button>
                       ))}
                     </div>
