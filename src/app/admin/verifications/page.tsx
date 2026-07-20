@@ -20,7 +20,16 @@ interface VerificationItem {
   file_urls: string[]
   status: VerificationStatus
   reject_reason?: string
+  reviewed_at?: string | null
+  reviewed_by?: string | null
 }
+
+const TABS: { key: 'all' | VerificationStatus; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'pending', label: '심사 중' },
+  { key: 'approved', label: '승인됨' },
+  { key: 'rejected', label: '반려됨' },
+]
 
 export default function VerificationsPage() {
   const [items, setItems] = useState<VerificationItem[]>([])
@@ -28,6 +37,7 @@ export default function VerificationsPage() {
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
   const [expanded, setExpanded] = useState<string | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [tab, setTab] = useState<'all' | VerificationStatus>('all')
 
   useEffect(() => {
     loadVerifications()
@@ -49,24 +59,23 @@ export default function VerificationsPage() {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
-  const approve = async (item: VerificationItem) => {
+  const process = async (item: VerificationItem, action: 'approve' | 'reject') => {
+    if (action === 'reject' && !(rejectReason[item.id] || '').trim()) {
+      alert('반려 사유를 입력해주세요.')
+      return
+    }
     setProcessing(item.id)
-    const supabase = createClient()
-    await supabase.from('dtf_verifications').update({ status: 'approved', reviewed_at: new Date().toISOString() }).eq('id', item.id)
-    // 사용자 메타데이터 업데이트 (서버 액션 필요 - 일단 DB만 업데이트)
-    await loadVerifications()
-    setProcessing(null)
-  }
-
-  const reject = async (item: VerificationItem) => {
-    setProcessing(item.id)
-    const supabase = createClient()
-    await supabase.from('dtf_verifications').update({
-      status: 'rejected',
-      reject_reason: rejectReason[item.id] || '',
-      reviewed_at: new Date().toISOString(),
-    }).eq('id', item.id)
-    await loadVerifications()
+    const res = await fetch('/api/admin/process-verification', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        verificationId: item.id,
+        userId: item.user_id,
+        action,
+        rejectReason: rejectReason[item.id] || '',
+      }),
+    })
+    if (res.ok) await loadVerifications()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패') }
     setProcessing(null)
   }
 
@@ -77,11 +86,30 @@ export default function VerificationsPage() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">DTF 인증 관리</h1>
-        <p className="text-sm text-gray-500 mt-0.5">장비 보유 인증 신청 목록 — 파일 확인 후 승인/반려 처리하세요.</p>
+        <p className="text-sm text-gray-500 mt-0.5">장비 보유 인증 신청 및 처리 이력 — 파일 확인 후 승인/반려 처리하세요.</p>
+      </div>
+
+      {/* 상태 필터 */}
+      <div className="flex flex-wrap gap-1.5 mb-5">
+        {TABS.map(({ key, label }) => {
+          const cnt = key === 'all' ? items.length : items.filter((i) => i.status === key).length
+          const isActive = tab === key
+          return (
+            <button key={key} onClick={() => setTab(key)}
+              className={`px-3.5 py-2 rounded-xl text-sm font-medium border transition-colors ${
+                isActive ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}>
+              {label}
+              {cnt > 0 && (
+                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{cnt}</span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       <div className="space-y-2">
-        {items.map((item) => {
+        {items.filter((i) => tab === 'all' || i.status === tab).map((item) => {
           const cfg = STATUS_CONFIG[item.status]
           const isExpanded = expanded === item.id
           return (
@@ -93,7 +121,10 @@ export default function VerificationsPage() {
                 <div className="flex items-center gap-4">
                   <div>
                     <div className="font-bold text-gray-900">{item.user_name}</div>
-                    <div className="text-sm text-gray-500 mt-0.5">{item.user_email} · {new Date(item.created_at).toLocaleDateString('ko-KR')}</div>
+                    <div className="text-sm text-gray-500 mt-0.5">
+                      {item.user_email} · 신청 {new Date(item.created_at).toLocaleDateString('ko-KR')}
+                      {item.reviewed_at && <span className="text-gray-400"> · 처리 {new Date(item.reviewed_at).toLocaleDateString('ko-KR')}</span>}
+                    </div>
                   </div>
                 </div>
                 <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${cfg.color}`}>
@@ -124,11 +155,11 @@ export default function VerificationsPage() {
                         className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                       <div className="flex gap-2">
-                        <button onClick={() => approve(item)} disabled={processing === item.id}
+                        <button onClick={() => process(item, 'approve')} disabled={processing === item.id}
                           className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-50">
                           <CheckCircle className="w-4 h-4" />승인
                         </button>
-                        <button onClick={() => reject(item)} disabled={processing === item.id}
+                        <button onClick={() => process(item, 'reject')} disabled={processing === item.id}
                           className="flex-1 flex items-center justify-center gap-2 bg-red-500 text-white font-bold py-2.5 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50">
                           <XCircle className="w-4 h-4" />반려
                         </button>
@@ -141,14 +172,41 @@ export default function VerificationsPage() {
                       반려 사유: {item.reject_reason}
                     </div>
                   )}
+
+                  {/* 처리 이력 */}
+                  {item.status !== 'pending' && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm space-y-1">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">처리 이력</p>
+                      <div className="flex gap-2">
+                        <span className="w-16 shrink-0 text-gray-400">신청일</span>
+                        <span className="text-gray-700">{new Date(item.created_at).toLocaleString('ko-KR')}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="w-16 shrink-0 text-gray-400">처리 결과</span>
+                        <span className={`font-semibold ${item.status === 'approved' ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {item.status === 'approved' ? '승인' : '반려'}
+                        </span>
+                      </div>
+                      {item.reviewed_at && (
+                        <div className="flex gap-2">
+                          <span className="w-16 shrink-0 text-gray-400">처리일시</span>
+                          <span className="text-gray-700">{new Date(item.reviewed_at).toLocaleString('ko-KR')}</span>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <span className="w-16 shrink-0 text-gray-400">처리자</span>
+                        <span className="text-gray-700">{item.reviewed_by || '—'}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )
         })}
 
-        {items.length === 0 && (
-          <div className="text-center py-20 text-gray-400 text-sm">인증 요청이 없습니다.</div>
+        {items.filter((i) => tab === 'all' || i.status === tab).length === 0 && (
+          <div className="text-center py-20 text-gray-400 text-sm">해당하는 인증 내역이 없습니다.</div>
         )}
       </div>
     </div>
