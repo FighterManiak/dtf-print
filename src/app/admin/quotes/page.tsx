@@ -241,9 +241,12 @@ function AdminManagePageContent() {
     await loadAll(); setSending(null)
   }
 
-  const updateOrderStatus = async (orderId: string, status: string, itemKey?: string) => {
+  const updateOrderStatus = async (orderId: string, status: string, itemKey?: string, reason?: string) => {
     setProcessing(itemKey || orderId)
-    const res = await fetch('/api/admin/update-order-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId, status }) })
+    const res = await fetch('/api/admin/update-order-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, status, ...(reason ? { refund_reason: reason } : {}) }),
+    })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       alert(`상태 변경 실패: ${err.error || res.status}\norderId: ${orderId}`)
@@ -782,6 +785,16 @@ function AdminManagePageContent() {
                             disabled={processing === d.id}
                             className="w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-orange-600 transition-colors disabled:opacity-50">
                             입금 확인 완료 → 결제완료 처리
+                          </button>
+                          <button onClick={async () => {
+                            const reason = prompt('주문 취소 사유를 입력하세요.\n(예: 고객 요청, 미입금)')
+                            if (reason === null) return
+                            if (!confirm('이 주문을 취소 처리하시겠습니까?')) return
+                            await updateOrderStatus(d.id, 'cancelled', undefined, reason.trim())
+                          }}
+                            disabled={processing === d.id}
+                            className="w-full border border-red-300 bg-white text-red-600 py-2.5 rounded-xl text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50">
+                            주문 취소 (미입금)
                           </button>
                         </div>
                       )}
