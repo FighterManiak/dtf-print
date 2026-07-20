@@ -625,7 +625,8 @@ function AdminManagePageContent() {
 
                       {/* 파일 다운로드 (바로주문) */}
                       {item.type === 'order' && (() => {
-                        const files = ((d as DirectOrder).order_items || []).filter((oi) => oi.file_url).map((oi) => ({ url: oi.file_url as string, name: oi.file_name || oi.product_id }))
+                        // 상품별로 여러 시안이 JSON 배열로 저장되므로 모두 펼쳐서 표시
+                        const files = ((d as DirectOrder).order_items || []).flatMap((oi) => parseFiles(oi.file_url, oi.file_name))
                         return files.length > 0 ? (
                           <div className="space-y-2">
                             {files.length > 1 && (

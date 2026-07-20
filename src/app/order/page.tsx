@@ -31,7 +31,7 @@ const formatPhone = (v: string) => {
 
 interface CartItem {
   productId: string; quantity: number; cutting: boolean
-  cuttingPrice: string; file: File | null; requestNote: string; dueDate: string
+  cuttingPrice: string; files: File[]; requestNote: string; dueDate: string
 }
 interface CustomerInfo { name: string; email: string; phone: string; address: string; zonecode: string; addressDetail: string }
 
@@ -191,14 +191,17 @@ function OrderPageContent() {
     for (const item of cart) {
       const p = ALL_PRODUCTS.find((x) => x.id === item.productId)!
       const cutAmt = item.cutting ? (isRollItem(item.productId) ? item.quantity*CUTTING_PRICE_PER_M : (parseInt(item.cuttingPrice)||0)) : 0
-      let filePath: string | null = null
-      let fileName: string | null = null
-      if (item.file) {
-        const ext = item.file.name.split('.').pop()?.toLowerCase() || 'bin'
+      // 상품별 시안 파일 여러 개 업로드 → JSON 배열로 저장
+      const paths: string[] = []
+      const names: string[] = []
+      for (const f of item.files) {
+        const ext = f.name.split('.').pop()?.toLowerCase() || 'bin'
         const path = `${uid}/orders/${Date.now()}_${Math.random().toString(36).slice(2,7)}.${ext}`
-        const { error } = await supabase.storage.from('order-files').upload(path, item.file)
-        if (!error) { filePath = path; fileName = item.file.name }
+        const { error } = await supabase.storage.from('order-files').upload(path, f)
+        if (!error) { paths.push(path); names.push(f.name) }
       }
+      const filePath = paths.length ? JSON.stringify(paths) : null
+      const fileName = names.length ? JSON.stringify(names) : null
       out.push({ productId: item.productId, productName: p.name, quantity: item.quantity, unitPrice: p.price, cutting: item.cutting, cuttingPrice: cutAmt, requestNote: item.requestNote, dueDate: item.dueDate||null, filePath, fileName })
     }
     return out
@@ -569,7 +572,7 @@ function OrderPageContent() {
                                 </button>
                               </>
                             ) : (
-                              <button onClick={() => { setCart((p) => [...p,{productId:product.id,quantity:1,cutting:false,cuttingPrice:'',file:null,requestNote:'',dueDate:''}]); setExpandedProduct(product.id) }}
+                              <button onClick={() => { setCart((p) => [...p,{productId:product.id,quantity:1,cutting:false,cuttingPrice:'',files:[],requestNote:'',dueDate:''}]); setExpandedProduct(product.id) }}
                                 className="bg-violet-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors">
                                 선택
                               </button>
@@ -630,20 +633,25 @@ function OrderPageContent() {
                             )}
                             {/* 시안 파일 */}
                             <div>
-                              <label className="text-sm font-semibold text-gray-700 block mb-2">시안 파일 업로드 (선택)</label>
-                              {inCart.file ? (
-                                <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
-                                  <div className="flex-1 text-sm text-green-700 font-medium truncate">{inCart.file.name}</div>
-                                  <button onClick={() => setCart((p) => p.map((i) => i.productId===product.id ? {...i,file:null} : i))} className="text-green-500 hover:text-red-500"><X className="w-4 h-4" /></button>
-                                </div>
-                              ) : (
-                                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-all">
-                                  <Upload className="w-6 h-6 text-gray-400 mb-1.5" />
-                                  <span className="text-sm text-gray-500">파일 선택 또는 드래그</span>
-                                  <span className="text-xs text-gray-400 mt-0.5">PNG, JPG, PDF, AI, PSD</span>
-                                  <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.pdf,.ai,.psd,.eps" onChange={(e) => setCart((p) => p.map((i) => i.productId===product.id ? {...i,file:e.target.files?.[0]??null} : i))} />
-                                </label>
-                              )}
+                              <label className="text-sm font-semibold text-gray-700 block mb-2">시안 파일 업로드 (선택) <span className="text-gray-400 font-normal">최대 10개</span></label>
+                              <div className="space-y-2">
+                                {inCart.files.map((f, fi) => (
+                                  <div key={fi} className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                                    <div className="flex-1 text-sm text-green-700 font-medium truncate">{f.name}</div>
+                                    <span className="text-xs text-green-600 shrink-0">{(f.size/1024/1024).toFixed(1)}MB</span>
+                                    <button onClick={() => setCart((p) => p.map((i) => i.productId===product.id ? {...i, files: i.files.filter((_, idx) => idx !== fi)} : i))} className="text-green-500 hover:text-red-500"><X className="w-4 h-4" /></button>
+                                  </div>
+                                ))}
+                                {inCart.files.length < 10 && (
+                                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-5 cursor-pointer hover:border-violet-400 hover:bg-violet-50 transition-all">
+                                    <Upload className="w-6 h-6 text-gray-400 mb-1.5" />
+                                    <span className="text-sm text-gray-500">{inCart.files.length === 0 ? '파일 선택 또는 드래그' : '파일 추가'}</span>
+                                    <span className="text-xs text-gray-400 mt-0.5">PNG, JPG, PDF, AI, PSD · {inCart.files.length}/10</span>
+                                    <input type="file" className="hidden" multiple accept=".png,.jpg,.jpeg,.pdf,.ai,.psd,.eps"
+                                      onChange={(e) => { const sel = Array.from(e.target.files || []); setCart((p) => p.map((i) => i.productId===product.id ? {...i, files: [...i.files, ...sel].slice(0, 10)} : i)); e.target.value = '' }} />
+                                  </label>
+                                )}
+                              </div>
                             </div>
                             {/* 납기일 */}
                             <div>
@@ -801,7 +809,7 @@ function OrderPageContent() {
                         <div key={item.productId} className="flex justify-between items-start text-sm">
                           <div>
                             <div className="font-medium text-gray-800">{p.name}</div>
-                            <div className="text-gray-500">{item.quantity}{p.unit}{item.cutting?' / 컷팅 있음':''}{item.file?` / 시안: ${item.file.name}`:''}{item.dueDate?` / 납기: ${item.dueDate}`:''}</div>
+                            <div className="text-gray-500">{item.quantity}{p.unit}{item.cutting?' / 컷팅 있음':''}{item.files.length?` / 시안 ${item.files.length}개`:''}{item.dueDate?` / 납기: ${item.dueDate}`:''}</div>
                           </div>
                           <div className="font-bold text-gray-800">{(p.price*item.quantity+cutAmt).toLocaleString()}원</div>
                         </div>
