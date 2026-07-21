@@ -262,12 +262,31 @@ function AdminManagePageContent() {
     await loadAll(); setProcessing(null)
   }
 
+  const getOrderFileUrl = async (filePath: string): Promise<string | null> => {
+    const res = await fetch('/api/admin/order-file-url', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath }),
+    })
+    if (!res.ok) return null
+    const { url } = await res.json()
+    return url || null
+  }
+
   const downloadFile = async (filePath: string, fileName: string) => {
-    const supabase = createClient()
-    const { data } = await supabase.storage.from('order-files').createSignedUrl(filePath, 60)
-    if (!data?.signedUrl) return
-    const a = document.createElement('a'); a.href = data.signedUrl; a.download = fileName
-    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    try {
+      const url = await getOrderFileUrl(filePath)
+      if (!url) { alert('파일을 불러오지 못했습니다.'); return }
+      const fileRes = await fetch(url)
+      if (!fileRes.ok) { alert('파일을 내려받지 못했습니다.'); return }
+      const blob = await fileRes.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl; a.download = fileName
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      alert('파일 다운로드 중 오류가 발생했습니다.')
+    }
   }
 
   // 시안 파일 전체를 ZIP으로 묶어 다운로드
@@ -275,15 +294,14 @@ function AdminManagePageContent() {
     if (files.length === 0) return
     setZipping(key)
     try {
-      const supabase = createClient()
       const zip = new JSZip()
       const safeName = (customerName || '고객').replace(/[\\/:*?"<>|]/g, '')
       let added = 0
 
       for (let i = 0; i < files.length; i++) {
-        const { data } = await supabase.storage.from('order-files').createSignedUrl(files[i].url, 300)
-        if (!data?.signedUrl) continue
-        const res = await fetch(data.signedUrl)
+        const signed = await getOrderFileUrl(files[i].url)
+        if (!signed) continue
+        const res = await fetch(signed)
         if (!res.ok) continue
         const blob = await res.blob()
         const ext = files[i].name.split('.').pop() || files[i].url.split('.').pop() || 'bin'
