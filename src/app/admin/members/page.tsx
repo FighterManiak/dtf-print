@@ -97,6 +97,20 @@ export default function MembersPage() {
   const [gradeUntil, setGradeUntil] = useState('')
   const [gradeSaving, setGradeSaving] = useState(false)
 
+  const toggleWithdrawal = async (member: Member, withdraw: boolean) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    const action = withdraw ? '탈퇴 처리' : '복구'
+    if (!confirm(`${name} 님을 ${action} 하시겠습니까?${withdraw ? '\n(정보는 보존되며 로그인만 차단됩니다)' : ''}`)) return
+    setProcessing(member.id)
+    const res = await fetch('/api/admin/set-withdrawal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: member.id, withdraw }),
+    })
+    if (res.ok) await loadMembers()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패') }
+    setProcessing(null)
+  }
+
   const toggleVerify = async (member: Member, approve: boolean) => {
     const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
     if (!confirm(`${name} 님을 DTF 보유인증 ${approve ? '승인' : '해제'} 하시겠습니까?`)) return
@@ -383,6 +397,19 @@ export default function MembersPage() {
                               className="text-xs bg-gray-50 text-gray-600 border border-gray-200 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
                               권한 해제
                             </button>
+                          )}
+                          {role !== 'admin' && role !== 'superadmin' && (
+                            member.user_metadata?.withdrawn ? (
+                              <button onClick={() => toggleWithdrawal(member, false)} disabled={processing === member.id}
+                                className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-50">
+                                복구
+                              </button>
+                            ) : (
+                              <button onClick={() => toggleWithdrawal(member, true)} disabled={processing === member.id}
+                                className="text-xs bg-red-50 text-red-600 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50">
+                                탈퇴 처리
+                              </button>
+                            )
                           )}
                         </div>
                       ) : (
