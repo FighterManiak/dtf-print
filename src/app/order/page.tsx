@@ -923,11 +923,11 @@ function OrderPageContent() {
                 {payMethod === 'bank' && (
                   <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-4 text-sm space-y-1.5">
                     <p className="font-bold text-orange-800 mb-2">입금 계좌 안내</p>
-                    <div className="flex justify-between"><span className="text-gray-500">은행</span><span className="font-semibold">기업은행</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">계좌번호</span><span className="font-bold tracking-wider">495-028223-01-021</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">아유디스터디 (조봉준)</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">은행</span><span className="font-bold text-gray-900">기업은행</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">계좌번호</span><span className="font-bold text-gray-900 tracking-wider">495-028223-01-021</span></div>
+                    <div className="flex justify-between"><span className="text-gray-600">예금주</span><span className="font-bold text-gray-900">아유디스터디 (조봉준)</span></div>
                     <div className="flex justify-between border-t border-orange-200 pt-2 mt-1">
-                      <span className="text-gray-500">입금 금액</span>
+                      <span className="text-gray-600">입금 금액</span>
                       <span className="font-bold text-orange-700 text-base">{finalPay.toLocaleString()}원</span>
                     </div>
                   </div>
