@@ -348,8 +348,8 @@ export default function MyOrdersPage() {
         userPhone: quote.user_phone, userAddress: quote.user_address,
         productType: quote.product_type, orderName: quote.order_name,
         requestNote: `재구매 (수량: ${qty})\n${quote.request_note || ''}`.trim(),
-        fileUrls: quote.file_url ? JSON.parse(quote.file_url) : [],
-        fileNames: quote.file_name ? JSON.parse(quote.file_name) : [],
+        fileUrls: parseFiles(quote.file_url, quote.file_name).map((f) => f.url),
+        fileNames: parseFiles(quote.file_url, quote.file_name).map((f) => f.name),
       }),
     })
     setReordering(false)
