@@ -200,43 +200,41 @@ export default function MyOrdersPage() {
 
   const loadData = async (uid: string, from: string, to: string) => {
     setLoading(true)
-    const supabase = createClient()
 
-    // 견적 목록 조회 (날짜 필터 적용)
-    const { data: quotesData } = await supabase
-      .from('quotes')
-      .select('*')
-      .eq('user_id', uid)
-      .gte('created_at', from + 'T00:00:00')
-      .lte('created_at', to + 'T23:59:59')
-      .order('created_at', { ascending: false })
+    // 견적 목록 조회 (RLS 우회 위해 서비스롤 API 사용, 날짜 필터 적용)
+    const quotesData: Quote[] = await fetch(`/api/my-quotes?from=${from}&to=${to}`)
+      .then((r) => r.ok ? r.json() : [])
+      .catch(() => [])
 
     if (!quotesData) { setLoading(false); return }
 
-    // order_id 가 있는 견적의 주문 정보 일괄 조회
+    // 내 주문(orders) 서비스롤 조회 — 견적 연결정보 + 바로주문 pseudo-quote 모두에 사용
+    const allOrders: Array<Record<string, unknown>> = await fetch('/api/my-orders').then((r) => r.ok ? r.json() : []).catch(() => [])
+
+    // order_id 가 있는 견적의 주문 정보 매핑
     const orderIds = quotesData.map((q) => q.order_id).filter(Boolean) as string[]
-    let ordersMap: Record<string, Order> = {}
-    if (orderIds.length > 0) {
-      const { data: ordersData } = await supabase
-        .from('orders')
-        .select('id, status, carrier, tracking_number, refund_reason, assigned_machine')
-        .in('id', orderIds)
-      if (ordersData) {
-        ordersData.forEach((o) => { ordersMap[o.id] = o })
+    const ordersMap: Record<string, Order> = {}
+    allOrders.forEach((o) => {
+      const id = o.id as string
+      ordersMap[id] = {
+        id, status: o.status as string,
+        carrier: (o.carrier as string) || null,
+        tracking_number: (o.tracking_number as string) || null,
+        refund_reason: (o.refund_reason as string) || null,
+        assigned_machine: (o.assigned_machine as number) ?? null,
       }
-    }
+    })
 
     const merged = quotesData.map((q) => ({
       ...q,
       order: q.order_id ? (ordersMap[q.order_id] ?? null) : null,
     }))
 
-    // 바로주문(orders) 조회 → 견적에 연결되지 않은 주문을 pseudo-quote로 변환
+    // 바로주문(orders) → 견적에 연결되지 않은 주문을 pseudo-quote로 변환
     const linkedOrderIds = new Set(orderIds)
     let directQuotes: Quote[] = []
     try {
-      const directOrders = await fetch('/api/my-orders').then((r) => r.ok ? r.json() : [])
-      directQuotes = (directOrders as Array<Record<string, unknown>>)
+      directQuotes = allOrders
         .filter((o) => !linkedOrderIds.has(o.id as string))
         .filter((o) => {
           const c = (o.created_at as string) || ''
