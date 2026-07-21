@@ -29,6 +29,14 @@ const PROVIDER_LABEL: Record<string, string> = {
   google: '구글', kakao: '카카오', naver: '네이버', email: '이메일',
 }
 
+// 전화번호 000-0000-0000 형식으로 표시
+const formatPhone = (raw: string): string => {
+  const n = (raw || '').replace(/[^0-9]/g, '')
+  if (n.length === 11) return `${n.slice(0,3)}-${n.slice(3,7)}-${n.slice(7)}`
+  if (n.length === 10) return `${n.slice(0,3)}-${n.slice(3,6)}-${n.slice(6)}`
+  return raw || '-'
+}
+
 interface ConfirmModal {
   memberId: string
   memberName: string
@@ -287,7 +295,7 @@ export default function MembersPage() {
                     <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{company}</td>
                     <td className="px-4 py-4 text-gray-600">{member.email}</td>
-                    <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{phone}</td>
+                    <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{formatPhone(phone)}</td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{address}</td>
                     <td className="px-4 py-4">
                       <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-lg text-xs">
