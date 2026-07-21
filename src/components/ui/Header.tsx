@@ -155,7 +155,7 @@ export default function Header() {
                 </div>
               </div>
             ) : (
-              <Link href="/login" className="bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors">
+              <Link href="/login?tab=login" className="bg-gray-900 text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors">
                 로그인
               </Link>
             )}
@@ -217,7 +217,7 @@ export default function Header() {
               </div>
             ) : (
               <div className="pt-2 border-t border-gray-100">
-                <Link href="/login" onClick={() => setMobileOpen(false)} className="block bg-gray-900 text-white text-center px-4 py-3 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors">
+                <Link href="/login?tab=login" onClick={() => setMobileOpen(false)} className="block bg-gray-900 text-white text-center px-4 py-3 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors">
                   로그인
                 </Link>
               </div>

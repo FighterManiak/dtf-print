@@ -26,6 +26,16 @@ function LoginContent() {
     if (ref) localStorage.setItem('referral_code', ref.toUpperCase().trim())
   }, [])
 
+  // ?tab=login|signup|social 파라미터로 탭 전환 (헤더 로그인 버튼 등에서 사용)
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t === 'login' || t === 'signup' || t === 'social') {
+      setTab(t)
+      setError('')
+      setSuccess('')
+    }
+  }, [searchParams])
+
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({
     name: '',
