@@ -169,7 +169,7 @@ export default function Home() {
             ].map(({ icon: Icon, step, title, desc, color }, idx) => (
               <div key={step} className="relative">
                 {idx < 3 && (
-                  <div className="hidden md:block absolute top-8 left-[calc(100%-8px)] w-1/2 h-px border-t-2 border-dashed border-gray-200 z-0" />
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+2.75rem)] w-[calc(100%-4.5rem)] h-px border-t-2 border-dashed border-gray-200 z-0" />
                 )}
                 <div className="relative z-10 flex flex-col items-center text-center gap-3">
                   <div className={`w-16 h-16 ${color} rounded-2xl flex items-center justify-center shadow-lg`}>
