@@ -115,7 +115,10 @@ function LoginContent() {
     setLoading(false)
 
     if (error) {
-      setError(error.message === 'User already registered' ? '이미 가입된 이메일입니다.' : '회원가입 중 오류가 발생했습니다.')
+      const msg = error.message || ''
+      if (msg === 'User already registered' || /already registered/i.test(msg)) setError('이미 가입된 이메일입니다.')
+      else if (/error sending confirmation email|smtp|confirmation mail/i.test(msg)) setError('인증 메일 발송에 실패했습니다. 이메일 설정(SMTP)을 확인해주세요.')
+      else setError(`회원가입 중 오류가 발생했습니다.\n(${msg})`)
       return
     }
     setSuccess('가입 확인 이메일을 발송했습니다. 이메일을 확인해주세요.')
