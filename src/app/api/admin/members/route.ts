@@ -32,9 +32,17 @@ export async function GET() {
   const role = await getCurrentRole()
   if (!isAdmin(role)) return NextResponse.json({ error: '권한 없음' }, { status: 403 })
   const admin = getAdminClient()
-  const { data, error } = await admin.auth.admin.listUsers()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data.users)
+
+  // listUsers는 페이지당 최대 인원이 제한되므로 전체 페이지를 순회
+  const perPage = 1000
+  const all: unknown[] = []
+  for (let page = 1; page <= 100; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    all.push(...data.users)
+    if (data.users.length < perPage) break
+  }
+  return NextResponse.json(all)
 }
 
 export async function PATCH(req: NextRequest) {
