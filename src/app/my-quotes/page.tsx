@@ -340,32 +340,33 @@ export default function MyOrdersPage() {
     const qty = reorderModal.quantity.trim()
     if (!qty) { alert('수량을 입력해주세요.'); return }
     setReordering(true)
-    const supabase = createClient()
     const { quote } = reorderModal
-    await supabase.from('quotes').insert({
-      user_id: user.id,
-      user_name: quote.user_name,
-      user_email: quote.user_email,
-      user_phone: quote.user_phone,
-      user_address: quote.user_address,
-      product_type: quote.product_type,
-      order_name: quote.order_name,
-      request_note: `재구매 (수량: ${qty})\n${quote.request_note || ''}`.trim(),
-      file_url: quote.file_url,
-      file_name: quote.file_name,
-      status: 'pending',
+    const res = await fetch('/api/quote/create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userName: quote.user_name, userEmail: quote.user_email,
+        userPhone: quote.user_phone, userAddress: quote.user_address,
+        productType: quote.product_type, orderName: quote.order_name,
+        requestNote: `재구매 (수량: ${qty})\n${quote.request_note || ''}`.trim(),
+        fileUrls: quote.file_url ? JSON.parse(quote.file_url) : [],
+        fileNames: quote.file_name ? JSON.parse(quote.file_name) : [],
+      }),
     })
     setReordering(false)
     setReorderModal(null)
+    if (!res.ok) { alert('재구매 요청 저장에 실패했습니다.'); return }
     await loadData(user.id, dateFrom, dateTo)
     alert('재구매 견적 요청이 완료되었습니다!')
   }
 
   const cancelQuote = async (quoteId: string) => {
     if (!confirm('견적 요청을 취소하시겠습니까?')) return
-    const supabase = createClient()
-    await supabase.from('quotes').update({ status: 'cancelled' }).eq('id', quoteId)
-    setQuotes((prev) => prev.map((q) => q.id === quoteId ? { ...q, status: 'cancelled' } : q))
+    const res = await fetch('/api/admin/update-quote-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quoteId, status: 'cancelled' }),
+    })
+    if (res.ok) setQuotes((prev) => prev.map((q) => q.id === quoteId ? { ...q, status: 'cancelled' } : q))
+    else alert('견적 취소에 실패했습니다.')
   }
 
   const requestRefund = async (quote: Quote) => {

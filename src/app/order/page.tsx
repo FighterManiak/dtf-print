@@ -169,17 +169,21 @@ function OrderPageContent() {
       uploadedUrls.push(path)
       uploadedNames.push(file.name)
     }
-    await supabase.from('quotes').insert({
-      user_id: userId, user_name: customer.name, user_email: customer.email,
-      user_phone: customer.phone, user_address: customer.address,
-      product_type: productType, order_name: orderName.trim() || null,
-      request_note: requestNote,
-      machine_no: machineNo || null,
-      file_url: uploadedUrls.length > 0 ? JSON.stringify(uploadedUrls) : null,
-      file_name: uploadedNames.length > 0 ? JSON.stringify(uploadedNames) : null,
-      status: 'pending',
+    const res = await fetch('/api/quote/create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userName: customer.name, userEmail: customer.email,
+        userPhone: customer.phone, userAddress: customer.address,
+        productType, orderName, requestNote, machineNo,
+        fileUrls: uploadedUrls, fileNames: uploadedNames,
+      }),
     })
     setUploading(false)
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      alert(`견적 요청 저장에 실패했습니다.\n${e.error || res.status}`)
+      return
+    }
     setSubmitted(true)
   }
 
