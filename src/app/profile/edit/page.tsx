@@ -20,6 +20,24 @@ export default function ProfileEditPage() {
   const [address, setAddress] = useState('')
   const [addressDetail, setAddressDetail] = useState('')
   const [email, setEmail] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteAccount = async () => {
+    if (!confirm('정말 회원 탈퇴하시겠습니까?\n\n탈퇴 시 계정 정보와 포인트가 모두 삭제되며 복구할 수 없습니다.')) return
+    if (!confirm('탈퇴를 진행하려면 한 번 더 확인해주세요.\n계속하시겠습니까?')) return
+    setDeleting(true)
+    const res = await fetch('/api/account/delete', { method: 'POST' })
+    if (res.ok) {
+      alert('회원 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.')
+      const supabase = createClient()
+      await supabase.auth.signOut()
+      window.location.href = '/'
+    } else {
+      const e = await res.json().catch(() => ({}))
+      alert(e.error || '회원 탈퇴 처리 중 오류가 발생했습니다.')
+      setDeleting(false)
+    }
+  }
 
   const handlePostcodeSearch = async () => {
     const result = await openPostcode()
@@ -223,6 +241,18 @@ export default function ProfileEditPage() {
           </button>
         </div>
       </form>
+
+      {/* 회원 탈퇴 (구석에 눈에 띄지 않게) */}
+      <div className="mt-10 text-right">
+        <button
+          type="button"
+          onClick={handleDeleteAccount}
+          disabled={deleting}
+          className="text-xs text-gray-300 hover:text-red-400 transition-colors disabled:opacity-50 underline underline-offset-2"
+        >
+          {deleting ? '처리 중...' : '회원 탈퇴'}
+        </button>
+      </div>
     </div>
   )
 }
