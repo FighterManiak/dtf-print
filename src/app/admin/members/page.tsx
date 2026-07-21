@@ -19,6 +19,8 @@ interface Member {
     company?: string
     address?: string
     grade_override?: { grade?: string; until?: string } | null
+    withdrawn?: boolean
+    withdrawn_at?: string
   }
   app_metadata: {
     provider?: string
@@ -292,7 +294,10 @@ export default function MembersPage() {
                 const { grade, isOverride } = resolveGrade(override, meters)
                 return (
                   <tr key={member.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">{name}</td>
+                    <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">
+                      {name}
+                      {member.user_metadata?.withdrawn && <span className="ml-1.5 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">탈퇴</span>}
+                    </td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{company}</td>
                     <td className="px-4 py-4 text-gray-600">{member.email}</td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{formatPhone(phone)}</td>

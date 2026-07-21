@@ -23,7 +23,7 @@ export default function ProfileEditPage() {
   const [deleting, setDeleting] = useState(false)
 
   const handleDeleteAccount = async () => {
-    if (!confirm('정말 회원 탈퇴하시겠습니까?\n\n탈퇴 시 계정 정보와 포인트가 모두 삭제되며 복구할 수 없습니다.')) return
+    if (!confirm('정말 회원 탈퇴하시겠습니까?\n\n탈퇴 후에는 로그인 및 서비스 이용이 불가합니다.')) return
     if (!confirm('탈퇴를 진행하려면 한 번 더 확인해주세요.\n계속하시겠습니까?')) return
     setDeleting(true)
     const res = await fetch('/api/account/delete', { method: 'POST' })
