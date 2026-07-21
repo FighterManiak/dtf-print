@@ -114,6 +114,8 @@ function LoginContent() {
       email: signupForm.email,
       password: signupForm.password,
       options: {
+        // 인증 메일 링크 클릭 후 세션 교환 처리하는 콜백으로 이동 → 로그인 상태로 진입
+        emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
         data: {
           full_name: signupForm.name,
           phone: signupForm.phone,
