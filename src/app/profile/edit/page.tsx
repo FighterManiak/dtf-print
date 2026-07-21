@@ -21,6 +21,7 @@ export default function ProfileEditPage() {
   const [addressDetail, setAddressDetail] = useState('')
   const [email, setEmail] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const handleDeleteAccount = async () => {
     if (!confirm('정말 회원 탈퇴하시겠습니까?\n\n탈퇴 후에는 로그인 및 서비스 이용이 불가합니다.')) return
@@ -54,6 +55,7 @@ export default function ProfileEditPage() {
     if (!user) { router.push('/login'); return }
 
     setEmail(user.email || '')
+    setIsAdmin(user.user_metadata?.role === 'admin' || user.user_metadata?.role === 'superadmin')
     setName(user.user_metadata?.full_name || user.user_metadata?.name || '')
     setPhone(formatPhone(user.user_metadata?.phone || ''))
     setCompany(user.user_metadata?.company || '')
@@ -242,7 +244,8 @@ export default function ProfileEditPage() {
         </div>
       </form>
 
-      {/* 회원 탈퇴 (구석에 눈에 띄지 않게) */}
+      {/* 회원 탈퇴 (구석에 눈에 띄지 않게) — 관리자 계정은 숨김 */}
+      {!isAdmin && (
       <div className="mt-10 text-right">
         <button
           type="button"
@@ -253,6 +256,7 @@ export default function ProfileEditPage() {
           {deleting ? '처리 중...' : '회원 탈퇴'}
         </button>
       </div>
+      )}
     </div>
   )
 }
