@@ -47,6 +47,13 @@ function LoginContent() {
     passwordConfirm: '',
   })
 
+  const formatPhone = (value: string) => {
+    const num = value.replace(/[^0-9]/g, '').slice(0, 11)
+    if (num.length <= 3) return num
+    if (num.length <= 7) return `${num.slice(0, 3)}-${num.slice(3)}`
+    return `${num.slice(0, 3)}-${num.slice(3, 7)}-${num.slice(7)}`
+  }
+
   const signInWithGoogle = async () => {
     if (!isSupabaseConfigured()) { setError('Supabase가 설정되지 않았습니다.'); return }
     setLoading(true); setError('')
@@ -118,7 +125,7 @@ function LoginContent() {
         emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
         data: {
           full_name: signupForm.name,
-          phone: signupForm.phone,
+          phone: signupForm.phone.replace(/[^0-9]/g, ''),
           address: signupForm.address,
           address_detail: signupForm.addressDetail,
         },
@@ -348,8 +355,9 @@ function LoginContent() {
                   type="tel"
                   required
                   value={signupForm.phone}
-                  onChange={(e) => setSignupForm((p) => ({ ...p, phone: e.target.value }))}
+                  onChange={(e) => setSignupForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
                   placeholder="010-1234-5678"
+                  maxLength={13}
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
