@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { LogOut, User, ShieldCheck, Menu, X } from 'lucide-react'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase-browser'
 import { getDemoSession, setDemoSession } from '@/lib/demo-auth'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import type { VerificationStatus } from '@/types'
 import DtfVerifyModal from './DtfVerifyModal'
@@ -20,6 +20,25 @@ export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [verifyModalOpen, setVerifyModalOpen] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState<VerificationStatus | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // 페이지 이동 시 드롭다운/모바일 메뉴 닫기
+  useEffect(() => {
+    setMenuOpen(false)
+    setMobileOpen(false)
+  }, [pathname])
+
+  // 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
 
   useEffect(() => {
     const applyRole = (role: string | undefined) => {
@@ -120,7 +139,7 @@ export default function Header() {
                   {verifyBtn.label}
                 </button>
 
-                <div className="relative">
+                <div className="relative" ref={menuRef}>
                   <button
                     onClick={() => setMenuOpen((v) => !v)}
                     className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-2 rounded-xl text-sm font-medium hover:bg-blue-100 transition-colors"
