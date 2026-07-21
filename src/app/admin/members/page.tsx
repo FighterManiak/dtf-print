@@ -97,6 +97,20 @@ export default function MembersPage() {
   const [gradeUntil, setGradeUntil] = useState('')
   const [gradeSaving, setGradeSaving] = useState(false)
 
+  const deleteMember = async (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    if (!confirm(`${name} 님의 계정을 완전히 삭제하시겠습니까?\n\n계정이 영구 삭제되며 복구할 수 없습니다.\n(주문·견적 기록은 남지만 회원 계정은 사라집니다)`)) return
+    if (!confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
+    setProcessing(member.id)
+    const res = await fetch('/api/admin/delete-member', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: member.id }),
+    })
+    if (res.ok) await loadMembers()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '삭제 실패') }
+    setProcessing(null)
+  }
+
   const toggleWithdrawal = async (member: Member, withdraw: boolean) => {
     const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
     const action = withdraw ? '탈퇴 처리' : '복구'
@@ -410,6 +424,12 @@ export default function MembersPage() {
                                 탈퇴 처리
                               </button>
                             )
+                          )}
+                          {role !== 'admin' && role !== 'superadmin' && (
+                            <button onClick={() => deleteMember(member)} disabled={processing === member.id}
+                              className="text-xs bg-white text-red-500 border border-red-300 px-2 py-1 rounded-lg hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors disabled:opacity-50">
+                              삭제
+                            </button>
                           )}
                         </div>
                       ) : (
