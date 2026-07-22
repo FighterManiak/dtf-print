@@ -10,6 +10,7 @@ interface Member {
   email: string
   created_at: string
   last_sign_in_at: string | null
+  email_confirmed_at: string | null
   user_metadata: {
     full_name?: string
     name?: string
@@ -296,6 +297,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">이름</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-32">회사명</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-44">이메일</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">메일인증</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">전화번호</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold w-48">주소</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
@@ -328,6 +330,17 @@ export default function MembersPage() {
                     </td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{company}</td>
                     <td className="px-4 py-4 text-gray-600">{member.email}</td>
+                    <td className="px-4 py-4">
+                      {member.email_confirmed_at ? (
+                        <span className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-1 rounded-lg text-xs font-bold w-fit whitespace-nowrap">
+                          <ShieldCheck className="w-3 h-3" /> 완료
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-amber-700 bg-amber-100 px-2 py-1 rounded-lg text-xs font-bold w-fit whitespace-nowrap">
+                          미인증
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{formatPhone(phone)}</td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{address}</td>
                     <td className="px-4 py-4">
