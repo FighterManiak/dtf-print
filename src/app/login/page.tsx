@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient, isSupabaseConfigured } from '@/lib/supabase-browser'
+import { openPostcode } from '@/lib/daum-postcode'
 import { demoLogin, setDemoSession, DEMO_USERS } from '@/lib/demo-auth'
 import { Printer, Eye, EyeOff, FlaskConical } from 'lucide-react'
 import { Suspense, useState, useEffect } from 'react'
@@ -41,11 +42,17 @@ function LoginContent() {
     name: '',
     email: '',
     phone: '',
+    zonecode: '',
     address: '',
     addressDetail: '',
     password: '',
     passwordConfirm: '',
   })
+
+  const handleSignupPostcode = async () => {
+    const result = await openPostcode()
+    if (result) setSignupForm((p) => ({ ...p, zonecode: result.zonecode, address: result.address }))
+  }
 
   const formatPhone = (value: string) => {
     const num = value.replace(/[^0-9]/g, '').slice(0, 11)
@@ -126,6 +133,7 @@ function LoginContent() {
         data: {
           full_name: signupForm.name,
           phone: signupForm.phone.replace(/[^0-9]/g, ''),
+          zonecode: signupForm.zonecode,
           address: signupForm.address,
           address_detail: signupForm.addressDetail,
         },
@@ -365,12 +373,28 @@ function LoginContent() {
                 <label className="text-sm font-semibold text-gray-700 block mb-1.5">
                   기본 배송지 주소 <span className="text-gray-400 font-normal text-xs">(선택)</span>
                 </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={signupForm.zonecode}
+                    readOnly
+                    placeholder="우편번호"
+                    className="w-28 border border-gray-300 rounded-xl px-4 py-3 text-sm text-black bg-gray-50 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSignupPostcode}
+                    className="px-4 py-3 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors whitespace-nowrap"
+                  >
+                    우편번호 검색
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={signupForm.address}
-                  onChange={(e) => setSignupForm((p) => ({ ...p, address: e.target.value }))}
-                  placeholder="서울시 강남구 테헤란로 123"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2"
+                  readOnly
+                  placeholder="기본 주소 (검색으로 입력)"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-black bg-gray-50 focus:outline-none mb-2"
                 />
                 <input
                   type="text"
