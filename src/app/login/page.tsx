@@ -20,6 +20,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [signupDoneEmail, setSignupDoneEmail] = useState('')
 
   // 추천인 링크(?ref=코드)로 진입 시 저장 → 가입 정보 등록 화면에서 자동 입력
   useEffect(() => {
@@ -148,7 +149,7 @@ function LoginContent() {
       else setError(`회원가입 중 오류가 발생했습니다.\n(${msg})`)
       return
     }
-    setSuccess('가입 확인 이메일을 발송했습니다. 이메일을 확인해주세요.')
+    setSignupDoneEmail(signupForm.email)
   }
 
   const handleForgotPassword = async () => {
@@ -196,6 +197,41 @@ function LoginContent() {
           ))}
         </div>
 
+        {signupDoneEmail ? (
+          <div className="p-6 text-center">
+            <div className="mx-auto w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <svg className="w-9 h-9 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">거의 다 됐어요!</h2>
+            <p className="text-sm text-gray-600 leading-relaxed mb-4">
+              <b className="text-gray-900">{signupDoneEmail}</b> 주소로<br />
+              <b className="text-blue-600">가입 확인 이메일</b>을 발송했습니다.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 text-sm text-amber-800 leading-relaxed text-left mb-5">
+              <b>⚠️ 아직 가입이 완료되지 않았습니다.</b><br />
+              메일함에서 <b>"이메일 인증하기"</b> 버튼을 눌러야<br />회원가입이 최종 완료됩니다.
+              <div className="mt-2 text-xs text-amber-600">
+                · 메일이 안 보이면 <b>스팸함</b>도 확인해주세요.<br />
+                · 인증은 <b>가입한 이 브라우저(PC/휴대폰)에서 여는 것</b>을 권장합니다.
+              </div>
+            </div>
+            <button
+              onClick={() => { setSignupDoneEmail(''); setTab('login') }}
+              className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              인증 완료 후 로그인하기
+            </button>
+            <p className="text-xs text-gray-400 mt-3">
+              메일이 오지 않았나요?{' '}
+              <button
+                onClick={() => { setSignupDoneEmail(''); setTab('signup') }}
+                className="text-blue-500 hover:underline"
+              >
+                다시 시도
+              </button>
+            </p>
+          </div>
+        ) : (
         <div className="p-6">
           {/* 에러/성공 메시지 */}
           {error && (
@@ -452,6 +488,7 @@ function LoginContent() {
             </form>
           )}
         </div>
+        )}
 
         <p className="text-center text-xs text-gray-400 pb-6 px-8">
           로그인 시 서비스 이용약관 및 개인정보처리방침에 동의하게 됩니다.
