@@ -462,8 +462,9 @@ function OrderPageContent() {
                   <div className="mb-6 space-y-4">
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-2">주문명 <span className="text-red-500">*</span></label>
-                      <input type="text" value={orderName} onChange={(e) => setOrderName(e.target.value)} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
-                        className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400" />
+                      <input type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
+                        className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400 ${orderNameError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
+                      {orderNameError && <p className="text-red-500 text-xs mt-1">{orderNameError}</p>}
                     </div>
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-1">출력 장비 선택 <span className="text-gray-400 font-normal">(선택)</span></label>
@@ -489,7 +490,12 @@ function OrderPageContent() {
                     </div>
                   </div>
                 )}
-                <button disabled={!productType || !orderName.trim()} onClick={() => setStep(2)}
+                <button onClick={() => {
+                    if (!productType) return
+                    if (!orderName.trim()) { setOrderNameError('주문명을 입력해주세요'); return }
+                    setStep(2)
+                  }}
+                  disabled={!productType}
                   className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-40">
                   다음 →
                 </button>
