@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Upload, X, CheckCircle, Scissors, Plus, Minus, Calendar, FileText, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
@@ -65,6 +65,14 @@ function OrderPageContent() {
   const [customer, setCustomer] = useState<CustomerInfo>({ name:'', email:'', phone:'', address:'', zonecode:'', addressDetail:'' })
   const [errors, setErrors] = useState<Partial<CustomerInfo>>({})
   const [orderNameError, setOrderNameError] = useState('')
+  const orderNameQuoteRef = useRef<HTMLInputElement>(null)
+  const orderNameDirectRef = useRef<HTMLInputElement>(null)
+
+  const focusOrderName = (ref: React.RefObject<HTMLInputElement | null>) => {
+    setOrderNameError('주문명을 입력해주세요')
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setTimeout(() => ref.current?.focus(), 300)
+  }
 
   // 출력 장비 선택 (0 = 무관/지정없음)
   const [machineNo, setMachineNo] = useState(0)
@@ -462,7 +470,7 @@ function OrderPageContent() {
                   <div className="mb-6 space-y-4">
                     <div>
                       <label className="text-sm font-semibold text-gray-700 block mb-2">주문명 <span className="text-red-500">*</span></label>
-                      <input type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
+                      <input ref={orderNameQuoteRef} type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치 200장" maxLength={50}
                         className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400 ${orderNameError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
                       {orderNameError && <p className="text-red-500 text-xs mt-1">{orderNameError}</p>}
                     </div>
@@ -492,7 +500,7 @@ function OrderPageContent() {
                 )}
                 <button onClick={() => {
                     if (!productType) return
-                    if (!orderName.trim()) { setOrderNameError('주문명을 입력해주세요'); return }
+                    if (!orderName.trim()) { focusOrderName(orderNameQuoteRef); return }
                     setStep(2)
                   }}
                   disabled={!productType}
@@ -765,7 +773,7 @@ function OrderPageContent() {
                 <h2 className="text-xl font-bold text-gray-900 mb-5">배송 정보 입력</h2>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
                   <label className="text-sm font-semibold text-gray-700 block mb-1.5">주문명 <span className="text-red-500">*</span></label>
-                  <input type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치" maxLength={50}
+                  <input ref={orderNameDirectRef} type="text" value={orderName} onChange={(e) => { setOrderName(e.target.value); setOrderNameError('') }} placeholder="예) 여름 신상 로고, 브랜드 패치" maxLength={50}
                     className={`w-full border rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400 ${orderNameError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`} />
                   {orderNameError && <p className="text-red-500 text-xs mt-1">{orderNameError}</p>}
 
@@ -843,7 +851,7 @@ function OrderPageContent() {
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setStep(1)} className="flex-1 border border-gray-300 text-gray-600 py-3.5 rounded-xl hover:bg-gray-50">← 이전</button>
-                  <button onClick={() => { const okName = orderName.trim() ? true : (setOrderNameError('주문명을 입력해주세요'), false); const okCustomer = validateCustomer(true); if (okName && okCustomer) setStep(3) }} className="flex-1 bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700">다음 단계 →</button>
+                  <button onClick={() => { if (!orderName.trim()) { focusOrderName(orderNameDirectRef); return } if (validateCustomer(true)) setStep(3) }} className="flex-1 bg-violet-600 text-white font-bold py-3.5 rounded-xl hover:bg-violet-700">다음 단계 →</button>
                 </div>
               </div>
             )}
