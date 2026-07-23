@@ -45,15 +45,16 @@ export async function POST(req: Request) {
     const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
     const visitorHash = crypto.createHash('sha256').update(`${ip}|${ua}|${today}`).digest('hex').slice(0, 32)
 
-    await supabaseAdmin.from('visits').insert({
+    const { error } = await supabaseAdmin.from('visits').insert({
       path: (path || '/').slice(0, 300),
       visitor_hash: visitorHash,
       referrer_type: classifyReferrer(referrer || '', host),
       visit_date: today,
     })
 
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ ok: false })
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'unknown' }, { status: 500 })
   }
 }
