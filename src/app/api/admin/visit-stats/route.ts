@@ -10,7 +10,8 @@ const supabaseAdmin = createClient(
 const ymd = (d: Date) => d.toISOString().slice(0, 10)
 
 export async function GET() {
-  const now = new Date()
+  // 한국시간(KST, UTC+9) 기준 — 저장 시점과 동일한 기준으로 집계
+  const now = new Date(Date.now() + 9 * 3600 * 1000)
   const today = ymd(now)
   const yesterday = ymd(new Date(now.getTime() - 86400000))
   const weekAgo = ymd(new Date(now.getTime() - 6 * 86400000))

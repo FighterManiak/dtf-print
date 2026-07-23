@@ -41,7 +41,8 @@ export async function POST(req: Request) {
     }
 
     // IP+UA+날짜를 해시 → 개인정보 저장 없이 일별 순방문자 구분
-    const today = new Date().toISOString().slice(0, 10)
+    // 한국시간(KST, UTC+9) 기준 날짜
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
     const visitorHash = crypto.createHash('sha256').update(`${ip}|${ua}|${today}`).digest('hex').slice(0, 32)
 
     await supabaseAdmin.from('visits').insert({
