@@ -16,14 +16,21 @@ export async function GET() {
   const yesterday = ymd(new Date(now.getTime() - 86400000))
   const weekAgo = ymd(new Date(now.getTime() - 6 * 86400000))
 
-  // 최근 7일치 방문 기록
-  const { data, error } = await supabaseAdmin
-    .from('visits')
-    .select('visit_date, visitor_hash, referrer_type')
-    .gte('visit_date', weekAgo)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  const rows = data || []
+  // 최근 7일치 방문 기록 — Supabase 1000행 제한 때문에 페이지네이션으로 전체 조회
+  const rows: { visit_date: string; visitor_hash: string; referrer_type: string }[] = []
+  const CHUNK = 1000
+  for (let from = 0; from < 100000; from += CHUNK) {
+    const { data, error } = await supabaseAdmin
+      .from('visits')
+      .select('visit_date, visitor_hash, referrer_type')
+      .gte('visit_date', weekAgo)
+      .order('created_at', { ascending: false })
+      .range(from, from + CHUNK - 1)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!data || data.length === 0) break
+    rows.push(...(data as typeof rows))
+    if (data.length < CHUNK) break
+  }
 
   // 일별 집계 (UV = 순방문자, PV = 페이지뷰)
   const byDate: Record<string, { uv: Set<string>; pv: number }> = {}

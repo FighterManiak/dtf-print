@@ -27,21 +27,6 @@ function classifyReferrer(ref: string, host: string): string {
   }
 }
 
-// [임시 진단] 저장된 방문 데이터 총량/오늘 수 확인 — 진단 후 삭제 예정
-export async function GET() {
-  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
-  const { count: total, error: e1 } = await supabaseAdmin.from('visits').select('*', { count: 'exact', head: true })
-  const { count: todayCount, error: e2 } = await supabaseAdmin.from('visits').select('*', { count: 'exact', head: true }).eq('visit_date', today)
-  const { data: latest } = await supabaseAdmin.from('visits').select('created_at, visit_date, path').order('created_at', { ascending: false }).limit(5)
-  return NextResponse.json({
-    today,
-    total,
-    todayCount,
-    latest,
-    errors: { total: e1?.message || null, today: e2?.message || null },
-  })
-}
-
 // 방문 기록 (비식별 해시로 방문자 구분)
 export async function POST(req: Request) {
   try {
