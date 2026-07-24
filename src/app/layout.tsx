@@ -57,7 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-gray-400">주소</span> 부산광역시 기장군 장안읍 명례산단6로 14 1층 (46028)
               </p>
               <p>
-                <span className="text-gray-400">고객센터</span> 010-2803-8603&nbsp;&nbsp;·&nbsp;&nbsp;
+                <span className="text-gray-400">고객센터</span> 010-2560-9749&nbsp;&nbsp;·&nbsp;&nbsp;
                 <span className="text-gray-400">이메일</span> superhard.int@gmail.com
               </p>
             </div>
