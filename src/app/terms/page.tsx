@@ -63,7 +63,7 @@ export default function TermsPage() {
             <li className="flex"><span className="w-36 shrink-0 text-gray-500">사업자등록번호</span><span>617-27-96956</span></li>
             <li className="flex"><span className="w-36 shrink-0 text-gray-500">통신판매업신고번호</span><span>2010-부산해운-0173</span></li>
             <li className="flex"><span className="w-36 shrink-0 text-gray-500">사업장 소재지</span><span>부산광역시 기장군 장안읍 명례산단6로 14 1층 (46028)</span></li>
-            <li className="flex"><span className="w-36 shrink-0 text-gray-500">고객센터</span><span>010-2803-8603</span></li>
+            <li className="flex"><span className="w-36 shrink-0 text-gray-500">고객센터</span><span>010-2560-9749</span></li>
             <li className="flex"><span className="w-36 shrink-0 text-gray-500">이메일</span><span>superhard.int@gmail.com</span></li>
           </ul>
         </section>
