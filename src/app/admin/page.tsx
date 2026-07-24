@@ -30,16 +30,37 @@ interface Stats {
   pendingPayment: number
 }
 
-interface VisitStats {
-  today: { uv: number; pv: number }
-  yesterday: { uv: number; pv: number }
-  daily: { date: string; uv: number; pv: number }[]
+interface PeriodStat {
+  uv: number
+  pv: number
   referrers: { name: string; count: number }[]
 }
+interface VisitStats {
+  periods: {
+    today: PeriodStat
+    yesterday: PeriodStat
+    last7: PeriodStat
+    last30: PeriodStat
+    all: PeriodStat
+  }
+  totalRecords: number
+  daily: { date: string; uv: number; pv: number }[]
+}
+
+type VisitPeriod = 'today' | 'yesterday' | 'last7' | 'last30' | 'all'
+const VISIT_PERIOD_LABELS: { key: VisitPeriod; label: string }[] = [
+  { key: 'today', label: '오늘' },
+  { key: 'yesterday', label: '어제' },
+  { key: 'last7', label: '최근 7일' },
+  { key: 'last30', label: '최근 30일' },
+  { key: 'all', label: '전체' },
+]
 
 export default function AdminPage() {
   const [storage, setStorage] = useState<StorageStats | null>(null)
   const [visits, setVisits] = useState<VisitStats | null>(null)
+  const [visitPeriod, setVisitPeriod] = useState<VisitPeriod>('today')
+  const [chartMetric, setChartMetric] = useState<'uv' | 'pv'>('uv')
 
   const [stats, setStats] = useState<Stats>({
     total: 0, inProgress: 0, monthRevenue: 0,
@@ -185,54 +206,90 @@ export default function AdminPage() {
 
           {/* 방문 통계 */}
           <div className="bg-white border border-gray-200 rounded-xl p-6 md:col-span-2">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
               <TrendingUp className="w-6 h-6 text-gray-500" />
               <h2 className="font-bold text-gray-800 text-lg">방문 통계</h2>
-              <span className="text-xs text-gray-400 ml-auto">최근 7일</span>
+              {visits && <span className="text-xs text-gray-400 ml-auto">누적 {visits.totalRecords.toLocaleString()} PV</span>}
             </div>
 
             {!visits ? (
               <p className="text-sm text-gray-400">불러오는 중...</p>
-            ) : (
+            ) : (() => {
+              const cur = visits.periods[visitPeriod]
+              const curLabel = VISIT_PERIOD_LABELS.find((p) => p.key === visitPeriod)?.label || ''
+              return (
               <>
-                {/* 오늘/어제 */}
+                {/* 기간 선택 */}
+                <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+                  {VISIT_PERIOD_LABELS.map(({ key, label }) => (
+                    <button key={key} onClick={() => setVisitPeriod(key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${visitPeriod === key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 선택 기간 요약 */}
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   <div className="bg-blue-50 rounded-xl p-4">
-                    <p className="text-xs text-blue-500 font-semibold mb-1">오늘 방문자</p>
-                    <p className="text-2xl font-bold text-gray-900">{visits.today.uv}<span className="text-sm font-medium text-gray-400 ml-1">명</span></p>
-                    <p className="text-xs text-gray-400 mt-0.5">페이지뷰 {visits.today.pv}</p>
+                    <p className="text-xs text-blue-500 font-semibold mb-1">{curLabel} 방문자 (순)</p>
+                    <p className="text-2xl font-bold text-gray-900">{cur.uv.toLocaleString()}<span className="text-sm font-medium text-gray-400 ml-1">명</span></p>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 font-semibold mb-1">어제 방문자</p>
-                    <p className="text-2xl font-bold text-gray-700">{visits.yesterday.uv}<span className="text-sm font-medium text-gray-400 ml-1">명</span></p>
-                    <p className="text-xs text-gray-400 mt-0.5">페이지뷰 {visits.yesterday.pv}</p>
+                  <div className="bg-indigo-50 rounded-xl p-4">
+                    <p className="text-xs text-indigo-500 font-semibold mb-1">{curLabel} 페이지뷰</p>
+                    <p className="text-2xl font-bold text-gray-900">{cur.pv.toLocaleString()}<span className="text-sm font-medium text-gray-400 ml-1">회</span></p>
                   </div>
                 </div>
 
-                {/* 최근 7일 추이 */}
-                <p className="text-xs font-bold text-gray-500 mb-2">최근 7일 추이</p>
-                <div className="flex items-end gap-1.5 h-24 mb-5">
+                {/* 오늘/어제/7일/30일/전체 한눈에 */}
+                <div className="grid grid-cols-5 gap-2 mb-5">
+                  {VISIT_PERIOD_LABELS.map(({ key, label }) => (
+                    <button key={key} onClick={() => setVisitPeriod(key)}
+                      className={`rounded-lg p-2.5 text-center border transition-colors ${visitPeriod === key ? 'border-blue-400 bg-blue-50' : 'border-gray-100 bg-gray-50 hover:border-gray-200'}`}>
+                      <p className="text-[10px] text-gray-500 mb-0.5">{label}</p>
+                      <p className="text-base font-bold text-gray-800 leading-tight">{visits.periods[key].uv.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-400">PV {visits.periods[key].pv.toLocaleString()}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* 일별 추이 (30일) */}
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-gray-500">일별 추이 (최근 30일)</p>
+                  <div className="flex gap-1">
+                    {(['uv', 'pv'] as const).map((m) => (
+                      <button key={m} onClick={() => setChartMetric(m)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${chartMetric === m ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200'}`}>
+                        {m === 'uv' ? '방문자' : '페이지뷰'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-end gap-0.5 h-24 mb-5">
                   {visits.daily.map((d) => {
-                    const max = Math.max(...visits.daily.map((x) => x.uv), 1)
-                    const h = Math.round((d.uv / max) * 100)
+                    const val = d[chartMetric]
+                    const max = Math.max(...visits.daily.map((x) => x[chartMetric]), 1)
+                    const h = Math.round((val / max) * 100)
                     return (
-                      <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
-                        <span className="text-[10px] text-gray-500 mb-0.5">{d.uv}</span>
-                        <div className="w-full bg-blue-500 rounded-t" style={{ height: `${Math.max(h, 3)}%` }} title={`${d.date}: ${d.uv}명`} />
-                        <span className="text-[10px] text-gray-400 mt-1">{d.date.slice(5).replace('-', '/')}</span>
+                      <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                        <div className={`w-full rounded-t ${chartMetric === 'uv' ? 'bg-blue-500' : 'bg-indigo-500'}`} style={{ height: `${Math.max(h, 2)}%` }} title={`${d.date}: ${val}${chartMetric === 'uv' ? '명' : 'PV'}`} />
                       </div>
                     )
                   })}
                 </div>
+                <div className="flex justify-between text-[10px] text-gray-400 -mt-3 mb-5">
+                  <span>{visits.daily[0]?.date.slice(5).replace('-', '/')}</span>
+                  <span>{visits.daily[visits.daily.length - 1]?.date.slice(5).replace('-', '/')}</span>
+                </div>
 
-                {/* 유입 경로 */}
-                <p className="text-xs font-bold text-gray-500 mb-2">유입 경로</p>
-                {visits.referrers.length === 0 ? (
+                {/* 유입 경로 (선택 기간) */}
+                <p className="text-xs font-bold text-gray-500 mb-2">유입 경로 <span className="text-gray-400 font-normal">— {curLabel}</span></p>
+                {cur.referrers.length === 0 ? (
                   <p className="text-xs text-gray-400">데이터 없음</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {visits.referrers.map((r) => {
-                      const total = visits.referrers.reduce((s, x) => s + x.count, 0)
+                    {cur.referrers.map((r) => {
+                      const total = cur.referrers.reduce((s, x) => s + x.count, 0)
                       const pct = Math.round((r.count / total) * 100)
                       return (
                         <div key={r.name} className="flex items-center gap-2 text-xs">
@@ -240,14 +297,15 @@ export default function AdminPage() {
                           <div className="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
                             <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${pct}%` }} />
                           </div>
-                          <span className="w-14 text-right text-gray-500">{r.count}회 ({pct}%)</span>
+                          <span className="w-16 text-right text-gray-500">{r.count}회 ({pct}%)</span>
                         </div>
                       )
                     })}
                   </div>
                 )}
               </>
-            )}
+              )
+            })()}
           </div>
 
           {/* 스토리지 현황 */}
