@@ -34,6 +34,7 @@ interface PeriodStat {
   uv: number
   pv: number
   referrers: { name: string; count: number }[]
+  keywords: { keyword: string; count: number }[]
 }
 interface VisitStats {
   periods: {
@@ -301,6 +302,24 @@ export default function AdminPage() {
                         </div>
                       )
                     })}
+                  </div>
+                )}
+
+                {/* 검색 키워드 (선택 기간) */}
+                <div className="flex items-center gap-2 mt-5 mb-2">
+                  <p className="text-xs font-bold text-gray-500">검색 키워드 <span className="text-gray-400 font-normal">— {curLabel}</span></p>
+                  <span className="text-[10px] text-gray-400">※ 검색엔진이 전달한 경우만</span>
+                </div>
+                {cur.keywords.length === 0 ? (
+                  <p className="text-xs text-gray-400">수집된 검색어가 없습니다. (구글·네이버는 대부분 검색어를 전달하지 않아요 — 서치콘솔 권장)</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {cur.keywords.map((k) => (
+                      <span key={k.keyword} className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full px-2.5 py-1 text-xs">
+                        {k.keyword}
+                        <span className="bg-emerald-200 text-emerald-800 rounded-full px-1.5 text-[10px] font-bold">{k.count}</span>
+                      </span>
+                    ))}
                   </div>
                 )}
               </>

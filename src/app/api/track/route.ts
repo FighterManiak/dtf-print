@@ -27,6 +27,23 @@ function classifyReferrer(ref: string, host: string): string {
   }
 }
 
+// referrer URL에서 검색 키워드 추출 (넘어오는 경우에만)
+function extractKeyword(ref: string): string | null {
+  if (!ref) return null
+  try {
+    const u = new URL(ref)
+    // 검색엔진별 검색어 파라미터
+    const params = ['q', 'query', 'wd', 'text', 'keyword', 'search_query']
+    for (const p of params) {
+      const v = u.searchParams.get(p)
+      if (v && v.trim()) return v.trim().slice(0, 100)
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // 방문 기록 (비식별 해시로 방문자 구분)
 export async function POST(req: Request) {
   try {
@@ -49,6 +66,7 @@ export async function POST(req: Request) {
       path: (path || '/').slice(0, 300),
       visitor_hash: visitorHash,
       referrer_type: classifyReferrer(referrer || '', host),
+      search_keyword: extractKeyword(referrer || ''),
       visit_date: today,
     })
 

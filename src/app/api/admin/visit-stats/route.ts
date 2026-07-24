@@ -9,24 +9,31 @@ const supabaseAdmin = createClient(
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10)
 
-type Row = { visit_date: string; visitor_hash: string; referrer_type: string }
+type Row = { visit_date: string; visitor_hash: string; referrer_type: string; search_keyword: string | null }
 
-// 특정 행 집합에서 UV(순방문자)/PV(페이지뷰)/유입경로 집계
+// 특정 행 집합에서 UV(순방문자)/PV(페이지뷰)/유입경로/검색키워드 집계
 function aggregate(rows: Row[]) {
   const uv = new Set<string>()
   let pv = 0
   const referrerCount: Record<string, number> = {}
+  const keywordCount: Record<string, number> = {}
   rows.forEach((r) => {
     uv.add(r.visitor_hash)
     pv += 1
     const ref = r.referrer_type || '직접 유입'
     if (ref !== '내부 이동') referrerCount[ref] = (referrerCount[ref] || 0) + 1
+    const kw = (r.search_keyword || '').trim()
+    if (kw) keywordCount[kw] = (keywordCount[kw] || 0) + 1
   })
   const referrers = Object.entries(referrerCount)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
-  return { uv: uv.size, pv, referrers }
+  const keywords = Object.entries(keywordCount)
+    .map(([keyword, count]) => ({ keyword, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15)
+  return { uv: uv.size, pv, referrers, keywords }
 }
 
 export async function GET() {
@@ -43,7 +50,7 @@ export async function GET() {
   for (let from = 0; from < 500000; from += CHUNK) {
     const { data, error } = await supabaseAdmin
       .from('visits')
-      .select('visit_date, visitor_hash, referrer_type')
+      .select('visit_date, visitor_hash, referrer_type, search_keyword')
       .order('created_at', { ascending: false })
       .range(from, from + CHUNK - 1)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
