@@ -11,8 +11,8 @@ const GRADES: { key: 'vip' | 'gold' | 'silver' | 'normal'; label: string; badge:
 export default function GradeGuide({ currentGradeKey }: { currentGradeKey?: string }) {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5">
-      <p className="font-bold text-gray-800 mb-1">회원 등급 안내</p>
-      <p className="text-xs text-gray-500 mb-4">매달 <b>전월 롤 출력(58cm) 사용 미터</b> 합계로 자동 산정되며, 등급별 포인트 적립률이 다릅니다.</p>
+      <p className="font-bold text-gray-900 mb-1">회원 등급 안내</p>
+      <p className="text-xs text-gray-700 mb-4">매달 <b>전월 롤 출력(58cm) 사용 미터</b> 합계로 자동 산정되며, 등급별 포인트 적립률이 다릅니다.</p>
 
       <div className="space-y-2">
         {GRADES.map((g) => {
@@ -22,7 +22,7 @@ export default function GradeGuide({ currentGradeKey }: { currentGradeKey?: stri
             <div key={g.key}
               className={`flex items-center gap-3 rounded-xl px-3 py-3 border ${isCurrent ? 'border-violet-300 bg-violet-50' : 'border-gray-100 bg-gray-50'}`}>
               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 w-16 text-center ${g.badge}`}>{g.label}</span>
-              <span className="text-xs text-gray-600 flex-1">{g.cond}</span>
+              <span className="text-xs text-gray-800 flex-1">{g.cond}</span>
               <span className="text-sm font-bold shrink-0 text-right w-20">
                 {rate > 0 ? <span className="text-violet-600">적립 {Math.round(rate * 100)}%</span> : <span className="text-gray-400">적립 없음</span>}
               </span>
@@ -32,7 +32,7 @@ export default function GradeGuide({ currentGradeKey }: { currentGradeKey?: stri
         })}
       </div>
 
-      <div className="mt-4 text-xs text-gray-400 leading-relaxed space-y-0.5">
+      <div className="mt-4 text-xs text-gray-600 leading-relaxed space-y-0.5">
         <p>· 롤 출력(58cm) 상품 사용량만 등급 산정에 반영됩니다.</p>
         <p>· 등급은 매월 갱신되며, DTF 장비 보유인증과는 별개입니다.</p>
       </div>
