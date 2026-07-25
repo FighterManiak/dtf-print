@@ -27,6 +27,16 @@ function classifyReferrer(ref: string, host: string): string {
   }
 }
 
+// [임시 진단] 오늘/어제 저장 건수 확인 — 확인 후 삭제 예정
+export async function GET() {
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+  const yesterday = new Date(Date.now() + 9 * 3600 * 1000 - 86400000).toISOString().slice(0, 10)
+  const { count: total } = await supabaseAdmin.from('visits').select('*', { count: 'exact', head: true })
+  const { count: todayCount } = await supabaseAdmin.from('visits').select('*', { count: 'exact', head: true }).eq('visit_date', today)
+  const { count: yCount } = await supabaseAdmin.from('visits').select('*', { count: 'exact', head: true }).eq('visit_date', yesterday)
+  return NextResponse.json({ today, todayCount, yesterday, yCount, total })
+}
+
 // referrer URL에서 검색 키워드 추출 (넘어오는 경우에만)
 function extractKeyword(ref: string): string | null {
   if (!ref) return null
