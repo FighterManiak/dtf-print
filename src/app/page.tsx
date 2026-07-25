@@ -229,6 +229,39 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── 회원등급 혜택 ── */}
+      <section className="bg-white py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-violet-600 font-semibold text-sm uppercase tracking-widest mb-3">Membership</p>
+            <h2 className="text-4xl font-extrabold text-gray-900">많이 쓸수록 커지는 혜택</h2>
+            <p className="text-gray-500 mt-3">전월 롤 출력(58cm) 사용량에 따라 등급이 오르고, 포인트 적립률이 높아집니다.</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'VIP', cond: '500m 이상', rate: '3%', ring: 'ring-purple-200', badge: 'bg-purple-100 text-purple-700', rateColor: 'text-purple-600' },
+              { label: 'GOLD', cond: '200m 이상', rate: '2%', ring: 'ring-amber-200', badge: 'bg-amber-100 text-amber-700', rateColor: 'text-amber-600' },
+              { label: 'SILVER', cond: '50m 이상', rate: '1%', ring: 'ring-slate-200', badge: 'bg-slate-200 text-slate-700', rateColor: 'text-slate-600' },
+              { label: '일반', cond: '그 외', rate: '—', ring: 'ring-gray-100', badge: 'bg-gray-100 text-gray-500', rateColor: 'text-gray-400' },
+            ].map((g) => (
+              <div key={g.label} className={`bg-white rounded-3xl p-6 shadow-sm ring-1 ${g.ring} flex flex-col items-center text-center gap-3`}>
+                <span className={`px-3 py-1 rounded-lg text-sm font-bold ${g.badge}`}>{g.label}</span>
+                <p className="text-xs text-gray-500">{g.cond}</p>
+                <div className="mt-1">
+                  <p className="text-xs text-gray-400">포인트 적립</p>
+                  <p className={`text-2xl font-extrabold ${g.rateColor}`}>{g.rate}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-10">
+            <Link href="/grade" className="inline-flex items-center gap-2 text-violet-600 font-bold hover:underline">
+              회원등급 자세히 보기 <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── 하단 CTA ── */}
       <section className="bg-[#0f0f0f] py-24 px-6 text-white text-center">
         <div className="max-w-3xl mx-auto">

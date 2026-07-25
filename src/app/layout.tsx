@@ -38,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 SUPER HARD
               </div>
               <div className="flex gap-6">
+                <a href="/grade" className="text-white hover:text-gray-300 transition-colors">회원등급 안내</a>
                 <a href="/terms" className="text-white hover:text-gray-300 transition-colors">이용약관</a>
                 <a href="/privacy" className="text-white hover:text-gray-300 transition-colors">개인정보처리방침</a>
               </div>

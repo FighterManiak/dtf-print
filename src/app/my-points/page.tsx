@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { Coins, Plus, Minus, Clock, Gift, Copy, Check } from 'lucide-react'
+import GradeGuide from '@/components/ui/GradeGuide'
 
 interface PointRow {
   id: string
@@ -111,6 +112,11 @@ export default function MyPointsPage() {
         <p>· 배송 완료 시 등급별로 상품금액의 일정 비율이 적립됩니다.</p>
         <p>· VIP 3% · GOLD 2% · SILVER 1% (전월 롤 출력량 기준 등급)</p>
         <p>· 적립일로부터 <b>6개월</b> 이내 사용해야 하며, 미사용 시 소멸됩니다.</p>
+      </div>
+
+      {/* 회원 등급 안내 */}
+      <div className="mb-6">
+        <GradeGuide />
       </div>
 
       {/* 내역 */}
