@@ -64,6 +64,28 @@ export default function MembersPage() {
   const [pointMemo, setPointMemo] = useState('')
   const [pointSaving, setPointSaving] = useState(false)
 
+  // 포인트 상세 내역 모달
+  interface PointTx { id: string; created_at: string; amount: number; type: string; balance_remaining: number | null; expires_at: string | null; order_id: string | null; memo: string | null }
+  const [historyModal, setHistoryModal] = useState<{ memberName: string } | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historySummary, setHistorySummary] = useState<{ totalEarned: number; totalUsed: number; totalRevoked: number; available: number } | null>(null)
+  const [historyRows, setHistoryRows] = useState<PointTx[]>([])
+
+  const openHistoryModal = async (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    setHistoryModal({ memberName: name })
+    setHistoryLoading(true)
+    setHistorySummary(null)
+    setHistoryRows([])
+    const res = await fetch(`/api/admin/member-points?userId=${member.id}`)
+    if (res.ok) {
+      const d = await res.json()
+      setHistorySummary(d.summary)
+      setHistoryRows(d.transactions || [])
+    }
+    setHistoryLoading(false)
+  }
+
   const loadBalances = () => fetch('/api/admin/point-balances')
     .then((r) => r.ok ? r.json() : null)
     .then((d) => { if (d?.balances) setBalances(d.balances) })
@@ -365,6 +387,7 @@ export default function MembersPage() {
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-0.5 items-start">
                         <span className="font-bold text-violet-600 text-sm">{(balances[member.id] || 0).toLocaleString()}P</span>
+                        <button onClick={() => openHistoryModal(member)} className="text-[11px] text-gray-500 hover:underline">내역 보기</button>
                         {isSuperAdmin && (
                           <button onClick={() => openPointModal(member)} className="text-[11px] text-violet-600 hover:underline">포인트 지급</button>
                         )}
@@ -521,6 +544,79 @@ export default function MembersPage() {
                 className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
                 {pointSaving ? '처리 중...' : '지급하기'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 포인트 상세 내역 모달 */}
+      {historyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h2 className="font-bold text-gray-900 text-lg">{historyModal.memberName} 님 포인트 내역</h2>
+              <button onClick={() => setHistoryModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            {historyLoading ? (
+              <div className="py-16 text-center text-gray-400 text-sm">불러오는 중...</div>
+            ) : (
+              <>
+                {/* 요약 */}
+                {historySummary && (
+                  <div className="grid grid-cols-4 gap-2 p-4 border-b border-gray-100">
+                    <div className="text-center">
+                      <p className="text-[11px] text-gray-400 mb-0.5">사용 가능</p>
+                      <p className="text-sm font-bold text-violet-600">{historySummary.available.toLocaleString()}P</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[11px] text-gray-400 mb-0.5">누적 적립</p>
+                      <p className="text-sm font-bold text-gray-800">{historySummary.totalEarned.toLocaleString()}P</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[11px] text-gray-400 mb-0.5">누적 사용</p>
+                      <p className="text-sm font-bold text-gray-800">{historySummary.totalUsed.toLocaleString()}P</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[11px] text-gray-400 mb-0.5">환수</p>
+                      <p className="text-sm font-bold text-gray-800">{historySummary.totalRevoked.toLocaleString()}P</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 내역 리스트 */}
+                <div className="overflow-y-auto p-4 space-y-2">
+                  {historyRows.length === 0 ? (
+                    <p className="text-center py-10 text-gray-400 text-sm">포인트 내역이 없습니다.</p>
+                  ) : historyRows.map((r) => {
+                    const isPlus = r.amount > 0
+                    const typeLabel = r.type === 'earn' ? '적립' : r.type === 'use' ? '사용' : r.type === 'revoke' ? '환수' : r.type
+                    const typeColor = r.type === 'earn' ? 'bg-violet-100 text-violet-700' : r.type === 'use' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                    return (
+                      <div key={r.id} className="flex items-center justify-between border border-gray-100 rounded-xl px-3 py-2.5">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${typeColor}`}>{typeLabel}</span>
+                            <span className="text-sm text-gray-800 truncate">{r.memo || '-'}</span>
+                          </div>
+                          <div className="text-[11px] text-gray-400">
+                            {new Date(r.created_at).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })}
+                            {r.type === 'earn' && r.expires_at && ` · ${new Date(r.expires_at).toLocaleDateString('ko-KR')} 만료`}
+                            {r.type === 'earn' && r.balance_remaining != null && ` · 잔여 ${Number(r.balance_remaining).toLocaleString()}P`}
+                          </div>
+                        </div>
+                        <div className={`font-bold text-sm shrink-0 ml-2 ${isPlus ? 'text-violet-600' : 'text-gray-500'}`}>
+                          {isPlus ? '+' : ''}{r.amount.toLocaleString()}P
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="p-4 border-t border-gray-100">
+              <button onClick={() => setHistoryModal(null)} className="w-full border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50">닫기</button>
             </div>
           </div>
         </div>
