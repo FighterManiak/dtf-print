@@ -1,10 +1,10 @@
 // 배송비 정책
-// - 소계 9,900원 이상: 기본 배송비 무료
-// - 소계 9,900원 미만: 기본 배송비 3,000원
+// - 소계 30,000원 이상: 기본 배송비 무료
+// - 소계 30,000원 미만: 기본 배송비 3,000원
 // - 제주: +3,000원 (무료배송이어도 별도 부과)
 // - 그 외 도서산간: +5,000원 (무료배송이어도 별도 부과)
 
-export const FREE_SHIPPING_THRESHOLD = 9900
+export const FREE_SHIPPING_THRESHOLD = 30000
 export const BASE_SHIPPING_FEE = 3000
 export const JEJU_SURCHARGE = 3000
 export const ISLAND_SURCHARGE = 5000

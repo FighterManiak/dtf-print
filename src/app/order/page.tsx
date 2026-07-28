@@ -755,7 +755,7 @@ function OrderPageContent() {
                     </div>
                     <div className="bg-gray-50 rounded-xl px-4 py-3 mb-4 text-xs text-gray-500 leading-relaxed">
                       <p className="font-bold text-gray-600 mb-1">🚚 배송비 안내</p>
-                      <p>· 기본 배송비 <b className="text-gray-700">3,000원</b> / <b className="text-gray-700">9,900원 이상</b> 구매 시 <b className="text-violet-600">무료</b></p>
+                      <p>· 기본 배송비 <b className="text-gray-700">3,000원</b> / <b className="text-gray-700">30,000원 이상</b> 구매 시 <b className="text-violet-600">무료</b></p>
                       <p>· 제주 <b className="text-gray-700">+3,000원</b> · 도서산간 <b className="text-gray-700">+5,000원</b> (무료배송 시에도 별도 부과)</p>
                       <p className="text-gray-400 mt-1">* 정확한 배송비는 다음 단계에서 주소 입력 후 계산됩니다.</p>
                     </div>
@@ -833,7 +833,7 @@ function OrderPageContent() {
                   {customer.zonecode && (
                     <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-sm">
                       <div className="flex justify-between text-gray-600">
-                        <span>기본 배송비 {totalAmount >= 9900 ? '(9,900원 이상 무료)' : ''}</span>
+                        <span>기본 배송비 {totalAmount >= 30000 ? '(30,000원 이상 무료)' : ''}</span>
                         <span className="font-semibold">{shipping.base.toLocaleString()}원</span>
                       </div>
                       {shipping.surcharge > 0 && (
