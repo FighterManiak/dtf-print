@@ -790,14 +790,24 @@ function AdminManagePageContent() {
                               {quote.admin_note && <div className="flex gap-3"><span className="w-16 text-gray-500">메모</span><span className="text-gray-900">{quote.admin_note}</span></div>}
                             </div>
                             {quote.status === 'quoted' && (
-                              <button onClick={async () => {
-                                if (!confirm('고객 미응답으로 취소 처리하시겠습니까?')) return
-                                const supabase = createClient()
-                                await supabase.from('quotes').update({ status: 'cancelled' }).eq('id', quote.id)
-                                await loadAll()
-                              }} className="mt-3 w-full border border-gray-300 text-gray-500 py-2 rounded-xl text-xs font-medium hover:bg-gray-50 hover:border-red-300 hover:text-red-500 transition-colors">
-                                고객 미응답 — 취소 처리
-                              </button>
+                              <div className="mt-3 space-y-2">
+                                <button onClick={async () => {
+                                  if (!confirm('입금 대기 상태로 전환하시겠습니까?\n(고객이 무통장 입금을 진행하기로 한 경우)')) return
+                                  const supabase = createClient()
+                                  await supabase.from('quotes').update({ status: 'bank_transfer_pending' }).eq('id', quote.id)
+                                  await loadAll()
+                                }} className="w-full bg-orange-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-orange-600 transition-colors">
+                                  입금 대기로 전환
+                                </button>
+                                <button onClick={async () => {
+                                  if (!confirm('고객 미응답으로 취소 처리하시겠습니까?')) return
+                                  const supabase = createClient()
+                                  await supabase.from('quotes').update({ status: 'cancelled' }).eq('id', quote.id)
+                                  await loadAll()
+                                }} className="w-full border border-gray-300 text-gray-500 py-2 rounded-xl text-xs font-medium hover:bg-gray-50 hover:border-red-300 hover:text-red-500 transition-colors">
+                                  고객 미응답 — 취소 처리
+                                </button>
+                              </div>
                             )}
                           </div>
                         )
