@@ -1,5 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -8,6 +9,13 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const role = user?.user_metadata?.role
+  if (role !== 'admin' && role !== 'superadmin') {
+    return NextResponse.json({ error: '권한 없음' }, { status: 403 })
+  }
+
   const { quoteId, status } = await req.json()
 
   if (!quoteId || !status) {
