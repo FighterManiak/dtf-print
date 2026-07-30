@@ -88,6 +88,27 @@ export default function ChatWidget() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // 실시간이 막히는 경우 대비: 채팅 열려있고 방이 있으면 주기적으로 메시지 갱신
+  useEffect(() => {
+    if (!open || guestStep !== 'chat') return
+    const rid = roomId || savedRoomRef.current
+    if (!rid) return
+    const timer = setInterval(() => pollMessages(rid), 3000)
+    return () => clearInterval(timer)
+  }, [open, guestStep, roomId])
+
+  const pollMessages = async (rid: string) => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('room_id', rid)
+      .order('created_at', { ascending: true })
+    if (data) {
+      setMessages((prev) => (data.length !== prev.length ? data : prev))
+    }
+  }
+
   const initRoom = async () => {
     const supabase = createClient()
     let rid = roomId

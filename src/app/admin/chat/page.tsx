@@ -31,82 +31,57 @@ export default function AdminChatPage() {
   const [tab, setTab] = useState<'open' | 'closed'>('open')
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
-  const roomsChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const selectedRoomRef = useRef<string | null>(null)
 
   useEffect(() => {
     loadRooms()
-    const supabase = createClient()
-    const ch = supabase.channel('admin-rooms')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_rooms' }, () => loadRooms())
-      .subscribe()
-    roomsChannelRef.current = ch
-
-    return () => {
-      supabase.removeChannel(ch)
-      if (channelRef.current) supabase.removeChannel(channelRef.current)
-    }
+    // RLS로 실시간이 막히므로 폴링으로 방 목록 갱신
+    const timer = setInterval(loadRooms, 5000)
+    return () => clearInterval(timer)
   }, [])
+
+  // 선택된 방의 메시지 폴링
+  useEffect(() => {
+    selectedRoomRef.current = selectedRoom?.id || null
+    if (!selectedRoom) return
+    const timer = setInterval(() => loadMessages(selectedRoom.id), 3000)
+    return () => clearInterval(timer)
+  }, [selectedRoom])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const loadRooms = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('chat_rooms')
-      .select('*')
-      .order('last_message_at', { ascending: false })
-    setRooms(data || [])
+    const res = await fetch('/api/admin/chat-rooms')
+    if (res.ok) setRooms(await res.json())
+  }
+
+  const loadMessages = async (roomId: string) => {
+    const res = await fetch(`/api/admin/chat-messages?roomId=${roomId}`)
+    if (!res.ok) return
+    const data: Message[] = await res.json()
+    // 다른 방으로 이동한 사이 도착한 응답 무시
+    if (selectedRoomRef.current !== roomId) return
+    setMessages(data)
   }
 
   const selectRoom = async (room: Room) => {
     setSelectedRoom(room)
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', room.id)
-      .order('created_at', { ascending: true })
-    setMessages(data || [])
-
-    if (channelRef.current) {
-      await supabase.removeChannel(channelRef.current)
-      channelRef.current = null
-    }
-    const ch = supabase
-      .channel(`admin-room-${room.id}-${Date.now()}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'chat_messages',
-        filter: `room_id=eq.${room.id}`,
-      }, (payload) => {
-        setMessages((prev) => {
-          const exists = prev.find((m) => m.id === (payload.new as Message).id)
-          if (exists) return prev
-          return [...prev, payload.new as Message]
-        })
-      })
-      .subscribe()
-    channelRef.current = ch
+    selectedRoomRef.current = room.id
+    await loadMessages(room.id)
   }
 
   const sendMessage = async (content: string, imageUrl?: string) => {
     if (!selectedRoom) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: newMsg } = await supabase.from('chat_messages').insert({
-      room_id: selectedRoom.id,
-      sender_id: user?.id,
-      sender_type: 'admin',
-      content: content || null,
-      image_url: imageUrl || null,
-    }).select().single()
-    if (newMsg) setMessages((prev) => [...prev, newMsg as Message])
-    await supabase.from('chat_rooms').update({
-      last_message: content || '사진',
-      last_message_at: new Date().toISOString(),
-    }).eq('id', selectedRoom.id)
+    const res = await fetch('/api/admin/chat-messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: selectedRoom.id, content, imageUrl }),
+    })
+    if (!res.ok) { const e = await res.json().catch(() => ({})); alert(e.error || '전송 실패'); return }
+    const newMsg = await res.json()
+    setMessages((prev) => [...prev, newMsg as Message])
+    loadRooms()
   }
 
   const handleSend = async () => {
@@ -133,20 +108,24 @@ export default function AdminChatPage() {
     e.target.value = ''
   }
 
+  const setRoomStatus = async (roomId: string, status: string) => {
+    await fetch('/api/admin/chat-rooms', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId, status }),
+    })
+    await loadRooms()
+  }
+
   const closeRoom = async () => {
     if (!selectedRoom) return
-    const supabase = createClient()
-    await supabase.from('chat_rooms').update({ status: 'closed' }).eq('id', selectedRoom.id)
+    await setRoomStatus(selectedRoom.id, 'closed')
     setSelectedRoom({ ...selectedRoom, status: 'closed' })
-    await loadRooms()
   }
 
   const reopenRoom = async () => {
     if (!selectedRoom) return
-    const supabase = createClient()
-    await supabase.from('chat_rooms').update({ status: 'open' }).eq('id', selectedRoom.id)
+    await setRoomStatus(selectedRoom.id, 'open')
     setSelectedRoom({ ...selectedRoom, status: 'open' })
-    await loadRooms()
   }
 
   const openRooms = rooms.filter((r) => r.status === 'open')
@@ -200,10 +179,8 @@ export default function AdminChatPage() {
                 <button
                   onClick={async (e) => {
                     e.stopPropagation()
-                    const supabase = createClient()
-                    await supabase.from('chat_rooms').update({ status: 'closed' }).eq('id', room.id)
+                    await setRoomStatus(room.id, 'closed')
                     if (selectedRoom?.id === room.id) setSelectedRoom({ ...room, status: 'closed' })
-                    await loadRooms()
                   }}
                   className="shrink-0 mr-2 px-2.5 py-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors text-xs font-bold"
                   title="문의 완료"
