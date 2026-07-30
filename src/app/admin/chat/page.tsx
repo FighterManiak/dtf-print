@@ -48,8 +48,13 @@ export default function AdminChatPage() {
     return () => clearInterval(timer)
   }, [selectedRoom])
 
+  // 메시지 수가 늘었을 때만 맨 아래로 스크롤 (폴링으로 인한 반복 스크롤 방지)
+  const prevMsgCount = useRef(0)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messages.length > prevMsgCount.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevMsgCount.current = messages.length
   }, [messages])
 
   const loadRooms = async () => {
@@ -63,7 +68,11 @@ export default function AdminChatPage() {
     const data: Message[] = await res.json()
     // 다른 방으로 이동한 사이 도착한 응답 무시
     if (selectedRoomRef.current !== roomId) return
-    setMessages(data)
+    // 내용이 실제로 바뀐 경우에만 갱신 (불필요한 리렌더/스크롤 방지)
+    setMessages((prev) => {
+      if (prev.length === data.length && prev[prev.length - 1]?.id === data[data.length - 1]?.id) return prev
+      return data
+    })
   }
 
   const selectRoom = async (room: Room) => {
