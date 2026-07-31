@@ -400,6 +400,28 @@ function AdminManagePageContent() {
     XLSX.writeFile(wb, `송장양식_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
+  // 선택한 주문들의 배송정보 다운로드 (엑셀)
+  const exportSelectedShipping = () => {
+    const chosen = items.filter((item) => selected.has(item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`))
+    if (chosen.length === 0) { alert('선택된 주문이 없습니다.'); return }
+    const headers = ['주문일시', '주문명', '이름', '연락처', '이메일', '주소', '상품/상세', '금액', '상태']
+    const rows = chosen.map((item) => {
+      const d = item.data
+      const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+      const orderName = (d as { order_name?: string | null }).order_name || ''
+      let detail = ''
+      if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
+      else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
+      const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
+      return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, d.total_amount || 0, label]
+    })
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 34 }, { wch: 20 }, { wch: 12 }, { wch: 10 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '배송정보')
+    XLSX.writeFile(wb, `배송정보_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   // 송장 엑셀 업로드 → 일괄 등록
   const importTracking = async (file: File) => {
     setBulkRunning(true)
@@ -1167,10 +1189,16 @@ function AdminManagePageContent() {
               <b className="text-base">{selected.size}</b>건 선택됨
               <button onClick={() => setSelected(new Set())} className="ml-3 text-white/50 hover:text-white text-xs underline">선택 해제</button>
             </div>
-            <button onClick={advanceSelected} disabled={bulkRunning}
-              className="flex items-center gap-1.5 bg-violet-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
-              {bulkRunning ? '처리 중...' : '다음 단계로 일괄 처리 →'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={exportSelectedShipping}
+                className="flex items-center gap-1.5 bg-white/10 border border-white/20 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-white/20 transition-colors">
+                <Download className="w-4 h-4" /> 배송정보 다운로드
+              </button>
+              <button onClick={advanceSelected} disabled={bulkRunning}
+                className="flex items-center gap-1.5 bg-violet-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
+                {bulkRunning ? '처리 중...' : '다음 단계로 일괄 처리 →'}
+              </button>
+            </div>
           </div>
         </div>
       )}
