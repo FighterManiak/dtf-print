@@ -64,6 +64,40 @@ export default function MembersPage() {
   const [pointMemo, setPointMemo] = useState('')
   const [pointSaving, setPointSaving] = useState(false)
 
+  // 포인트 일괄 지급 (선택)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [bulkAmount, setBulkAmount] = useState('')
+  const [bulkMemo, setBulkMemo] = useState('')
+  const [bulkSaving, setBulkSaving] = useState(false)
+
+  const toggleSelect = (id: string) => setSelectedIds((prev) => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  const saveBulkPoints = async () => {
+    const amt = parseInt(bulkAmount)
+    if (!amt || amt <= 0) { alert('지급할 포인트를 입력해주세요.'); return }
+    if (!confirm(`선택한 ${selectedIds.size}명에게 각 ${amt.toLocaleString()}P를 지급하시겠습니까?`)) return
+    setBulkSaving(true)
+    const res = await fetch('/api/admin/grant-points-bulk', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: [...selectedIds], amount: amt, memo: bulkMemo }),
+    })
+    if (res.ok) {
+      setBulkModalOpen(false)
+      setSelectedIds(new Set())
+      setBulkAmount(''); setBulkMemo('')
+      await loadBalances()
+      alert('일괄 지급이 완료되었습니다.')
+    } else {
+      const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패')
+    }
+    setBulkSaving(false)
+  }
+
   // 포인트 상세 내역 모달
   interface PointTx { id: string; created_at: string; amount: number; type: string; balance_remaining: number | null; expires_at: string | null; order_id: string | null; memo: string | null }
   const [historyModal, setHistoryModal] = useState<{ memberName: string } | null>(null)
@@ -298,6 +332,21 @@ export default function MembersPage() {
             className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
         </div>
 
+        {/* 포인트 일괄 지급 툴바 (최고관리자) */}
+        {currentRole === 'superadmin' && selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-2 bg-violet-600 text-white rounded-xl px-4 py-3 mb-3">
+            <span className="text-sm font-semibold">{selectedIds.size}명 선택됨</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSelectedIds(new Set())}
+                className="text-xs bg-violet-500 hover:bg-violet-400 px-3 py-1.5 rounded-lg font-medium">선택 해제</button>
+              <button onClick={() => { setBulkAmount(''); setBulkMemo(''); setBulkModalOpen(true) }}
+                className="text-sm bg-white text-violet-700 px-4 py-1.5 rounded-lg font-bold hover:bg-violet-50">
+                선택 회원 포인트 일괄 지급
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 페이지당 개수 */}
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="text-sm text-gray-500">총 {filtered.length}명</span>
@@ -316,6 +365,21 @@ export default function MembersPage() {
           <table className="text-sm" style={{ minWidth: '1200px', width: '100%' }}>
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                {currentRole === 'superadmin' && (
+                  <th className="px-3 py-3 w-10 text-center">
+                    <input type="checkbox"
+                      checked={paged.length > 0 && paged.every((m) => selectedIds.has(m.id))}
+                      onChange={(e) => {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev)
+                          if (e.target.checked) paged.forEach((m) => next.add(m.id))
+                          else paged.forEach((m) => next.delete(m.id))
+                          return next
+                        })
+                      }}
+                      className="w-4 h-4 accent-violet-600 cursor-pointer" />
+                  </th>
+                )}
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">이름</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-32">회사명</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-44">이메일</th>
@@ -345,7 +409,13 @@ export default function MembersPage() {
                 const override = member.user_metadata?.grade_override as { grade?: string; until?: string } | undefined
                 const { grade, isOverride } = resolveGrade(override, meters)
                 return (
-                  <tr key={member.id} className="hover:bg-gray-50">
+                  <tr key={member.id} className={`hover:bg-gray-50 ${selectedIds.has(member.id) ? 'bg-violet-50' : ''}`}>
+                    {currentRole === 'superadmin' && (
+                      <td className="px-3 py-4 text-center">
+                        <input type="checkbox" checked={selectedIds.has(member.id)} onChange={() => toggleSelect(member.id)}
+                          className="w-4 h-4 accent-violet-600 cursor-pointer" />
+                      </td>
+                    )}
                     <td className="px-4 py-4 font-medium text-gray-800 whitespace-nowrap">
                       {name}
                       {member.user_metadata?.withdrawn && <span className="ml-1.5 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">탈퇴</span>}
@@ -503,6 +573,49 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* 포인트 일괄 지급 모달 */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">포인트 일괄 지급</h2>
+              <button onClick={() => setBulkModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="bg-violet-50 rounded-xl px-4 py-3 mb-4 text-sm">
+              <p className="text-gray-700">선택한 <b className="text-violet-600">{selectedIds.size}명</b>에게</p>
+              <p className="text-xs text-gray-500 mt-0.5">각 회원에게 동일한 포인트가 적립됩니다.</p>
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">지급 포인트 <span className="text-red-500">*</span></label>
+            <input type="number" value={bulkAmount} onChange={(e) => setBulkAmount(e.target.value)} placeholder="예) 5000"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            <div className="flex gap-1.5 mb-4 mt-2">
+              {[1000, 3000, 5000, 10000].map((n) => (
+                <button key={n} onClick={() => setBulkAmount(String(n))}
+                  className="flex-1 py-1.5 rounded-lg text-xs font-bold border border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-600 transition-colors">
+                  +{(n / 1000)}천
+                </button>
+              ))}
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">사유 <span className="text-gray-400 font-normal">(선택)</span></label>
+            <input value={bulkMemo} onChange={(e) => setBulkMemo(e.target.value)} placeholder="예) 신규 오픈 이벤트 보상"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            <p className="text-xs text-gray-400 mb-5">각 고객의 포인트 내역에 표시됩니다. 유효기간 6개월.</p>
+
+            <div className="flex gap-2">
+              <button onClick={() => setBulkModalOpen(false)} disabled={bulkSaving}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
+              <button onClick={saveBulkPoints} disabled={bulkSaving}
+                className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                {bulkSaving ? '지급 중...' : `${selectedIds.size}명에게 지급`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 포인트 지급/차감 모달 */}
       {pointModal && (
