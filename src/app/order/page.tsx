@@ -74,6 +74,9 @@ function OrderPageContent() {
     setTimeout(() => ref.current?.focus(), 300)
   }
 
+  // 수령 방법: 택배 배송 / 직접 수령(방문)
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
+
   // 출력 장비 선택 (0 = 무관/지정없음)
   const [machineNo, setMachineNo] = useState(0)
 
@@ -148,8 +151,11 @@ function OrderPageContent() {
     if (!customer.name.trim()) e.name = '이름을 입력해주세요'
     if (!customer.email.trim() || !/\S+@\S+\.\S+/.test(customer.email)) e.email = '올바른 이메일을 입력해주세요'
     if (!customer.phone.trim()) e.phone = '연락처를 입력해주세요'
-    if (!customer.address.trim()) e.address = '배송지를 입력해주세요'
-    if (requireZonecode && !customer.zonecode.trim()) e.zonecode = '우편번호 검색으로 주소를 선택해주세요'
+    // 직접 수령 시 배송지 불필요
+    if (deliveryMethod === 'delivery') {
+      if (!customer.address.trim()) e.address = '배송지를 입력해주세요'
+      if (requireZonecode && !customer.zonecode.trim()) e.zonecode = '우편번호 검색으로 주소를 선택해주세요'
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -203,10 +209,14 @@ function OrderPageContent() {
     return sum + p.price * item.quantity + cut
   }, 0)
 
-  // 배송비 계산 (소계 + 우편번호 기준)
-  const shipping = getShippingFee(totalAmount, customer.zonecode)
+  // 배송비 계산 (소계 + 우편번호 기준) — 직접 수령 시 배송비 없음
+  const isPickup = deliveryMethod === 'pickup'
+  const rawShipping = getShippingFee(totalAmount, customer.zonecode)
+  const shipping = isPickup ? { base: 0, surcharge: 0, total: 0, regionLabel: '' } : rawShipping
   const payable = totalAmount + shipping.total
-  const shippingNote = `배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${shipping.surcharge ? ` + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()}` : ''})`
+  const shippingNote = isPickup
+    ? '직접 수령 (배송비 없음)'
+    : `배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${shipping.surcharge ? ` + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()}` : ''})`
 
   // 포인트 사용 (보유 1만원 이상일 때만, 결제액 초과 불가, 카드 최소결제 100원 남김)
   const maxUsablePoints = Math.max(0, Math.min(availablePoints, payable - 100))
@@ -811,7 +821,25 @@ function OrderPageContent() {
                     </div>
                   ))}
 
-                  {/* 배송지 주소 (우편번호 검색) */}
+                  {/* 수령 방법 선택 */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 block mb-1.5">수령 방법 <span className="text-red-500">*</span></label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setDeliveryMethod('delivery')}
+                        className={`rounded-xl p-3 border-2 text-left transition-colors ${deliveryMethod==='delivery' ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                        <div className={`text-sm font-bold ${deliveryMethod==='delivery' ? 'text-violet-700' : 'text-gray-700'}`}>🚚 택배 배송</div>
+                        <div className="text-xs text-gray-500 mt-0.5">입력하신 주소로 발송</div>
+                      </button>
+                      <button type="button" onClick={() => setDeliveryMethod('pickup')}
+                        className={`rounded-xl p-3 border-2 text-left transition-colors ${deliveryMethod==='pickup' ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                        <div className={`text-sm font-bold ${deliveryMethod==='pickup' ? 'text-violet-700' : 'text-gray-700'}`}>🏢 직접 수령</div>
+                        <div className="text-xs text-gray-500 mt-0.5">방문 수령 · 배송비 없음</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 배송지 주소 (우편번호 검색) — 택배 배송 시에만 */}
+                  {deliveryMethod === 'delivery' && (
                   <div>
                     <label className="text-sm font-semibold text-gray-700 block mb-1.5">배송지 주소 <span className="text-red-500">*</span></label>
                     <div className="flex gap-2 mb-2">
@@ -828,9 +856,19 @@ function OrderPageContent() {
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400" />
                     {errors.zonecode && <p className="text-red-500 text-xs mt-1">{errors.zonecode}</p>}
                   </div>
+                  )}
+
+                  {/* 직접 수령 안내 */}
+                  {isPickup && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-800 leading-relaxed">
+                      <b>🏢 직접 수령 안내</b><br />
+                      · <b>배송비가 부과되지 않습니다.</b><br />
+                      · 제작 완료 후 방문 수령 가능하며, 수령 일정은 문의(고객센터/1:1 채팅)로 안내드립니다.
+                    </div>
+                  )}
 
                   {/* 배송비 안내 */}
-                  {customer.zonecode && (
+                  {!isPickup && customer.zonecode && (
                     <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-sm">
                       <div className="flex justify-between text-gray-600">
                         <span>기본 배송비 {totalAmount >= 30000 ? '(30,000원 이상 무료)' : ''}</span>
@@ -885,8 +923,14 @@ function OrderPageContent() {
                   </div>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4 text-sm space-y-1 text-gray-600">
-                  <h3 className="font-bold text-gray-700 mb-2">배송 정보</h3>
-                  {[['이름',customer.name],['이메일',customer.email],['연락처',customer.phone],['주소',`${customer.zonecode ? `(${customer.zonecode}) ` : ''}${customer.address}${customer.addressDetail ? ` ${customer.addressDetail}` : ''}`]].map(([l,v]) => (
+                  <h3 className="font-bold text-gray-700 mb-2">{isPickup ? '주문자 정보' : '배송 정보'}</h3>
+                  {([
+                    ['이름', customer.name],
+                    ['이메일', customer.email],
+                    ['연락처', customer.phone],
+                    ['수령', isPickup ? '🏢 직접 수령 (방문)' : '🚚 택배 배송'],
+                    ...(isPickup ? [] : [['주소', `${customer.zonecode ? `(${customer.zonecode}) ` : ''}${customer.address}${customer.addressDetail ? ` ${customer.addressDetail}` : ''}`]]),
+                  ] as [string, string][]).map(([l,v]) => (
                     <div key={l}><span className="font-medium text-gray-700 w-14 inline-block align-top">{l}</span><span className="inline-block" style={{width:'calc(100% - 3.5rem)'}}>{v}</span></div>
                   ))}
                 </div>
@@ -916,7 +960,7 @@ function OrderPageContent() {
                     <span className="font-semibold">{totalAmount.toLocaleString()}원</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-600">
-                    <span>배송비 {shipping.surcharge > 0 ? `(기본 ${shipping.base.toLocaleString()} + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()})` : shipping.base === 0 ? '(무료)' : ''}</span>
+                    <span>배송비 {isPickup ? '(직접 수령)' : shipping.surcharge > 0 ? `(기본 ${shipping.base.toLocaleString()} + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()})` : shipping.base === 0 ? '(무료)' : ''}</span>
                     <span className="font-semibold">{shipping.total.toLocaleString()}원</span>
                   </div>
                   {usedPoints > 0 && (
