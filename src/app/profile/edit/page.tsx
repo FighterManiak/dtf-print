@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { openPostcode } from '@/lib/daum-postcode'
-import { Phone, MapPin, User, CheckCircle } from 'lucide-react'
+import { Phone, MapPin, User, CheckCircle, FileText, Upload, X } from 'lucide-react'
 
 export default function ProfileEditPage() {
   const router = useRouter()
@@ -22,6 +22,46 @@ export default function ProfileEditPage() {
   const [email, setEmail] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+
+  // 사업자등록증
+  const [license, setLicense] = useState<{ name: string; uploadedAt: string | null } | null>(null)
+  const [licenseUploading, setLicenseUploading] = useState(false)
+
+  const loadLicense = async () => {
+    const res = await fetch('/api/account/business-license')
+    if (res.ok) {
+      const d = await res.json()
+      setLicense(d.exists ? { name: d.name, uploadedAt: d.uploadedAt } : null)
+    }
+  }
+
+  const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) { alert('파일 크기는 최대 10MB까지 가능합니다.'); return }
+    setLicenseUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/account/business-license', { method: 'POST', body: fd })
+    if (res.ok) { await loadLicense() }
+    else { const err = await res.json().catch(() => ({})); alert(err.error || '업로드에 실패했습니다.') }
+    setLicenseUploading(false)
+  }
+
+  const viewLicense = async () => {
+    const res = await fetch('/api/account/business-license')
+    if (res.ok) {
+      const d = await res.json()
+      if (d.url) window.open(d.url, '_blank')
+    }
+  }
+
+  const deleteLicense = async () => {
+    if (!confirm('첨부한 사업자등록증을 삭제하시겠습니까?')) return
+    const res = await fetch('/api/account/business-license', { method: 'DELETE' })
+    if (res.ok) setLicense(null)
+  }
 
   const handleDeleteAccount = async () => {
     if (!confirm('정말 회원 탈퇴하시겠습니까?\n\n탈퇴 후에는 로그인 및 서비스 이용이 불가합니다.')) return
@@ -47,6 +87,7 @@ export default function ProfileEditPage() {
 
   useEffect(() => {
     loadProfile()
+    loadLicense()
   }, [])
 
   const loadProfile = async () => {
@@ -243,6 +284,43 @@ export default function ProfileEditPage() {
           </button>
         </div>
       </form>
+
+      {/* 사업자등록증 첨부 (세금계산서 발행용) */}
+      <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-1.5">
+          <FileText className="w-4 h-4 text-gray-600" />
+          <h2 className="text-sm font-bold text-gray-800">사업자등록증</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+          세금계산서 발행을 위해 사업자등록증을 첨부해주세요.<br />
+          PDF 또는 이미지(JPG/PNG) · 최대 10MB
+        </p>
+
+        {license ? (
+          <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+            <FileText className="w-5 h-5 text-blue-500 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-800 truncate">{license.name}</p>
+              {license.uploadedAt && <p className="text-xs text-gray-400">{new Date(license.uploadedAt).toLocaleDateString('ko-KR')} 첨부됨</p>}
+            </div>
+            <button type="button" onClick={viewLicense} className="text-xs text-blue-600 font-semibold hover:underline shrink-0">보기</button>
+            <button type="button" onClick={deleteLicense} className="text-gray-400 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
+          </div>
+        ) : (
+          <label className={`flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl py-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50/40 transition-colors ${licenseUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            <Upload className="w-5 h-5 text-gray-400" />
+            <span className="text-sm text-gray-500 font-medium">{licenseUploading ? '업로드 중...' : '사업자등록증 파일 첨부'}</span>
+            <input type="file" accept=".pdf,image/*" className="hidden" onChange={handleLicenseUpload} disabled={licenseUploading} />
+          </label>
+        )}
+
+        {license && (
+          <label className={`mt-2 block text-center text-xs text-blue-600 font-medium cursor-pointer hover:underline ${licenseUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+            {licenseUploading ? '업로드 중...' : '다른 파일로 교체'}
+            <input type="file" accept=".pdf,image/*" className="hidden" onChange={handleLicenseUpload} disabled={licenseUploading} />
+          </label>
+        )}
+      </div>
 
       {/* 회원 탈퇴 (구석에 눈에 띄지 않게) — 관리자 계정은 숨김 */}
       {!isAdmin && (
