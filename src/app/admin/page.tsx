@@ -73,6 +73,7 @@ export default function AdminPage() {
   })
   const [loading, setLoading] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [memberStats, setMemberStats] = useState<{ today: number; week: number; month: number; total: number } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -93,6 +94,7 @@ export default function AdminPage() {
       fetch('/api/admin/storage-stats').then((r) => r.json()).then((s) => { if (!s.error) setStorage(s) })
       fetch('/api/admin/visit-stats').then((r) => r.json()).then((v) => { if (!v.error) setVisits(v) }).catch(() => {})
       fetch('/api/admin/email-stats').then((r) => r.json()).then((e) => { if (e.available) setEmailStats(e) }).catch(() => {})
+      fetch('/api/admin/member-stats').then((r) => r.ok ? r.json() : null).then((m) => { if (m && !m.error) setMemberStats(m) }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
       const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
@@ -116,6 +118,7 @@ export default function AdminPage() {
     { label: '오늘 주문', value: loading ? '—' : `${stats.todayOrders}건`, icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-50', href: '/admin/quotes' },
     { label: '오늘 매출', value: loading ? '—' : `${stats.todayRevenue.toLocaleString()}원`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50', href: '/admin/quotes' },
     { label: '오늘 출고 완료', value: loading ? '—' : `${stats.todayShipped}건`, icon: Truck, color: 'text-green-500', bg: 'bg-green-50', href: '/admin/quotes?status=shipped' },
+    { label: '오늘 신규 가입', value: memberStats ? `${memberStats.today}명` : '—', icon: Users, color: 'text-pink-500', bg: 'bg-pink-50', href: '/admin/members' },
     { label: '견적 검토 대기', value: loading ? '—' : `${stats.pendingQuotes}건`, icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', href: '/admin/quotes?status=pending', urgent: !loading && stats.pendingQuotes > 0 },
   ]
 
@@ -124,6 +127,7 @@ export default function AdminPage() {
     { label: '작업 중', value: loading ? '—' : `${stats.inProgress}건`, icon: Package, color: 'text-blue-500', href: '/admin/quotes?status=in_progress' },
     { label: '입금 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', href: '/admin/quotes?status=order_pending' },
     { label: '이번 달 매출', value: loading ? '—' : `${stats.monthRevenue.toLocaleString()}원`, icon: TrendingUp, color: 'text-indigo-500', href: '/admin/quotes' },
+    { label: '전체 회원', value: memberStats ? `${memberStats.total}명` : '—', icon: Users, color: 'text-pink-500', href: '/admin/members', sub: memberStats ? `이번 달 +${memberStats.month} · 최근7일 +${memberStats.week}` : undefined },
   ]
 
   return (
@@ -156,11 +160,12 @@ export default function AdminPage() {
         <div className="mt-6 mb-8">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">누적 현황</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {monthCards.map(({ label, value, icon: Icon, color, href }) => (
+            {monthCards.map(({ label, value, icon: Icon, color, href, sub }) => (
               <Link key={label} href={href} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
                 <Icon className={`w-5 h-5 ${color} mb-2`} />
                 <div className="text-xl font-bold text-gray-800">{value}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+                {sub && <div className="text-[11px] text-pink-500 mt-1 font-medium">{sub}</div>}
               </Link>
             ))}
           </div>
