@@ -218,8 +218,10 @@ function OrderPageContent() {
     ? '직접 수령 (배송비 없음)'
     : `배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${shipping.surcharge ? ` + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()}` : ''})`
 
-  // 포인트 사용 (보유 1만원 이상일 때만, 결제액 초과 불가, 카드 최소결제 100원 남김)
-  const maxUsablePoints = Math.max(0, Math.min(availablePoints, payable - 100))
+  // 포인트 사용 (보유 1만원 이상일 때만, 구매금액의 최대 20%, 카드 최소결제 100원 남김)
+  const POINT_MAX_RATE = 0.2
+  const pointRateCap = Math.floor(payable * POINT_MAX_RATE)
+  const maxUsablePoints = Math.max(0, Math.min(availablePoints, pointRateCap, payable - 100))
   const usedPoints = pointsUsable ? Math.min(Math.max(0, parseInt(usePointInput) || 0), maxUsablePoints) : 0
   const finalPay = payable - usedPoints
 
@@ -941,14 +943,17 @@ function OrderPageContent() {
                     <span className="text-xs text-gray-500">보유 <b className="text-violet-600">{availablePoints.toLocaleString()}P</b></span>
                   </div>
                   {pointsUsable ? (
+                    <>
                     <div className="flex gap-2">
                       <input type="number" value={usePointInput} onChange={(e) => setUsePointInput(e.target.value)} placeholder="0" min={0} max={maxUsablePoints}
                         className="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-400" />
                       <button type="button" onClick={() => setUsePointInput(String(maxUsablePoints))}
                         className="px-4 py-2.5 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 transition-colors whitespace-nowrap">
-                        전액 사용
+                        최대 사용
                       </button>
                     </div>
+                    <p className="text-xs text-gray-400 mt-1.5">구매금액의 최대 20%까지 사용할 수 있습니다. (최대 {maxUsablePoints.toLocaleString()}P)</p>
+                    </>
                   ) : (
                     <p className="text-xs text-gray-400">보유 포인트 10,000P 이상부터 사용할 수 있습니다.</p>
                   )}

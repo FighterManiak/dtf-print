@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
   // 결제 승인 성공 → 주문 생성 (승인 후에만 1건 생성)
   const p = orderPayload as OrderPayload | null
   if (p) {
+    // 포인트 사용 상한: 구매금액(=결제액+사용포인트)의 20%
+    const reqUsed = Math.max(0, Math.round(Number(p.usedPoints) || 0))
+    const purchaseAmount = Number(p.totalAmount) + reqUsed
+    const effectiveUsed = Math.min(reqUsed, Math.floor(purchaseAmount * 0.2))
     const { data: newOrder } = await supabaseAdmin
       .from('orders')
       .insert({
@@ -53,12 +57,12 @@ export async function POST(req: NextRequest) {
         user_address: p.customer.address,
         order_name: p.orderName || null,
         total_amount: p.totalAmount,
-        used_points: p.usedPoints || 0,
+        used_points: effectiveUsed,
         machine_no: p.machineNo || null,
         status: 'paid',
         payment_method: 'CARD',
         payment_key: paymentKey,
-        memo: `카드결제 바로주문${p.orderName ? ` · ${p.orderName}` : ''}${p.shippingNote ? ` · ${p.shippingNote}` : ''}${p.usedPoints ? ` · 포인트 ${p.usedPoints.toLocaleString()}P 사용` : ''}`,
+        memo: `카드결제 바로주문${p.orderName ? ` · ${p.orderName}` : ''}${p.shippingNote ? ` · ${p.shippingNote}` : ''}${effectiveUsed ? ` · 포인트 ${effectiveUsed.toLocaleString()}P 사용` : ''}`,
       })
       .select('id')
       .single()
@@ -80,9 +84,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 포인트 사용 차감 (FIFO)
-    if (newOrder && p.usedPoints && p.usedPoints > 0 && p.userId) {
-      try { await usePoints(supabaseAdmin, p.userId, p.usedPoints, newOrder.id) } catch { /* 무시 */ }
+    // 포인트 사용 차감 (FIFO) — 20% 상한 적용값
+    if (newOrder && effectiveUsed > 0 && p.userId) {
+      try { await usePoints(supabaseAdmin, p.userId, effectiveUsed, newOrder.id) } catch { /* 무시 */ }
     }
   } else if (dbOrderId) {
     // 구버전 호환: 이미 생성된 주문 업데이트

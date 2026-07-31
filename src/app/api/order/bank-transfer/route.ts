@@ -13,6 +13,12 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   const { orderName, customer, cart, totalAmount, paymentMethod, shippingNote, usedPoints, machineNo, receiptType, receiptInfo } = await req.json()
 
+  // 포인트 사용 상한: 구매금액(=결제액+사용포인트)의 20%
+  const reqUsed = Math.max(0, Math.round(Number(usedPoints) || 0))
+  const purchaseAmount = Number(totalAmount) + reqUsed
+  const pointCap = Math.floor(purchaseAmount * 0.2)
+  const effectiveUsed = Math.min(reqUsed, pointCap)
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,13 +37,13 @@ export async function POST(req: Request) {
       user_address: customer.address,
       order_name: orderName || null,
       total_amount: totalAmount,
-      used_points: usedPoints || 0,
+      used_points: effectiveUsed,
       machine_no: machineNo || null,
       receipt_type: receiptType && receiptType !== 'none' ? receiptType : null,
       receipt_info: receiptInfo || null,
       status: 'pending',
       payment_method: paymentMethod || 'bank_transfer',
-      memo: `${paymentMethod === 'CARD' ? '카드결제' : '무통장입금'} 바로주문${orderName ? ` · ${orderName}` : ''}${shippingNote ? ` · ${shippingNote}` : ''}${usedPoints ? ` · 포인트 ${Number(usedPoints).toLocaleString()}P 사용` : ''}`,
+      memo: `${paymentMethod === 'CARD' ? '카드결제' : '무통장입금'} 바로주문${orderName ? ` · ${orderName}` : ''}${shippingNote ? ` · ${shippingNote}` : ''}${effectiveUsed ? ` · 포인트 ${effectiveUsed.toLocaleString()}P 사용` : ''}`,
     })
     .select('id')
     .single()
@@ -71,9 +77,9 @@ export async function POST(req: Request) {
 
   await supabaseAdmin.from('order_items').insert(items)
 
-  // 포인트 사용 차감 (FIFO)
-  if (usedPoints && Number(usedPoints) > 0 && user?.id) {
-    try { await usePoints(supabaseAdmin, user.id, Number(usedPoints), newOrder.id) } catch { /* 무시 */ }
+  // 포인트 사용 차감 (FIFO) — 20% 상한 적용값
+  if (effectiveUsed > 0 && user?.id) {
+    try { await usePoints(supabaseAdmin, user.id, effectiveUsed, newOrder.id) } catch { /* 무시 */ }
   }
 
   return NextResponse.json({ success: true, orderId: newOrder.id })
