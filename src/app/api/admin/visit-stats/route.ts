@@ -16,21 +16,31 @@ function aggregate(rows: Row[]) {
   const uv = new Set<string>()
   let pv = 0
   const referrerCount: Record<string, number> = {}
-  const keywordCount: Record<string, number> = {}
+  // 키워드별 총 횟수 + 출처(검색엔진)별 횟수
+  const keywordMap: Record<string, { count: number; sources: Record<string, number> }> = {}
   rows.forEach((r) => {
     uv.add(r.visitor_hash)
     pv += 1
     const ref = r.referrer_type || '직접 유입'
     if (ref !== '내부 이동') referrerCount[ref] = (referrerCount[ref] || 0) + 1
     const kw = (r.search_keyword || '').trim()
-    if (kw) keywordCount[kw] = (keywordCount[kw] || 0) + 1
+    if (kw) {
+      if (!keywordMap[kw]) keywordMap[kw] = { count: 0, sources: {} }
+      keywordMap[kw].count += 1
+      keywordMap[kw].sources[ref] = (keywordMap[kw].sources[ref] || 0) + 1
+    }
   })
   const referrers = Object.entries(referrerCount)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
-  const keywords = Object.entries(keywordCount)
-    .map(([keyword, count]) => ({ keyword, count }))
+  const keywords = Object.entries(keywordMap)
+    .map(([keyword, v]) => ({
+      keyword,
+      count: v.count,
+      // 가장 많이 나온 출처를 대표 출처로
+      source: Object.entries(v.sources).sort((a, b) => b[1] - a[1])[0]?.[0] || '기타',
+    }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 15)
   return { uv: uv.size, pv, referrers, keywords }

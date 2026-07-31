@@ -34,7 +34,7 @@ interface PeriodStat {
   uv: number
   pv: number
   referrers: { name: string; count: number }[]
-  keywords: { keyword: string; count: number }[]
+  keywords: { keyword: string; count: number; source?: string }[]
 }
 interface VisitStats {
   periods: {
@@ -430,6 +430,7 @@ export default function AdminPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {cur.keywords.map((k) => (
                       <span key={k.keyword} className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full px-2.5 py-1 text-xs">
+                        {k.source && <span className="text-[10px] text-emerald-500 font-semibold">[{k.source}]</span>}
                         {k.keyword}
                         <span className="bg-emerald-200 text-emerald-800 rounded-full px-1.5 text-[10px] font-bold">{k.count}</span>
                       </span>
