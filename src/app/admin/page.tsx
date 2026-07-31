@@ -214,10 +214,36 @@ export default function AdminPage() {
           </Link>
 
           <Link href="/admin/members"
-            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-purple-300 hover:shadow-md transition-all">
+            className={`bg-white border rounded-xl p-6 hover:shadow-md transition-all relative ${memberStats && memberStats.today > 0 ? 'border-pink-300 ring-2 ring-pink-100' : 'border-gray-200 hover:border-purple-300'}`}>
+            {memberStats && memberStats.today > 0 && (
+              <span className="absolute top-4 right-4 flex items-center gap-1 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                오늘 +{memberStats.today}
+              </span>
+            )}
             <Users className="w-8 h-8 text-purple-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">회원 관리</h2>
             <p className="text-gray-500 text-sm">가입 회원 목록 확인{isSuperAdmin ? ', 권한 변경' : ''}</p>
+            {memberStats && (
+              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-gray-400">오늘</p>
+                  <p className={`text-sm font-bold ${memberStats.today > 0 ? 'text-pink-500' : 'text-gray-800'}`}>{memberStats.today}명</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">최근 7일</p>
+                  <p className="text-sm font-bold text-gray-800">{memberStats.week}명</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">이번 달</p>
+                  <p className="text-sm font-bold text-gray-800">{memberStats.month}명</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">전체</p>
+                  <p className="text-sm font-bold text-gray-800">{memberStats.total}명</p>
+                </div>
+              </div>
+            )}
           </Link>
 
           <Link href="/admin/products"
