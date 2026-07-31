@@ -630,17 +630,35 @@ function AdminManagePageContent() {
                           {item.type === 'order' ? (
                             <div className="space-y-2 text-sm">
                               {(d as DirectOrder).order_items?.map((oi, i) => (
-                                <div key={i} className="flex justify-between">
-                                  <span className="text-gray-700">{oi.product_id} × {oi.quantity}{oi.cutting ? ' + 컷팅' : ''}</span>
-                                  <span className="font-bold text-gray-900">{((oi.unit_price * oi.quantity) + (oi.cutting ? oi.cutting_price : 0)).toLocaleString()}원</span>
+                                <div key={i}>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-700">{oi.product_id} × {oi.quantity}{oi.cutting ? ' + 컷팅' : ''}</span>
+                                    <span className="font-bold text-gray-900">{((oi.unit_price * oi.quantity) + (oi.cutting ? oi.cutting_price : 0)).toLocaleString()}원</span>
+                                  </div>
+                                  {oi.request_note && (
+                                    <div className="mt-1 rounded-lg border-2 border-red-400 bg-red-50 px-3 py-2">
+                                      <span className="text-[11px] font-bold text-red-600">📌 고객 요청사항</span>
+                                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-wrap">{oi.request_note}</p>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
-                              {(d as DirectOrder).memo && <p className="text-xs text-gray-400 pt-1">{(d as DirectOrder).memo}</p>}
+                              {(d as DirectOrder).memo && (
+                                <div className="rounded-lg border-2 border-red-400 bg-red-50 px-3 py-2">
+                                  <span className="text-[11px] font-bold text-red-600">📌 고객 요청사항</span>
+                                  <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-wrap">{(d as DirectOrder).memo}</p>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="space-y-2 text-sm">
                               <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">상품</span><span className="text-gray-900 font-medium">{PRODUCT_TYPE_LABEL[(d as Quote).product_type]}</span></div>
-                              {(d as Quote).request_note && <div className="flex gap-3"><span className="w-12 shrink-0 text-gray-400">요구사항</span><span className="text-gray-900">{(d as Quote).request_note}</span></div>}
+                              {(d as Quote).request_note && (
+                                <div className="rounded-lg border-2 border-red-400 bg-red-50 px-3 py-2">
+                                  <span className="text-[11px] font-bold text-red-600">📌 고객 요청사항</span>
+                                  <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-wrap">{(d as Quote).request_note}</p>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
