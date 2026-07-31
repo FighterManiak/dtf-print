@@ -141,7 +141,7 @@ export default function AdminPage() {
         {/* 오늘 현황 */}
         <div className="mb-2">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">오늘 현황</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
             {todayCards.map(({ label, value, icon: Icon, color, bg, href, urgent }) => (
               <Link key={label} href={href}
                 className={`bg-white border rounded-xl p-3 hover:shadow-md transition-all relative ${urgent ? 'border-orange-300 ring-2 ring-orange-200' : 'border-gray-200'}`}>
@@ -159,7 +159,7 @@ export default function AdminPage() {
         {/* 누적 현황 */}
         <div className="mt-6 mb-8">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">누적 현황</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
             {monthCards.map(({ label, value, icon: Icon, color, href, sub }) => (
               <Link key={label} href={href} className="bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all">
                 <Icon className={`w-4 h-4 ${color} mb-1.5`} />
