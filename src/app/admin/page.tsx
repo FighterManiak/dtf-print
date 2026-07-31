@@ -144,13 +144,13 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {todayCards.map(({ label, value, icon: Icon, color, bg, href, urgent }) => (
               <Link key={label} href={href}
-                className={`bg-white border rounded-xl p-4 hover:shadow-md transition-all relative ${urgent ? 'border-orange-300 ring-2 ring-orange-200' : 'border-gray-200'}`}>
-                {urgent && <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-orange-400 animate-pulse" />}
-                <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center mb-3`}>
-                  <Icon className={`w-5 h-5 ${color}`} />
+                className={`bg-white border rounded-xl p-3 hover:shadow-md transition-all relative ${urgent ? 'border-orange-300 ring-2 ring-orange-200' : 'border-gray-200'}`}>
+                {urgent && <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-orange-400 animate-pulse" />}
+                <div className={`w-7 h-7 ${bg} rounded-lg flex items-center justify-center mb-2`}>
+                  <Icon className={`w-4 h-4 ${color}`} />
                 </div>
-                <div className="text-xl font-bold text-gray-800">{value}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+                <div className="text-base font-bold text-gray-800">{value}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{label}</div>
               </Link>
             ))}
           </div>
@@ -161,11 +161,11 @@ export default function AdminPage() {
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">누적 현황</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {monthCards.map(({ label, value, icon: Icon, color, href, sub }) => (
-              <Link key={label} href={href} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
-                <Icon className={`w-5 h-5 ${color} mb-2`} />
-                <div className="text-xl font-bold text-gray-800">{value}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{label}</div>
-                {sub && <div className="text-[11px] text-pink-500 mt-1 font-medium">{sub}</div>}
+              <Link key={label} href={href} className="bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all">
+                <Icon className={`w-4 h-4 ${color} mb-1.5`} />
+                <div className="text-base font-bold text-gray-800">{value}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{label}</div>
+                {sub && <div className="text-[10px] text-pink-500 mt-1 font-medium">{sub}</div>}
               </Link>
             ))}
           </div>
