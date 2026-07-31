@@ -74,6 +74,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [memberStats, setMemberStats] = useState<{ today: number; week: number; month: number; total: number } | null>(null)
+  const [chatStats, setChatStats] = useState<{ open: number; unanswered: number; todayNew: number } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -95,6 +96,7 @@ export default function AdminPage() {
       fetch('/api/admin/visit-stats').then((r) => r.json()).then((v) => { if (!v.error) setVisits(v) }).catch(() => {})
       fetch('/api/admin/email-stats').then((r) => r.json()).then((e) => { if (e.available) setEmailStats(e) }).catch(() => {})
       fetch('/api/admin/member-stats').then((r) => r.ok ? r.json() : null).then((m) => { if (m && !m.error) setMemberStats(m) }).catch(() => {})
+      fetch('/api/admin/chat-stats').then((r) => r.ok ? r.json() : null).then((c) => { if (c && !c.error) setChatStats(c) }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
       const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
@@ -209,10 +211,32 @@ export default function AdminPage() {
           </Link>
 
           <Link href="/admin/chat"
-            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-md transition-all">
+            className={`bg-white border rounded-xl p-6 hover:shadow-md transition-all relative ${chatStats && chatStats.unanswered > 0 ? 'border-red-300 ring-2 ring-red-100' : 'border-gray-200 hover:border-blue-300'}`}>
+            {chatStats && chatStats.unanswered > 0 && (
+              <span className="absolute top-4 right-4 flex items-center gap-1 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                미답변 {chatStats.unanswered}
+              </span>
+            )}
             <MessageCircle className="w-8 h-8 text-blue-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">문의 채팅</h2>
             <p className="text-gray-500 text-sm">고객 1:1 문의 실시간 채팅 관리</p>
+            {chatStats && (
+              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-gray-400">미답변</p>
+                  <p className={`text-sm font-bold ${chatStats.unanswered > 0 ? 'text-red-500' : 'text-gray-800'}`}>{chatStats.unanswered}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">진행중</p>
+                  <p className="text-sm font-bold text-gray-800">{chatStats.open}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">오늘 신규</p>
+                  <p className="text-sm font-bold text-gray-800">{chatStats.todayNew}건</p>
+                </div>
+              </div>
+            )}
           </Link>
 
           <Link href="/admin/mail"
