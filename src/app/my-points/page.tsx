@@ -108,10 +108,12 @@ export default function MyPointsPage() {
 
       {/* 적립 안내 */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-6 text-sm text-gray-600 leading-relaxed">
-        <p className="font-bold text-gray-700 mb-2">💜 적립 안내</p>
+        <p className="font-bold text-gray-700 mb-2">💜 적립·사용 안내</p>
         <p>· 배송 완료 시 등급별로 상품금액의 일정 비율이 적립됩니다.</p>
         <p>· VIP 3% · GOLD 2% · SILVER 1% (전월 롤 출력량 기준 등급)</p>
         <p>· 적립일로부터 <b>6개월</b> 이내 사용해야 하며, 미사용 시 소멸됩니다.</p>
+        <p>· 포인트는 <b className="text-violet-600">10,000P 이상</b> 보유 시 사용할 수 있습니다.</p>
+        <p>· 사용은 <b className="text-violet-600">구매금액의 최대 20%</b>까지 적용됩니다.</p>
       </div>
 
       {/* 회원 등급 안내 */}
