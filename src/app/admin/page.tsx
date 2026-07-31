@@ -62,6 +62,7 @@ export default function AdminPage() {
   const [visits, setVisits] = useState<VisitStats | null>(null)
   const [visitPeriod, setVisitPeriod] = useState<VisitPeriod>('today')
   const [chartMetric, setChartMetric] = useState<'uv' | 'pv'>('uv')
+  const [emailStats, setEmailStats] = useState<{ today: number; month: number; total: number } | null>(null)
 
   const [stats, setStats] = useState<Stats>({
     total: 0, inProgress: 0, monthRevenue: 0,
@@ -88,6 +89,7 @@ export default function AdminPage() {
       // 스토리지 통계 (병렬)
       fetch('/api/admin/storage-stats').then((r) => r.json()).then((s) => { if (!s.error) setStorage(s) })
       fetch('/api/admin/visit-stats').then((r) => r.json()).then((v) => { if (!v.error) setVisits(v) }).catch(() => {})
+      fetch('/api/admin/email-stats').then((r) => r.json()).then((e) => { if (e.available) setEmailStats(e) }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
       const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
@@ -210,6 +212,22 @@ export default function AdminPage() {
             <Mail className="w-8 h-8 text-emerald-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">회원 메일 발송</h2>
             <p className="text-gray-500 text-sm">전체·인증 회원에게 공지·안내 메일 발송</p>
+            {emailStats && (
+              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-gray-400">오늘</p>
+                  <p className="text-sm font-bold text-gray-800">{emailStats.today.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/100</span></p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">이번 달</p>
+                  <p className="text-sm font-bold text-gray-800">{emailStats.month.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/3천</span></p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">누적</p>
+                  <p className="text-sm font-bold text-gray-800">{emailStats.total.toLocaleString()}</p>
+                </div>
+              </div>
+            )}
           </Link>
 
           {/* 방문 통계 */}

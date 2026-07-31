@@ -108,6 +108,17 @@ export async function POST(req: Request) {
     }
   }
 
+  // 발송 로그 기록 (통계용) — 실패해도 발송 결과에는 영향 없음
+  try {
+    await supabaseAdmin.from('email_logs').insert({
+      type: scope === 'test' ? 'test' : 'broadcast',
+      subject,
+      scope: scope || 'all',
+      sent_count: sent,
+      sent_by: user?.email || null,
+    })
+  } catch { /* 무시 */ }
+
   return NextResponse.json({ ok: true, sent, total: recipients.length, failed: failed.length })
 }
 
