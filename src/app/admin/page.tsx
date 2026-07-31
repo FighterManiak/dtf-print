@@ -75,6 +75,7 @@ export default function AdminPage() {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [memberStats, setMemberStats] = useState<{ today: number; week: number; month: number; total: number } | null>(null)
   const [chatStats, setChatStats] = useState<{ open: number; unanswered: number; todayNew: number } | null>(null)
+  const [verifyStats, setVerifyStats] = useState<{ pending: number; todayNew: number; total: number } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -97,6 +98,7 @@ export default function AdminPage() {
       fetch('/api/admin/email-stats').then((r) => r.json()).then((e) => { if (e.available) setEmailStats(e) }).catch(() => {})
       fetch('/api/admin/member-stats').then((r) => r.ok ? r.json() : null).then((m) => { if (m && !m.error) setMemberStats(m) }).catch(() => {})
       fetch('/api/admin/chat-stats').then((r) => r.ok ? r.json() : null).then((c) => { if (c && !c.error) setChatStats(c) }).catch(() => {})
+      fetch('/api/admin/verify-stats').then((r) => r.ok ? r.json() : null).then((v) => { if (v && !v.error) setVerifyStats(v) }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
       const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
@@ -183,10 +185,32 @@ export default function AdminPage() {
           </Link>
 
           <Link href="/admin/verifications"
-            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-green-300 hover:shadow-md transition-all">
+            className={`bg-white border rounded-xl p-6 hover:shadow-md transition-all relative ${verifyStats && verifyStats.pending > 0 ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200 hover:border-green-300'}`}>
+            {verifyStats && verifyStats.pending > 0 && (
+              <span className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                심사대기 {verifyStats.pending}
+              </span>
+            )}
             <ShieldCheck className="w-8 h-8 text-green-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">DTF 인증 관리</h2>
             <p className="text-gray-500 text-sm">장비 보유 인증 신청 확인 및 승인/반려 처리</p>
+            {verifyStats && (
+              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-gray-400">심사 대기</p>
+                  <p className={`text-sm font-bold ${verifyStats.pending > 0 ? 'text-orange-500' : 'text-gray-800'}`}>{verifyStats.pending}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">오늘 신규</p>
+                  <p className="text-sm font-bold text-gray-800">{verifyStats.todayNew}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">누적 신청</p>
+                  <p className="text-sm font-bold text-gray-800">{verifyStats.total}건</p>
+                </div>
+              </div>
+            )}
           </Link>
 
           <Link href="/admin/members"
