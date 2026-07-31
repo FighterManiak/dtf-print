@@ -62,7 +62,10 @@ export default function AdminPage() {
   const [visits, setVisits] = useState<VisitStats | null>(null)
   const [visitPeriod, setVisitPeriod] = useState<VisitPeriod>('today')
   const [chartMetric, setChartMetric] = useState<'uv' | 'pv'>('uv')
-  const [emailStats, setEmailStats] = useState<{ today: number; month: number; total: number } | null>(null)
+  const [emailStats, setEmailStats] = useState<{
+    total: { today: number; month: number; total: number }
+    byType: { broadcast: { today: number; month: number; total: number }; quote: { today: number; month: number; total: number }; signup: { today: number; month: number; total: number } }
+  } | null>(null)
 
   const [stats, setStats] = useState<Stats>({
     total: 0, inProgress: 0, monthRevenue: 0,
@@ -213,18 +216,25 @@ export default function AdminPage() {
             <h2 className="font-bold text-gray-800 text-lg mb-1">회원 메일 발송</h2>
             <p className="text-gray-500 text-sm">전체·인증 회원에게 공지·안내 메일 발송</p>
             {emailStats && (
-              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <p className="text-[11px] text-gray-400">오늘</p>
-                  <p className="text-sm font-bold text-gray-800">{emailStats.today.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/100</span></p>
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <div className="grid grid-cols-3 gap-2 text-center mb-2">
+                  <div>
+                    <p className="text-[11px] text-gray-400">오늘</p>
+                    <p className="text-sm font-bold text-gray-800">{emailStats.total.today.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/100</span></p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-400">이번 달</p>
+                    <p className="text-sm font-bold text-gray-800">{emailStats.total.month.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/3천</span></p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-400">누적</p>
+                    <p className="text-sm font-bold text-gray-800">{emailStats.total.total.toLocaleString()}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[11px] text-gray-400">이번 달</p>
-                  <p className="text-sm font-bold text-gray-800">{emailStats.month.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/3천</span></p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-gray-400">누적</p>
-                  <p className="text-sm font-bold text-gray-800">{emailStats.total.toLocaleString()}</p>
+                <div className="text-[11px] text-gray-500 space-y-0.5 border-t border-gray-50 pt-2">
+                  <div className="flex justify-between"><span>· 회원 발송</span><span className="text-gray-700">누적 {emailStats.byType.broadcast.total.toLocaleString()} · 이달 {emailStats.byType.broadcast.month.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>· 견적 안내</span><span className="text-gray-700">누적 {emailStats.byType.quote.total.toLocaleString()} · 이달 {emailStats.byType.quote.month.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span>· 가입 인증</span><span className="text-gray-700">누적 {emailStats.byType.signup.total.toLocaleString()} · 이달 {emailStats.byType.signup.month.toLocaleString()}</span></div>
                 </div>
               </div>
             )}

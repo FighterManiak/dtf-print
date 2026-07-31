@@ -19,27 +19,54 @@ export async function GET() {
     return NextResponse.json({ error: '권한 없음' }, { status: 403 })
   }
 
-  const { data, error } = await supabaseAdmin
-    .from('email_logs')
-    .select('created_at, sent_count')
-    .order('created_at', { ascending: false })
-
-  // 테이블이 없거나 오류면 통계 없음으로 처리
-  if (error) return NextResponse.json({ available: false })
-
   const now = kstNow()
   const todayStr = now.toISOString().slice(0, 10)
   const monthStr = now.toISOString().slice(0, 7)
+  const kstYmd = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString()
 
-  let today = 0, month = 0, total = 0
-  ;(data || []).forEach((r) => {
+  type Bucket = { today: number; month: number; total: number }
+  const empty = (): Bucket => ({ today: 0, month: 0, total: 0 })
+  const add = (b: Bucket, iso: string, cnt: number) => {
+    const d = kstYmd(iso)
+    b.total += cnt
+    if (d.slice(0, 10) === todayStr) b.today += cnt
+    if (d.slice(0, 7) === monthStr) b.month += cnt
+  }
+
+  const broadcast = empty(), quote = empty(), signup = empty()
+
+  // ① email_logs (회원 메일 broadcast/test + 견적 quote)
+  const { data: logs } = await supabaseAdmin
+    .from('email_logs')
+    .select('created_at, sent_count, type')
+  ;(logs || []).forEach((r) => {
     const cnt = Number(r.sent_count) || 0
-    total += cnt
-    // created_at은 UTC 저장 → KST 기준 날짜로 비교
-    const kstDate = new Date(new Date(r.created_at as string).getTime() + 9 * 3600 * 1000).toISOString()
-    if (kstDate.slice(0, 10) === todayStr) today += cnt
-    if (kstDate.slice(0, 7) === monthStr) month += cnt
+    if (r.type === 'quote') add(quote, r.created_at as string, cnt)
+    else add(broadcast, r.created_at as string, cnt) // broadcast/test
   })
 
-  return NextResponse.json({ available: true, today, month, total, campaigns: (data || []).length })
+  // ② 회원가입 인증 메일 = 가입 회원 수(created_at 기준)로 집계
+  try {
+    const perPage = 1000
+    for (let page = 1; page <= 100; page++) {
+      const { data } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+      const users = data?.users || []
+      users.forEach((u) => { if (u.created_at) add(signup, u.created_at, 1) })
+      if (users.length < perPage) break
+    }
+  } catch { /* 무시 */ }
+
+  const totalBucket: Bucket = {
+    today: broadcast.today + quote.today + signup.today,
+    month: broadcast.month + quote.month + signup.month,
+    total: broadcast.total + quote.total + signup.total,
+  }
+
+  return NextResponse.json({
+    available: true,
+    total: totalBucket,
+    byType: { broadcast, quote, signup },
+    // 하위호환 (기존 카드)
+    today: totalBucket.today, month: totalBucket.month,
+  })
 }
