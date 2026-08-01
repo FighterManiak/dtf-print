@@ -49,7 +49,19 @@ export default function HeroCarousel() {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const touchX = useRef<number | null>(null)
+  // 접속마다 슬라이드 순서 랜덤 (하이드레이션 불일치 방지 위해 마운트 후 섞음)
+  const [order, setOrder] = useState<number[]>(() => SLIDES.map((_, i) => i))
   const count = SLIDES.length
+
+  useEffect(() => {
+    const arr = SLIDES.map((_, i) => i)
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    setOrder(arr)
+    setIndex(0)
+  }, [])
 
   const go = useCallback((i: number) => setIndex((i + count) % count), [count])
   const next = useCallback(() => go(index + 1), [go, index])
@@ -84,7 +96,9 @@ export default function HeroCarousel() {
         {/* 슬라이드 뷰포트 */}
         <div className="overflow-hidden">
           <div className="flex transition-transform duration-500 ease-out" style={{ transform: `translateX(-${index * 100}%)` }}>
-            {SLIDES.map((s, i) => (
+            {order.map((slideIdx, i) => {
+              const s = SLIDES[slideIdx]
+              return (
               <div key={i} className="w-full shrink-0 flex flex-col items-center text-center gap-6 md:gap-8 px-1">
                 <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-xs md:text-sm font-medium text-white/80 backdrop-blur-sm">
                   <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
@@ -107,7 +121,8 @@ export default function HeroCarousel() {
                   )}
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
