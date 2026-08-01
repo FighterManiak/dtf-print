@@ -2,74 +2,14 @@ import Link from 'next/link'
 import { ArrowRight, Upload, Zap, Truck, ShieldCheck, Star, Clock, CheckCircle2, Printer } from 'lucide-react'
 import ProductsSection from '@/components/ui/ProductsSection'
 import ReviewsSection from '@/components/ui/ReviewsSection'
+import HeroCarousel from '@/components/ui/HeroCarousel'
 
 export default function Home() {
   return (
     <div className="bg-white">
 
-      {/* ── HERO ── */}
-      <section className="relative overflow-hidden bg-[#0f0f0f] text-white">
-        {/* 배경 그라디언트 */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/10 pointer-events-none" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative max-w-6xl mx-auto px-5 py-16 md:py-28 flex flex-col items-center text-center gap-6 md:gap-8">
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-4 py-1.5 text-xs md:text-sm font-medium text-white/80 backdrop-blur-sm">
-            <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />
-            국내 최고 품질의 DTF 출력 서비스
-          </div>
-
-          <h1 className="text-4xl md:text-7xl font-extrabold leading-tight tracking-tight">
-            당신의 디자인을<br />
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-              현실로 만드세요
-            </span>
-          </h1>
-
-          <p className="text-base md:text-xl text-white/60 max-w-xl leading-relaxed">
-            시안 파일 업로드부터 출력·발송까지.<br />
-            빠르고 선명한 DTF 출력을 경험하세요.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto mt-1">
-            <Link
-              href="/order"
-              className="inline-flex items-center justify-center gap-2 bg-white text-black font-bold px-8 py-4 rounded-2xl hover:bg-gray-100 transition-all text-base shadow-lg shadow-white/10"
-            >
-              지금 주문하기 <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/#products"
-              className="inline-flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white font-medium px-8 py-4 rounded-2xl hover:bg-white/20 transition-all text-base backdrop-blur-sm"
-            >
-              상품 보기
-            </Link>
-          </div>
-
-          {/* 신뢰 지표 */}
-          <div className="grid grid-cols-2 md:flex md:flex-wrap justify-center gap-6 md:gap-8 mt-4 pt-6 md:pt-8 border-t border-white/10 w-full">
-            {[
-              { value: '10,000+', label: '누적 주문' },
-              { value: '99.8%', label: '고객 만족도' },
-              { value: '1-3일', label: '평균 출력·발송' },
-              { value: '24시간', label: '고객 지원' },
-            ].map(({ value, label }) => (
-              <div key={label} className="text-center">
-                <div className="text-xl md:text-2xl font-bold text-white">{value}</div>
-                <div className="text-xs md:text-sm text-white/50 mt-1">{label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* 문의 전화 */}
-          <div className="mt-6 text-center">
-            <a href="tel:010-8231-8604" className="inline-flex items-center gap-2.5 text-white/90 hover:text-white transition-colors">
-              <span className="text-lg md:text-xl text-white">문의</span>
-              <span className="text-2xl md:text-3xl font-bold tracking-wide">010-8231-8604</span>
-            </a>
-          </div>
-        </div>
-      </section>
+      {/* ── HERO (슬라이드) ── */}
+      <HeroCarousel />
 
       {/* ── 특징 3가지 ── */}
       <section className="bg-[#f8f8f8] py-20 px-6">
