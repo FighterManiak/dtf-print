@@ -77,6 +77,32 @@ export default function MembersPage() {
     return next
   })
 
+  // 등급 일괄 지정
+  const [bulkGradeOpen, setBulkGradeOpen] = useState(false)
+  const [bulkGrade, setBulkGrade] = useState('vip')
+  const [bulkGradeUntil, setBulkGradeUntil] = useState('')
+  const [bulkGradeSaving, setBulkGradeSaving] = useState(false)
+
+  const saveBulkGrade = async (clear = false) => {
+    if (!clear && !bulkGradeUntil) { alert('적용 종료일을 지정해주세요.'); return }
+    const label = clear ? '등급 지정 해제' : `${bulkGrade.toUpperCase()} 등급 (~${bulkGradeUntil})`
+    if (!confirm(`선택한 ${selectedIds.size}명에게 ${label}을(를) 적용하시겠습니까?`)) return
+    setBulkGradeSaving(true)
+    const res = await fetch('/api/admin/set-grade-bulk', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userIds: [...selectedIds], grade: clear ? 'clear' : bulkGrade, until: bulkGradeUntil }),
+    })
+    if (res.ok) {
+      setBulkGradeOpen(false)
+      setSelectedIds(new Set())
+      await loadMembers()
+      alert('등급 일괄 지정이 완료되었습니다.')
+    } else {
+      const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패')
+    }
+    setBulkGradeSaving(false)
+  }
+
   const saveBulkPoints = async () => {
     const amt = parseInt(bulkAmount)
     if (!amt || amt <= 0) { alert('지급할 포인트를 입력해주세요.'); return }
@@ -339,9 +365,13 @@ export default function MembersPage() {
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedIds(new Set())}
                 className="text-xs bg-violet-500 hover:bg-violet-400 px-3 py-1.5 rounded-lg font-medium">선택 해제</button>
+              <button onClick={() => { setBulkGrade('vip'); setBulkGradeUntil(''); setBulkGradeOpen(true) }}
+                className="text-sm bg-white/15 border border-white/30 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-white/25">
+                등급 일괄 지정
+              </button>
               <button onClick={() => { setBulkAmount(''); setBulkMemo(''); setBulkModalOpen(true) }}
                 className="text-sm bg-white text-violet-700 px-4 py-1.5 rounded-lg font-bold hover:bg-violet-50">
-                선택 회원 포인트 일괄 지급
+                포인트 일괄 지급
               </button>
             </div>
           </div>
@@ -573,6 +603,49 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* 등급 일괄 지정 모달 */}
+      {bulkGradeOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">등급 일괄 지정</h2>
+              <button onClick={() => setBulkGradeOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="bg-violet-50 rounded-xl px-4 py-3 mb-4 text-sm">
+              <p className="text-gray-700">선택한 <b className="text-violet-600">{selectedIds.size}명</b>에게</p>
+              <p className="text-xs text-gray-500 mt-0.5">지정 기간 동안 자동 등급보다 우선 적용됩니다.</p>
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">등급</label>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {[['vip','VIP'],['gold','GOLD'],['silver','SILVER'],['normal','일반']].map(([k, label]) => (
+                <button key={k} onClick={() => setBulkGrade(k)}
+                  className={`py-2 rounded-xl text-xs font-bold border-2 transition-colors ${bulkGrade===k ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">적용 종료일 <span className="text-red-500">*</span></label>
+            <input type="date" value={bulkGradeUntil} min={new Date().toISOString().slice(0,10)} onChange={(e) => setBulkGradeUntil(e.target.value)}
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-800 mb-1 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            <p className="text-xs text-gray-400 mb-5">이 날짜까지 지정 등급이 유지되고, 이후 자동 등급으로 돌아갑니다.</p>
+
+            <div className="flex gap-2">
+              <button onClick={() => saveBulkGrade(true)} disabled={bulkGradeSaving}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+                지정 해제
+              </button>
+              <button onClick={() => saveBulkGrade(false)} disabled={bulkGradeSaving}
+                className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                {bulkGradeSaving ? '처리 중...' : `${selectedIds.size}명 지정`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 포인트 일괄 지급 모달 */}
       {bulkModalOpen && (
