@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col bg-gray-50">
         {/* 이벤트 공지 배너 */}
         <div className="bg-gradient-to-r from-violet-600 to-blue-600 text-white text-center text-xs sm:text-sm px-4 py-2.5 font-medium">
-          🎁 <b>8월 2일까지 회원가입</b> 시 <b>5만 포인트 증정!</b> — 결제 시 구매금액의 <b>20%</b>까지 사용 가능
+          🎉 <b>오픈 이벤트!</b> 지금 회원가입 시 <b>9월부터 1년간 VIP 등급(3% 적립)</b> 적용
         </div>
         <Header />
         <ProfileGuard />
