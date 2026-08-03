@@ -59,7 +59,16 @@ export default function AdminChatPage() {
 
   const loadRooms = async () => {
     const res = await fetch('/api/admin/chat-rooms')
-    if (res.ok) setRooms(await res.json())
+    if (res.ok) {
+      const data: Room[] = await res.json()
+      setRooms(data)
+      // 보고 있는 방의 상태가 바뀌면(고객 재문의로 재오픈 등) 동기화 → 입력창 잠금 해제
+      setSelectedRoom((prev) => {
+        if (!prev) return prev
+        const fresh = data.find((r) => r.id === prev.id)
+        return fresh && fresh.status !== prev.status ? { ...prev, status: fresh.status } : prev
+      })
+    }
   }
 
   const loadMessages = async (roomId: string) => {

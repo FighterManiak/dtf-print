@@ -202,10 +202,11 @@ export default function ChatWidget() {
       created_at: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, newMsg])
-    await supabase.from('chat_rooms').update({
-      last_message: content || '사진',
-      last_message_at: new Date().toISOString(),
-    }).eq('id', roomId)
+    // 방 갱신 + 완료된 방이면 자동 재오픈 (서비스롤 API)
+    await fetch('/api/chat/activity', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId, lastMessage: content || '사진' }),
+    }).catch(() => {})
   }
 
   const handleSend = async () => {
