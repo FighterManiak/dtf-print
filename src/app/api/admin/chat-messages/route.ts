@@ -16,19 +16,26 @@ async function getAdminUser() {
   return user
 }
 
-// 관리자: 특정 방의 메시지 조회 (RLS 우회)
+// 관리자: 특정 방의 메시지 조회 (RLS 우회) + 읽음 처리
 export async function GET(req: Request) {
   const user = await getAdminUser()
   if (!user) return NextResponse.json({ error: '권한 없음' }, { status: 403 })
   const roomId = new URL(req.url).searchParams.get('roomId')
   if (!roomId) return NextResponse.json({ error: 'roomId 필요' }, { status: 400 })
+
   const { data, error } = await supabaseAdmin
     .from('chat_messages')
     .select('*')
     .eq('room_id', roomId)
     .order('created_at', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data || [])
+
+  // 관리자가 이 방을 읽음 → admin_last_read_at 갱신, 고객 읽음시각 조회
+  const nowIso = new Date().toISOString()
+  await supabaseAdmin.from('chat_rooms').update({ admin_last_read_at: nowIso }).eq('id', roomId)
+  const { data: room } = await supabaseAdmin.from('chat_rooms').select('user_last_read_at').eq('id', roomId).single()
+
+  return NextResponse.json({ messages: data || [], userReadAt: room?.user_last_read_at || null })
 }
 
 // 관리자: 답변 메시지 전송

@@ -31,6 +31,17 @@ export default function ChatWidget() {
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({ name: '', email: '', phone: '' })
   const [guestStep, setGuestStep] = useState<'form' | 'chat'>('form')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [adminReadAt, setAdminReadAt] = useState<string | null>(null)
+
+  const markRead = async (rid: string) => {
+    try {
+      const res = await fetch('/api/chat/read', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId: rid }),
+      })
+      if (res.ok) { const d = await res.json(); setAdminReadAt(d.adminReadAt || null) }
+    } catch { /* 무시 */ }
+  }
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -93,6 +104,7 @@ export default function ChatWidget() {
     if (!open || guestStep !== 'chat') return
     const rid = roomId || savedRoomRef.current
     if (!rid) return
+    markRead(rid)
     const timer = setInterval(() => pollMessages(rid), 3000)
     return () => clearInterval(timer)
   }, [open, guestStep, roomId])
@@ -107,6 +119,7 @@ export default function ChatWidget() {
     if (data) {
       setMessages((prev) => (data.length !== prev.length ? data : prev))
     }
+    markRead(rid)
   }
 
   const initRoom = async () => {
@@ -328,10 +341,16 @@ export default function ChatWidget() {
                     안녕하세요! 무엇이든 물어보세요 😊
                   </div>
                 )}
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {messages.map((msg, i) => {
+                  const isLastUser = msg.sender_type === 'user' && !messages.slice(i + 1).some((m) => m.sender_type === 'user')
+                  const isRead = !!adminReadAt && new Date(adminReadAt) >= new Date(msg.created_at)
+                  return (
+                  <div key={msg.id} className={`flex items-end ${msg.sender_type === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {msg.sender_type === 'admin' && (
                       <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2 shrink-0 mt-1">S</div>
+                    )}
+                    {isLastUser && (
+                      <span className={`text-[10px] mr-1 mb-0.5 shrink-0 ${isRead ? 'text-blue-500 font-semibold' : 'text-gray-400'}`}>{isRead ? '읽음' : '안읽음'}</span>
                     )}
                     <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
                       msg.sender_type === 'user'
@@ -347,7 +366,8 @@ export default function ChatWidget() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
                 <div ref={bottomRef} />
               </div>
 

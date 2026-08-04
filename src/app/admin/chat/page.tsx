@@ -29,6 +29,7 @@ export default function AdminChatPage() {
   const [input, setInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const [tab, setTab] = useState<'open' | 'closed'>('open')
+  const [userReadAt, setUserReadAt] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const selectedRoomRef = useRef<string | null>(null)
@@ -74,9 +75,11 @@ export default function AdminChatPage() {
   const loadMessages = async (roomId: string) => {
     const res = await fetch(`/api/admin/chat-messages?roomId=${roomId}`)
     if (!res.ok) return
-    const data: Message[] = await res.json()
+    const json = await res.json()
+    const data: Message[] = json.messages || []
     // 다른 방으로 이동한 사이 도착한 응답 무시
     if (selectedRoomRef.current !== roomId) return
+    setUserReadAt(json.userReadAt || null)
     // 내용이 실제로 바뀐 경우에만 갱신 (불필요한 리렌더/스크롤 방지)
     setMessages((prev) => {
       if (prev.length === data.length && prev[prev.length - 1]?.id === data[data.length - 1]?.id) return prev
@@ -244,12 +247,18 @@ export default function AdminChatPage() {
 
           {/* 메시지 */}
           <div className="flex-1 overflow-y-auto p-6 space-y-3">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
+            {messages.map((msg, i) => {
+              const isLastAdmin = msg.sender_type === 'admin' && !messages.slice(i + 1).some((m) => m.sender_type === 'admin')
+              const isRead = !!userReadAt && new Date(userReadAt) >= new Date(msg.created_at)
+              return (
+              <div key={msg.id} className={`flex items-end ${msg.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
                 {msg.sender_type === 'user' && (
                   <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-white text-xs font-bold mr-2 shrink-0 mt-1">
                     {(selectedRoom.user_name || selectedRoom.user_email)?.[0]?.toUpperCase()}
                   </div>
+                )}
+                {isLastAdmin && (
+                  <span className={`text-[10px] mr-1 mb-0.5 shrink-0 ${isRead ? 'text-blue-500 font-semibold' : 'text-gray-400'}`}>{isRead ? '읽음' : '안읽음'}</span>
                 )}
                 <div className={`max-w-md rounded-2xl px-4 py-2.5 text-sm ${
                   msg.sender_type === 'admin'
@@ -265,7 +274,8 @@ export default function AdminChatPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
             <div ref={bottomRef} />
           </div>
 
