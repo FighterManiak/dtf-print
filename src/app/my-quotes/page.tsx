@@ -6,6 +6,14 @@ import { useRouter } from 'next/navigation'
 import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCircle, Download, Building2, Truck, Package, RotateCcw, Star, X, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
+import { getShippingFee } from '@/lib/shipping'
+
+// 견적 결제 시 배송비(기본) + 총 결제금액
+const quotePay = (amount: number | null) => {
+  const product = amount || 0
+  const ship = getShippingFee(product, '').total
+  return { product, ship, total: product + ship }
+}
 
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
@@ -307,7 +315,7 @@ export default function MyOrdersPage() {
       const payment = toss.payment({ customerKey: user.id })
       await payment.requestPayment({
         method: 'CARD',
-        amount: { currency: 'KRW', value: quote.total_amount },
+        amount: { currency: 'KRW', value: quotePay(quote.total_amount).total },
         orderId: `QUOTE-${quote.id.slice(0, 8)}-${Date.now()}`,
         orderName: `${PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type} 견적`,
         successUrl: `${window.location.origin}/quote/success?quoteId=${quote.id}`,
@@ -320,7 +328,7 @@ export default function MyOrdersPage() {
 
   const handleBankTransfer = async (quote: Quote) => {
     if (!quote.total_amount || !user) return
-    if (!confirm(`무통장 입금으로 결제하시겠습니까?\n\n은행: ${BANK_INFO.bank}\n계좌번호: ${BANK_INFO.account}\n예금주: ${BANK_INFO.holder}\n금액: ${quote.total_amount.toLocaleString()}원\n\n입금 후 관리자가 확인 후 처리됩니다.`)) return
+    if (!confirm(`무통장 입금으로 결제하시겠습니까?\n\n은행: ${BANK_INFO.bank}\n계좌번호: ${BANK_INFO.account}\n예금주: ${BANK_INFO.holder}\n금액: ${quotePay(quote.total_amount).total.toLocaleString()}원 (배송비 포함)\n\n입금 후 관리자가 확인 후 처리됩니다.`)) return
     setPaying(quote.id)
     const res = await fetch('/api/quote/bank-transfer', {
       method: 'POST',
@@ -558,8 +566,16 @@ export default function MyOrdersPage() {
                           {quote.unit_price && <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">단가</span><span className="text-gray-800">{quote.unit_price.toLocaleString()}원</span></div>}
                           {quote.cutting && <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">컷팅</span><span className="text-gray-800">+{quote.cutting_price.toLocaleString()}원</span></div>}
                           <div className="flex gap-2 pt-2 border-t border-blue-200 mt-2">
-                            <span className="text-gray-500 w-20 shrink-0">최종 금액</span>
-                            <span className="font-bold text-blue-600 text-base">{quote.total_amount.toLocaleString()}원</span>
+                            <span className="text-gray-500 w-20 shrink-0">상품 금액</span>
+                            <span className="text-gray-800">{quote.total_amount.toLocaleString()}원</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">배송비</span>
+                            <span className="text-gray-800">{quotePay(quote.total_amount).ship === 0 ? '무료' : `${quotePay(quote.total_amount).ship.toLocaleString()}원`}</span>
+                          </div>
+                          <div className="flex gap-2 pt-2 border-t border-blue-200 mt-1">
+                            <span className="text-gray-500 w-20 shrink-0">총 결제금액</span>
+                            <span className="font-bold text-blue-600 text-base">{quotePay(quote.total_amount).total.toLocaleString()}원</span>
                           </div>
                           {quote.admin_note && <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">담당자 메모</span><span className="text-gray-700">{quote.admin_note}</span></div>}
                         </div>
@@ -608,8 +624,8 @@ export default function MyOrdersPage() {
                               <div className="flex justify-between"><span className="text-gray-500">계좌번호</span><span className="font-bold tracking-wider">{BANK_INFO.account}</span></div>
                               <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">{BANK_INFO.holder}</span></div>
                               <div className="flex justify-between border-t border-orange-200 pt-2 mt-2">
-                                <span className="text-gray-500">입금 금액</span>
-                                <span className="font-bold text-orange-700 text-base">{quote.total_amount?.toLocaleString()}원</span>
+                                <span className="text-gray-500">입금 금액 <span className="text-xs">(배송비 포함)</span></span>
+                                <span className="font-bold text-orange-700 text-base">{quotePay(quote.total_amount).total.toLocaleString()}원</span>
                               </div>
                             </div>
                             <p className="text-xs text-orange-600">입금 후 버튼을 눌러주세요.</p>
@@ -619,7 +635,7 @@ export default function MyOrdersPage() {
                         {(payMethod[quote.id] ?? 'card') === 'card' ? (
                           <button onClick={() => handlePay(quote)} disabled={paying === quote.id}
                             className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm">
-                            {paying === quote.id ? '결제창 열는 중...' : `${quote.total_amount?.toLocaleString()}원 카드 결제하기`}
+                            {paying === quote.id ? '결제창 열는 중...' : `${quotePay(quote.total_amount).total.toLocaleString()}원 카드 결제하기`}
                           </button>
                         ) : (
                           <button onClick={() => handleBankTransfer(quote)} disabled={paying === quote.id}

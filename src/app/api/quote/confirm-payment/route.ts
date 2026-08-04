@@ -1,6 +1,7 @@
 ﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getShippingFee } from '@/lib/shipping'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,7 +28,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId: quote.order_id })
   }
 
-  // orders ?뚯씠釉붿뿉 二쇰Ц ?앹꽦
+  // 배송비 계산 (상품금액 기준, 기본 배송비)
+  const product = Number(quote.total_amount) || 0
+  const shipping = getShippingFee(product, '')
+  const payTotal = product + shipping.total
+
+  // orders 테이블에 주문 생성
   const { data: newOrder, error: orderErr } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -36,9 +42,9 @@ export async function POST(req: Request) {
       user_name: quote.user_name,
       user_phone: quote.user_phone,
       user_address: quote.user_address,
-      total_amount: quote.total_amount,
+      total_amount: payTotal,
       status: 'paid',
-      memo: `寃ъ쟻 二쇰Ц (${quote.product_type})${quote.admin_note ? ' 쨌 ' + quote.admin_note : ''}`,
+      memo: `견적주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''} · 배송비 ${shipping.total.toLocaleString()}원`,
     })
     .select('id')
     .single()
