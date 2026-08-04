@@ -16,6 +16,11 @@ const barlowCondensed = Barlow_Condensed({
 export const metadata: Metadata = {
   title: 'DTF 출력 서비스',
   description: '고품질 DTF 출력 전문 서비스',
+  verification: {
+    other: {
+      'naver-site-verification': 'c7732c90df1dbbf10bb3f400bf62c499f892bf2b',
+    },
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
