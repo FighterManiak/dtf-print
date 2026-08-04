@@ -82,9 +82,11 @@ export default function AdminPage() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       setIsSuperAdmin(user?.user_metadata?.role === 'superadmin')
-      const now = new Date()
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      // 한국시간(KST) 기준 오늘/이번달 시작 시각 (created_at은 UTC 저장 → UTC 문자열로 비교)
+      const kstNow = new Date(Date.now() + 9 * 3600 * 1000)
+      const ky = kstNow.getUTCFullYear(), km = kstNow.getUTCMonth(), kd = kstNow.getUTCDate()
+      const todayStart = new Date(Date.UTC(ky, km, kd) - 9 * 3600 * 1000).toISOString()
+      const monthStart = new Date(Date.UTC(ky, km, 1) - 9 * 3600 * 1000).toISOString()
 
       // orders / quotes 모두 RLS 우회를 위해 서비스롤 API로 조회 후 클라이언트에서 집계
       const [orders, quotes] = await Promise.all([
@@ -107,7 +109,7 @@ export default function AdminPage() {
         total: orders.length,
         inProgress: orders.filter((o) => o.status === 'in_progress').length,
         monthRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= monthStart)),
-        todayOrders: orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart).length,
+        todayOrders: orders.filter((o) => o.created_at >= todayStart && o.status !== 'cancelled' && o.status !== 'refunded').length,
         todayRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart)),
         todayShipped: orders.filter((o) => o.status === 'shipped' && o.updated_at >= todayStart).length,
         pendingQuotes: quotes.filter((q) => q.status === 'pending').length,

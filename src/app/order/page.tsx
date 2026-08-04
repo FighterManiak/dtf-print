@@ -76,6 +76,8 @@ function OrderPageContent() {
 
   // 수령 방법: 택배 배송 / 직접 수령(방문)
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
+  // 택배사: 일반 택배 / 우체국 택배(+1,000원)
+  const [courier, setCourier] = useState<'normal' | 'post'>('normal')
 
   // 출력 장비 선택 (0 = 무관/지정없음)
   const [machineNo, setMachineNo] = useState(0)
@@ -212,11 +214,17 @@ function OrderPageContent() {
   // 배송비 계산 (소계 + 우편번호 기준) — 직접 수령 시 배송비 없음
   const isPickup = deliveryMethod === 'pickup'
   const rawShipping = getShippingFee(totalAmount, customer.zonecode)
-  const shipping = isPickup ? { base: 0, surcharge: 0, total: 0, regionLabel: '' } : rawShipping
+  // 우체국 택배 선택 시 1,000원 추가
+  const POST_SURCHARGE = 1000
+  const courierSurcharge = !isPickup && courier === 'post' ? POST_SURCHARGE : 0
+  const shipping = isPickup
+    ? { base: 0, surcharge: 0, total: 0, regionLabel: '' }
+    : { ...rawShipping, total: rawShipping.total + courierSurcharge }
   const payable = totalAmount + shipping.total
+  const courierLabel = courier === 'post' ? '우체국 택배' : '일반 택배'
   const shippingNote = isPickup
     ? '직접 수령 (배송비 없음)'
-    : `배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${shipping.surcharge ? ` + ${shipping.regionLabel} ${shipping.surcharge.toLocaleString()}` : ''})`
+    : `${courierLabel} · 배송비 ${shipping.total.toLocaleString()}원 (기본 ${shipping.base.toLocaleString()}${rawShipping.surcharge ? ` + ${rawShipping.regionLabel} ${rawShipping.surcharge.toLocaleString()}` : ''}${courierSurcharge ? ` + 우체국 ${courierSurcharge.toLocaleString()}` : ''})`
 
   // 포인트 사용 (보유 1만원 이상일 때만, 구매금액의 최대 20%, 카드 최소결제 100원 남김)
   const POINT_MAX_RATE = 0.2
@@ -860,6 +868,25 @@ function OrderPageContent() {
                   </div>
                   )}
 
+                  {/* 택배사 선택 — 택배 배송 시에만 */}
+                  {deliveryMethod === 'delivery' && (
+                    <div>
+                      <label className="text-sm font-semibold text-gray-700 block mb-1.5">택배사</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button" onClick={() => setCourier('normal')}
+                          className={`rounded-xl p-3 border-2 text-left transition-colors ${courier==='normal' ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                          <div className={`text-sm font-bold ${courier==='normal' ? 'text-violet-700' : 'text-gray-700'}`}>일반 택배</div>
+                          <div className="text-xs text-gray-500 mt-0.5">기본 배송비</div>
+                        </button>
+                        <button type="button" onClick={() => setCourier('post')}
+                          className={`rounded-xl p-3 border-2 text-left transition-colors ${courier==='post' ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                          <div className={`text-sm font-bold ${courier==='post' ? 'text-violet-700' : 'text-gray-700'}`}>우체국 택배</div>
+                          <div className="text-xs text-gray-500 mt-0.5">+1,000원 추가</div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* 직접 수령 안내 */}
                   {isPickup && (
                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm text-emerald-800 leading-relaxed">
@@ -880,6 +907,12 @@ function OrderPageContent() {
                         <div className="flex justify-between text-gray-600 mt-1">
                           <span>{shipping.regionLabel} 추가 배송비</span>
                           <span className="font-semibold">+{shipping.surcharge.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      {courierSurcharge > 0 && (
+                        <div className="flex justify-between text-gray-600 mt-1">
+                          <span>우체국 택배 추가</span>
+                          <span className="font-semibold">+{courierSurcharge.toLocaleString()}원</span>
                         </div>
                       )}
                       <div className="flex justify-between text-violet-700 font-bold border-t border-violet-200 mt-2 pt-2">
