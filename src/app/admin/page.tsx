@@ -28,6 +28,8 @@ interface Stats {
   todayShipped: number
   pendingQuotes: number
   pendingPayment: number
+  unpaidCount: number
+  unpaidAmount: number
 }
 
 interface PeriodStat {
@@ -70,6 +72,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats>({
     total: 0, inProgress: 0, monthRevenue: 0,
     todayOrders: 0, todayRevenue: 0, todayShipped: 0, pendingQuotes: 0, pendingPayment: 0,
+    unpaidCount: 0, unpaidAmount: 0,
   })
   const [loading, setLoading] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
@@ -116,6 +119,8 @@ export default function AdminPage() {
         todayShipped: orders.filter((o) => o.status === 'shipped' && o.updated_at >= todayStart).length,
         pendingQuotes: quotes.filter((q) => q.status === 'pending').length,
         pendingPayment: orders.filter((o) => o.status === 'pending').length,
+        unpaidCount: orders.filter((o) => o.is_paid === false).length,
+        unpaidAmount: sum(orders.filter((o) => o.is_paid === false)),
       })
       setLoading(false)
     }
@@ -137,6 +142,7 @@ export default function AdminPage() {
     { label: '입금 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', href: '/admin/quotes?status=order_pending' },
     { label: '이번 달 매출', value: loading ? '—' : `${stats.monthRevenue.toLocaleString()}원`, icon: TrendingUp, color: 'text-indigo-500', href: '/admin/quotes' },
     { label: '전체 회원', value: memberStats ? `${memberStats.total}명` : '—', icon: Users, color: 'text-pink-500', href: '/admin/members', sub: memberStats ? `이번 달 +${memberStats.month} · 최근7일 +${memberStats.week}` : undefined },
+    { label: '미입금(후불)', value: loading ? '—' : `${stats.unpaidCount}건`, icon: CreditCard, color: 'text-red-500', href: '/admin/quotes?filter=unpaid', sub: !loading && stats.unpaidCount > 0 ? `미수금 ${stats.unpaidAmount.toLocaleString()}원` : undefined },
   ]
 
   return (

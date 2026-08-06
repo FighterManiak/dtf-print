@@ -414,6 +414,7 @@ function AdminManagePageContent() {
     // 대시보드 카드 링크용 추가 필터
     if (extraFilter === 'revenue' && !REVENUE_STATUSES.includes(s)) return false
     if (extraFilter === 'orders' && (s === 'cancelled' || s === 'refunded')) return false
+    if (extraFilter === 'unpaid' && !(item.type === 'order' && (item.data as DirectOrder).is_paid === false)) return false
     if (dateFrom && itemKstDate(item) < dateFrom) return false
     if (dateTo && itemKstDate(item) > dateTo) return false
     if (search) {
