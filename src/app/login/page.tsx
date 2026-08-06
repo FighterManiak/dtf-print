@@ -358,6 +358,20 @@ function LoginContent() {
           {/* 회원가입 탭 */}
           {tab === 'signup' && (
             <form onSubmit={handleSignup} className="space-y-4">
+              {/* 구글로 간편 가입 */}
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                className="w-full flex items-center justify-center gap-3 bg-white text-gray-700 font-bold py-3.5 rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                <GoogleIcon />
+                구글로 간편 가입
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-xs text-gray-400">또는 이메일로 가입</span>
+                <div className="flex-1 h-px bg-gray-200" />
+              </div>
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-1.5">이름 <span className="text-red-500">*</span></label>
                 <input
