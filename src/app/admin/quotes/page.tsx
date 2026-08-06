@@ -347,9 +347,15 @@ function AdminManagePageContent() {
     return new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10)
   }
 
+  const REVENUE_STATUSES = ['paid', 'in_progress', 'shipped', 'delivered']
+  const extraFilter = searchParams.get('filter') // 'revenue'(매출) | 'orders'(취소·환불 제외)
+
   const filtered = items.filter((item) => {
     const s = getEffectiveStatus(item)
     if (tab !== 'all' && !(TAB_STATUSES[tab] || [tab]).includes(s)) return false
+    // 대시보드 카드 링크용 추가 필터
+    if (extraFilter === 'revenue' && !REVENUE_STATUSES.includes(s)) return false
+    if (extraFilter === 'orders' && (s === 'cancelled' || s === 'refunded')) return false
     if (dateFrom && itemKstDate(item) < dateFrom) return false
     if (dateTo && itemKstDate(item) > dateTo) return false
     if (search) {
