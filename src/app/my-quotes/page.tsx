@@ -7,13 +7,7 @@ import { FileText, ChevronDown, ChevronUp, Clock, CheckCircle, CreditCard, XCirc
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 import { getShippingFee } from '@/lib/shipping'
-
-// 견적 결제 시 배송비(기본) + 총 결제금액
-const quotePay = (amount: number | null) => {
-  const product = amount || 0
-  const ship = getShippingFee(product, '').total
-  return { product, ship, total: product + ship }
-}
+import { openPostcode } from '@/lib/daum-postcode'
 
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
@@ -125,6 +119,22 @@ export default function MyOrdersPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [paying, setPaying] = useState<string | null>(null)
   const [payMethod, setPayMethod] = useState<Record<string, 'card' | 'bank'>>({})
+  // 견적별 배송 정보 (결제 시 선택)
+  const [delivery, setDelivery] = useState<Record<string, { method: 'delivery' | 'pickup'; zonecode: string; address: string; addressDetail: string }>>({})
+  const getDelivery = (q: Quote) => delivery[q.id] || { method: 'delivery' as const, zonecode: '', address: q.user_address || '', addressDetail: '' }
+  const setDeliveryField = (id: string, patch: Partial<{ method: 'delivery' | 'pickup'; zonecode: string; address: string; addressDetail: string }>) =>
+    setDelivery((p) => ({ ...p, [id]: { ...(p[id] || { method: 'delivery', zonecode: '', address: '', addressDetail: '' }), ...patch } }))
+  // 견적 결제 배송비/총액 계산 (택배: 지역 추가배송비 포함, 직접수령: 0)
+  const shipInfo = (q: Quote) => {
+    const d = getDelivery(q)
+    const product = q.total_amount || 0
+    const s = d.method === 'pickup' ? { base: 0, surcharge: 0, total: 0, regionLabel: '' } : getShippingFee(product, d.zonecode)
+    return { ...d, product, base: s.base, surcharge: s.surcharge, regionLabel: s.regionLabel, ship: s.total, total: product + s.total }
+  }
+  const searchQuotePostcode = async (id: string) => {
+    const r = await openPostcode()
+    if (r) setDeliveryField(id, { zonecode: r.zonecode, address: r.address })
+  }
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
   const [reorderModal, setReorderModal] = useState<ReorderModal | null>(null)
   const [reordering, setReordering] = useState(false)
@@ -307,15 +317,26 @@ export default function MyOrdersPage() {
     }
   }
 
+  // 배송 정보 검증 + 결제 payload (택배는 우편번호 필수)
+  const buildDeliveryPayload = (quote: Quote): { method: string; zonecode: string; address: string; addressDetail: string } | null => {
+    const d = getDelivery(quote)
+    if (d.method === 'delivery' && !d.zonecode.trim()) { alert('우편번호 검색으로 배송지 주소를 입력해주세요.'); return null }
+    return { method: d.method, zonecode: d.zonecode, address: d.address, addressDetail: d.addressDetail }
+  }
+
   const handlePay = async (quote: Quote) => {
     if (!quote.total_amount || !user) return
+    const deliveryPayload = buildDeliveryPayload(quote)
+    if (!deliveryPayload) return
     setPaying(quote.id)
     try {
+      // 카드 결제는 성공 후 confirm-payment에서 배송정보가 필요 → sessionStorage로 전달
+      sessionStorage.setItem(`quoteDelivery_${quote.id}`, JSON.stringify(deliveryPayload))
       const toss = await loadTossPayments(TOSS_CLIENT_KEY)
       const payment = toss.payment({ customerKey: user.id })
       await payment.requestPayment({
         method: 'CARD',
-        amount: { currency: 'KRW', value: quotePay(quote.total_amount).total },
+        amount: { currency: 'KRW', value: shipInfo(quote).total },
         orderId: `QUOTE-${quote.id.slice(0, 8)}-${Date.now()}`,
         orderName: `${PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type} 견적`,
         successUrl: `${window.location.origin}/quote/success?quoteId=${quote.id}`,
@@ -328,12 +349,14 @@ export default function MyOrdersPage() {
 
   const handleBankTransfer = async (quote: Quote) => {
     if (!quote.total_amount || !user) return
-    if (!confirm(`무통장 입금으로 결제하시겠습니까?\n\n은행: ${BANK_INFO.bank}\n계좌번호: ${BANK_INFO.account}\n예금주: ${BANK_INFO.holder}\n금액: ${quotePay(quote.total_amount).total.toLocaleString()}원 (배송비 포함)\n\n입금 후 관리자가 확인 후 처리됩니다.`)) return
+    const deliveryPayload = buildDeliveryPayload(quote)
+    if (!deliveryPayload) return
+    if (!confirm(`무통장 입금으로 결제하시겠습니까?\n\n은행: ${BANK_INFO.bank}\n계좌번호: ${BANK_INFO.account}\n예금주: ${BANK_INFO.holder}\n금액: ${shipInfo(quote).total.toLocaleString()}원 (배송비 포함)\n\n입금 후 관리자가 확인 후 처리됩니다.`)) return
     setPaying(quote.id)
     const res = await fetch('/api/quote/bank-transfer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quoteId: quote.id }),
+      body: JSON.stringify({ quoteId: quote.id, delivery: deliveryPayload }),
     })
     if (res.ok) {
       setQuotes((prev) => prev.map((q) => q.id === quote.id ? { ...q, status: 'bank_transfer_pending', order: null } : q))
@@ -567,16 +590,9 @@ export default function MyOrdersPage() {
                           {quote.cutting && <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">컷팅</span><span className="text-gray-800">+{quote.cutting_price.toLocaleString()}원</span></div>}
                           <div className="flex gap-2 pt-2 border-t border-blue-200 mt-2">
                             <span className="text-gray-500 w-20 shrink-0">상품 금액</span>
-                            <span className="text-gray-800">{quote.total_amount.toLocaleString()}원</span>
+                            <span className="font-bold text-blue-600 text-base">{quote.total_amount.toLocaleString()}원</span>
                           </div>
-                          <div className="flex gap-2">
-                            <span className="text-gray-500 w-20 shrink-0">배송비</span>
-                            <span className="text-gray-800">{quotePay(quote.total_amount).ship === 0 ? '무료' : `${quotePay(quote.total_amount).ship.toLocaleString()}원`}</span>
-                          </div>
-                          <div className="flex gap-2 pt-2 border-t border-blue-200 mt-1">
-                            <span className="text-gray-500 w-20 shrink-0">총 결제금액</span>
-                            <span className="font-bold text-blue-600 text-base">{quotePay(quote.total_amount).total.toLocaleString()}원</span>
-                          </div>
+                          <p className="text-xs text-gray-400">* 배송비는 결제 단계에서 수령 방법에 따라 계산됩니다.</p>
                           {quote.admin_note && <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">담당자 메모</span><span className="text-gray-700">{quote.admin_note}</span></div>}
                         </div>
                       </div>
@@ -605,6 +621,52 @@ export default function MyOrdersPage() {
                     {/* 결제 선택 (견적 완료) */}
                     {quote.status === 'quoted' && (
                       <div className="space-y-3">
+                        {/* 수령 방법 */}
+                        {(() => { const info = shipInfo(quote); const d = getDelivery(quote); return (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                          <p className="text-sm font-bold text-gray-700">수령 방법</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button onClick={() => setDeliveryField(quote.id, { method: 'delivery' })}
+                              className={`rounded-xl p-2.5 border-2 text-left transition-colors ${d.method === 'delivery' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                              <div className={`text-sm font-bold ${d.method === 'delivery' ? 'text-blue-700' : 'text-gray-700'}`}>🚚 택배 배송</div>
+                            </button>
+                            <button onClick={() => setDeliveryField(quote.id, { method: 'pickup' })}
+                              className={`rounded-xl p-2.5 border-2 text-left transition-colors ${d.method === 'pickup' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                              <div className={`text-sm font-bold ${d.method === 'pickup' ? 'text-blue-700' : 'text-gray-700'}`}>🏢 직접 수령</div>
+                            </button>
+                          </div>
+
+                          {d.method === 'delivery' && (
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <input value={d.zonecode} readOnly placeholder="우편번호"
+                                  className="w-24 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-gray-50" />
+                                <button onClick={() => searchQuotePostcode(quote.id)}
+                                  className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm font-semibold hover:bg-gray-700 whitespace-nowrap">우편번호 검색</button>
+                              </div>
+                              <input value={d.address} readOnly placeholder="기본 주소 (검색으로 입력)"
+                                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800 bg-gray-50" />
+                              <input value={d.addressDetail} onChange={(e) => setDeliveryField(quote.id, { addressDetail: e.target.value })} placeholder="상세 주소 (동/호수 등)"
+                                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                            </div>
+                          )}
+
+                          {d.method === 'pickup' && (
+                            <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">🏢 직접 수령 — 배송비가 부과되지 않습니다. 수령 일정은 문의로 안내드려요.</p>
+                          )}
+
+                          {/* 금액 요약 */}
+                          <div className="border-t border-gray-100 pt-3 space-y-1 text-sm">
+                            <div className="flex justify-between text-gray-600"><span>상품 금액</span><span>{info.product.toLocaleString()}원</span></div>
+                            <div className="flex justify-between text-gray-600">
+                              <span>배송비 {info.surcharge > 0 ? `(기본 ${info.base.toLocaleString()} + ${info.regionLabel} ${info.surcharge.toLocaleString()})` : ''}</span>
+                              <span>{info.ship === 0 ? '무료' : `${info.ship.toLocaleString()}원`}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-blue-700 border-t border-gray-100 pt-1.5 mt-1"><span>총 결제금액</span><span>{info.total.toLocaleString()}원</span></div>
+                          </div>
+                        </div>
+                        )})()}
+
                         <div className="grid grid-cols-2 gap-2">
                           <button onClick={() => setPayMethod((p) => ({ ...p, [quote.id]: 'card' }))}
                             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${(payMethod[quote.id] ?? 'card') === 'card' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
@@ -625,7 +687,7 @@ export default function MyOrdersPage() {
                               <div className="flex justify-between"><span className="text-gray-500">예금주</span><span className="font-semibold">{BANK_INFO.holder}</span></div>
                               <div className="flex justify-between border-t border-orange-200 pt-2 mt-2">
                                 <span className="text-gray-500">입금 금액 <span className="text-xs">(배송비 포함)</span></span>
-                                <span className="font-bold text-orange-700 text-base">{quotePay(quote.total_amount).total.toLocaleString()}원</span>
+                                <span className="font-bold text-orange-700 text-base">{shipInfo(quote).total.toLocaleString()}원</span>
                               </div>
                             </div>
                             <p className="text-xs text-orange-600">입금 후 버튼을 눌러주세요.</p>
@@ -635,7 +697,7 @@ export default function MyOrdersPage() {
                         {(payMethod[quote.id] ?? 'card') === 'card' ? (
                           <button onClick={() => handlePay(quote)} disabled={paying === quote.id}
                             className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm">
-                            {paying === quote.id ? '결제창 열는 중...' : `${quotePay(quote.total_amount).total.toLocaleString()}원 카드 결제하기`}
+                            {paying === quote.id ? '결제창 열는 중...' : `${shipInfo(quote).total.toLocaleString()}원 카드 결제하기`}
                           </button>
                         ) : (
                           <button onClick={() => handleBankTransfer(quote)} disabled={paying === quote.id}

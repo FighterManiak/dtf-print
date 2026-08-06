@@ -12,11 +12,17 @@ function QuoteSuccessContent() {
   useEffect(() => {
     const confirm = async () => {
       if (!quoteId) return
+      let delivery = null
+      try {
+        const raw = sessionStorage.getItem(`quoteDelivery_${quoteId}`)
+        if (raw) delivery = JSON.parse(raw)
+      } catch { /* 무시 */ }
       await fetch('/api/quote/confirm-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quoteId }),
+        body: JSON.stringify({ quoteId, delivery }),
       })
+      sessionStorage.removeItem(`quoteDelivery_${quoteId}`)
     }
     confirm()
   }, [quoteId])

@@ -14,6 +14,11 @@ interface Slide {
 
 const grad = 'bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent'
 
+// 비메오 배경 영상 ID (비워두면 영상 없이 기존 배경만 표시)
+// 예: 'https://vimeo.com/76979871' → ID는 76979871
+const VIMEO_BG_ID = ''
+const VIDEO_OPACITY = 0.35 // 0(투명)~1(불투명)
+
 const SLIDES: Slide[] = [
   {
     badge: '국내 최고 품질의 DTF 출력 서비스',
@@ -85,6 +90,21 @@ export default function HeroCarousel() {
 
   return (
     <section className="relative overflow-hidden bg-[#0f0f0f] text-white">
+      {/* 비메오 배경 영상 (투명도 적용) */}
+      {VIMEO_BG_ID && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ opacity: VIDEO_OPACITY }}>
+          <iframe
+            src={`https://player.vimeo.com/video/${VIMEO_BG_ID}?background=1&autoplay=1&loop=1&muted=1&autopause=0`}
+            allow="autoplay; fullscreen"
+            title="배경 영상"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-0"
+            style={{ width: '100vw', height: '56.25vw', minHeight: '100%', minWidth: '177.78vh' }}
+          />
+        </div>
+      )}
+      {/* 영상 위 어둡게 (글자 가독성) */}
+      {VIMEO_BG_ID && <div className="absolute inset-0 bg-[#0f0f0f]/50 pointer-events-none" />}
+
       {/* 배경 그라디언트 */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/10 pointer-events-none" />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
