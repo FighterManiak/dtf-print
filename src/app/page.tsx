@@ -175,7 +175,7 @@ export default function Home() {
           <div className="text-center mb-14">
             <p className="text-violet-600 font-semibold text-sm uppercase tracking-widest mb-3">Membership</p>
             <h2 className="text-4xl font-extrabold text-gray-900">많이 쓸수록 커지는 혜택</h2>
-            <p className="text-gray-500 mt-3">전월 롤 출력(58cm) 사용량에 따라 등급이 오르고, 포인트 적립률이 높아집니다.</p>
+            <p className="text-gray-500 mt-3">전월 롤 출력(57cm) 사용량에 따라 등급이 오르고, 포인트 적립률이 높아집니다.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[

@@ -23,7 +23,7 @@ export default function GradePage() {
 
       <div className="bg-white border border-gray-200 rounded-2xl p-5 text-sm text-gray-900 leading-relaxed space-y-2">
         <p className="font-bold text-gray-900 mb-1">등급 산정 기준</p>
-        <p>· 매월 <b>전월 롤 출력(58cm) 사용 미터</b> 합계로 자동 산정됩니다.</p>
+        <p>· 매월 <b>전월 롤 출력(57cm) 사용 미터</b> 합계로 자동 산정됩니다.</p>
         <p>· 등급은 매월 갱신되며, 산정 대상은 롤 출력 상품 사용량입니다.</p>
         <p>· <b>DTF 장비 보유인증</b>과는 별개의 제도입니다.</p>
       </div>

@@ -14,7 +14,7 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   A4: 'A4 출력',
   A3: 'A3 출력',
-  roll_58: '58cm 롤 출력',
+  roll_58: '57cm 롤 출력',
   other: '기타',
   direct: '바로주문',
 }

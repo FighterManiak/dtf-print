@@ -14,7 +14,7 @@ const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61
 const PRODUCT_TYPES = [
   { id: 'A4',     label: 'A4 출력',     desc: '210×297mm 단품 출력' },
   { id: 'A3',     label: 'A3 출력',     desc: '297×420mm 단품 출력' },
-  { id: 'roll_58',label: '58cm 롤 출력',desc: '58cm 폭 롤 단위 출력 (길이 미정)' },
+  { id: 'roll_58',label: '57cm 롤 출력',desc: '57cm 폭 롤 단위 출력 (길이 미정)' },
   { id: 'other',  label: '기타',        desc: '직접 요구사항 입력' },
 ]
 
