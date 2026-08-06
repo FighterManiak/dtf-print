@@ -28,7 +28,8 @@ export async function POST(req: Request) {
   const address = b.deliveryMethod === 'pickup' ? '직접 수령' : (b.address || '').trim()
 
   const contentLine = (b.content || '').trim()
-  const memo = `📞 전화주문${contentLine ? ` · ${contentLine}` : ''}${b.memo ? ` · ${b.memo}` : ''}`
+  const dueLine = (b.depositDue || '').trim()
+  const memo = `📞 전화주문${dueLine && status === 'pending' ? ` · 입금예정 ${dueLine}` : ''}${contentLine ? ` · ${contentLine}` : ''}${b.memo ? ` · ${b.memo}` : ''}`
 
   const { data: newOrder, error } = await supabaseAdmin.from('orders').insert({
     user_id: null,

@@ -107,7 +107,7 @@ function AdminManagePageContent() {
   // 전화주문 직접 등록
   const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
   const [poSaving, setPoSaving] = useState(false)
-  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', memo: '' }
+  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', depositDue: '', memo: '' }
   const [po, setPo] = useState({ ...emptyPO })
 
   const submitPhoneOrder = async () => {
@@ -1358,6 +1358,14 @@ function AdminManagePageContent() {
                   </select>
                 </div>
               </div>
+
+              {po.status === 'pending' && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">입금 예정일 <span className="text-gray-400 font-normal">(선택)</span></label>
+                  <input type="date" value={po.depositDue} onChange={(e) => setPo((p) => ({ ...p, depositDue: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+              )}
 
               {po.deliveryMethod === 'delivery' && (
                 <div>
