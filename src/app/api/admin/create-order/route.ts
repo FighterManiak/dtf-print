@@ -23,8 +23,10 @@ export async function POST(req: Request) {
   if (!name) return NextResponse.json({ error: '주문자 이름을 입력해주세요.' }, { status: 400 })
   if (amount <= 0) return NextResponse.json({ error: '금액을 입력해주세요.' }, { status: 400 })
 
-  const status = ['pending', 'paid', 'in_progress'].includes(b.status) ? b.status : 'pending'
+  const status = ['pending', 'paid', 'in_progress', 'shipped', 'delivered'].includes(b.status) ? b.status : 'pending'
   const paymentMethod = b.paymentMethod || 'bank_transfer'
+  // 입금 여부: 후불(미입금)=false, 입금완료=true
+  const isPaid = b.paymentStatus === 'unpaid' ? false : true
   const address = b.deliveryMethod === 'pickup' ? '직접 수령' : (b.address || '').trim()
 
   const contentLine = (b.content || '').trim()
@@ -40,6 +42,7 @@ export async function POST(req: Request) {
     order_name: (b.orderName || '').trim() || null,
     total_amount: amount,
     status,
+    is_paid: isPaid,
     payment_method: paymentMethod,
     memo,
   }).select('id').single()

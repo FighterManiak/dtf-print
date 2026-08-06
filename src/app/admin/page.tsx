@@ -90,7 +90,7 @@ export default function AdminPage() {
 
       // orders / quotes 모두 RLS 우회를 위해 서비스롤 API로 조회 후 클라이언트에서 집계
       const [orders, quotes] = await Promise.all([
-        fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => []) as Promise<Array<{ status: string; total_amount: number | null; created_at: string; updated_at: string }>>,
+        fetch('/api/admin/list-orders').then((r) => r.ok ? r.json() : []).catch(() => []) as Promise<Array<{ status: string; total_amount: number | null; created_at: string; updated_at: string; is_paid?: boolean | null }>>,
         fetch('/api/admin/list-quotes').then((r) => r.ok ? r.json() : []).catch(() => []) as Promise<Array<{ status: string }>>,
       ])
 
@@ -103,14 +103,16 @@ export default function AdminPage() {
       fetch('/api/admin/verify-stats').then((r) => r.ok ? r.json() : null).then((v) => { if (v && !v.error) setVerifyStats(v) }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
+      // 매출: 결제완료+ 상태이면서 미입금(후불, is_paid===false)이 아닌 건
+      const isRevenue = (o: typeof orders[number]) => revenueStatuses.includes(o.status) && o.is_paid !== false
       const sum = (arr: typeof orders) => arr.reduce((s, o) => s + (o.total_amount || 0), 0)
 
       setStats({
         total: orders.length,
         inProgress: orders.filter((o) => o.status === 'in_progress').length,
-        monthRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= monthStart)),
+        monthRevenue: sum(orders.filter((o) => isRevenue(o) && o.created_at >= monthStart)),
         todayOrders: orders.filter((o) => o.created_at >= todayStart && o.status !== 'cancelled' && o.status !== 'refunded').length,
-        todayRevenue: sum(orders.filter((o) => revenueStatuses.includes(o.status) && o.created_at >= todayStart)),
+        todayRevenue: sum(orders.filter((o) => isRevenue(o) && o.created_at >= todayStart)),
         todayShipped: orders.filter((o) => o.status === 'shipped' && o.updated_at >= todayStart).length,
         pendingQuotes: quotes.filter((q) => q.status === 'pending').length,
         pendingPayment: orders.filter((o) => o.status === 'pending').length,

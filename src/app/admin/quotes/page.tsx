@@ -65,6 +65,7 @@ interface DirectOrder {
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
   memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
+  is_paid: boolean | null
   receipt_type: string | null
   receipt_info: Record<string, string> | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
@@ -107,7 +108,7 @@ function AdminManagePageContent() {
   // 전화주문 직접 등록
   const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
   const [poSaving, setPoSaving] = useState(false)
-  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', depositDue: '', memo: '' }
+  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '' }
   const [po, setPo] = useState({ ...emptyPO })
 
   const submitPhoneOrder = async () => {
@@ -127,6 +128,18 @@ function AdminManagePageContent() {
       const e = await res.json().catch(() => ({})); alert(e.error || '등록 실패')
     }
     setPoSaving(false)
+  }
+
+  const setOrderPaid = async (orderId: string, isPaid: boolean) => {
+    if (!confirm(isPaid ? '입금완료로 처리하시겠습니까?' : '미입금(후불)으로 되돌리시겠습니까?')) return
+    setProcessing(orderId)
+    const res = await fetch('/api/admin/set-order-paid', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, isPaid }),
+    })
+    if (res.ok) await loadAll()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '처리 실패') }
+    setProcessing(null)
   }
 
   const deleteItem = async (item: Item) => {
@@ -631,6 +644,17 @@ function AdminManagePageContent() {
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 ${cfg.badge}`}>
                           <StatusIcon className="w-3 h-3" />{cfg.label}
                         </span>
+                        {item.type === 'order' && (d as DirectOrder).is_paid === false && (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 ring-1 ring-red-200">
+                            💰 미입금(후불)
+                          </span>
+                        )}
+                        {item.type === 'order' && (d as DirectOrder).is_paid === false && (
+                          <button onClick={(e) => { e.stopPropagation(); setOrderPaid(d.id, true) }} disabled={processing === d.id}
+                            className="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-emerald-600 transition-colors disabled:opacity-50">
+                            입금완료 처리
+                          </button>
+                        )}
                         {/* 파일 다운 버튼 */}
                         {item.type === 'quote' && (() => {
                           const files = parseFiles((d as Quote).file_url, (d as Quote).file_name)
@@ -1349,14 +1373,31 @@ function AdminManagePageContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">초기 상태</label>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">진행 상태</label>
                   <select value={po.status} onChange={(e) => setPo((p) => ({ ...p, status: e.target.value }))}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="pending">입금대기</option>
                     <option value="paid">결제완료</option>
                     <option value="in_progress">작업중</option>
+                    <option value="shipped">출고</option>
+                    <option value="delivered">배송완료</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">입금 상태</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setPo((p) => ({ ...p, paymentStatus: 'paid' }))}
+                    className={`rounded-xl p-2.5 border-2 text-sm font-bold transition-colors ${po.paymentStatus === 'paid' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    입금완료
+                  </button>
+                  <button type="button" onClick={() => setPo((p) => ({ ...p, paymentStatus: 'unpaid' }))}
+                    className={`rounded-xl p-2.5 border-2 text-sm font-bold transition-colors ${po.paymentStatus === 'unpaid' ? 'border-red-400 bg-red-50 text-red-600' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    후불(미입금)
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">후불로 등록하면 결제확인 없이 배송까지 진행할 수 있어요. 입금되면 목록에서 &apos;입금완료 처리&apos;하세요.</p>
               </div>
 
               {po.status === 'pending' && (
