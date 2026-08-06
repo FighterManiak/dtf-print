@@ -97,6 +97,26 @@ function AdminManagePageContent() {
   const [carrierInputs, setCarrierInputs] = useState<Record<string, string>>({})
   const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '')
   const [dateTo, setDateTo] = useState(searchParams.get('to') || '')
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setIsSuperAdmin(data.user?.user_metadata?.role === 'superadmin'))
+  }, [])
+
+  const deleteItem = async (item: Item) => {
+    const name = item.data.user_name || '고객'
+    if (!confirm(`${name} 님의 이 주문 내역을 완전히 삭제하시겠습니까?\n\n(실입금 없이 잘못 처리된 건 정리용)\n삭제 후 복구할 수 없습니다.`)) return
+    if (!confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
+    setProcessing(item.data.id)
+    const res = await fetch('/api/admin/delete-order', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: item.type, id: item.data.id }),
+    })
+    if (res.ok) await loadAll()
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '삭제 실패') }
+    setProcessing(null)
+  }
   const [memoInputs, setMemoInputs] = useState<Record<string, string>>({})
   const [memoSaving, setMemoSaving] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -619,6 +639,13 @@ function AdminManagePageContent() {
                         })()}
                       </div>
                     </div>
+                    {isSuperAdmin && (
+                      <button onClick={(e) => { e.stopPropagation(); deleteItem(item) }} disabled={processing === d.id}
+                        title="주문 내역 삭제 (최고관리자)"
+                        className="shrink-0 text-xs text-red-400 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg px-2 py-1 font-semibold transition-colors disabled:opacity-50">
+                        삭제
+                      </button>
+                    )}
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
                   </div>
 
