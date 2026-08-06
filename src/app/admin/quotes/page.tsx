@@ -104,6 +104,31 @@ function AdminManagePageContent() {
     supabase.auth.getUser().then(({ data }) => setIsSuperAdmin(data.user?.user_metadata?.role === 'superadmin'))
   }, [])
 
+  // 전화주문 직접 등록
+  const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
+  const [poSaving, setPoSaving] = useState(false)
+  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', memo: '' }
+  const [po, setPo] = useState({ ...emptyPO })
+
+  const submitPhoneOrder = async () => {
+    if (!po.name.trim()) { alert('주문자 이름을 입력해주세요.'); return }
+    if (!po.amount || Number(po.amount) <= 0) { alert('금액을 입력해주세요.'); return }
+    setPoSaving(true)
+    const res = await fetch('/api/admin/create-order', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(po),
+    })
+    if (res.ok) {
+      setPhoneOrderOpen(false)
+      setPo({ ...emptyPO })
+      await loadAll()
+      alert('전화주문이 등록되었습니다.')
+    } else {
+      const e = await res.json().catch(() => ({})); alert(e.error || '등록 실패')
+    }
+    setPoSaving(false)
+  }
+
   const deleteItem = async (item: Item) => {
     const name = item.data.user_name || '고객'
     if (!confirm(`${name} 님의 이 주문 내역을 완전히 삭제하시겠습니까?\n\n(실입금 없이 잘못 처리된 건 정리용)\n삭제 후 복구할 수 없습니다.`)) return
@@ -506,6 +531,10 @@ function AdminManagePageContent() {
             <p className="text-sm text-gray-500 mt-0.5">전체 {items.length}건</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            <button onClick={() => { setPo({ ...emptyPO }); setPhoneOrderOpen(true) }}
+              className="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors">
+              📞 전화주문 등록
+            </button>
             <button onClick={exportExcel} disabled={filtered.length === 0}
               className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
               <Download className="w-4 h-4" /> 엑셀 다운로드 ({filtered.length})
@@ -1247,6 +1276,110 @@ function AdminManagePageContent() {
               <button onClick={advanceSelected} disabled={bulkRunning}
                 className="flex items-center gap-1.5 bg-violet-600 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors disabled:opacity-50">
                 {bulkRunning ? '처리 중...' : '다음 단계로 일괄 처리 →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 전화주문 등록 모달 */}
+      {phoneOrderOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">📞 전화주문 등록</h2>
+              <button onClick={() => setPhoneOrderOpen(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">주문자 이름 <span className="text-red-500">*</span></label>
+                  <input value={po.name} onChange={(e) => setPo((p) => ({ ...p, name: e.target.value }))} placeholder="홍길동"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">연락처</label>
+                  <input value={po.phone} onChange={(e) => setPo((p) => ({ ...p, phone: e.target.value }))} placeholder="010-0000-0000"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">이메일 <span className="text-gray-400 font-normal">(선택)</span></label>
+                <input value={po.email} onChange={(e) => setPo((p) => ({ ...p, email: e.target.value }))} placeholder="example@email.com"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">주문명</label>
+                <input value={po.orderName} onChange={(e) => setPo((p) => ({ ...p, orderName: e.target.value }))} placeholder="예) 로고 패치 200장"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">주문 내용 / 상세</label>
+                <textarea value={po.content} onChange={(e) => setPo((p) => ({ ...p, content: e.target.value }))} rows={3} placeholder="상품·수량·요청사항 등을 자유롭게 입력"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 leading-relaxed" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">금액(입금금액) <span className="text-red-500">*</span></label>
+                  <input type="number" value={po.amount} onChange={(e) => setPo((p) => ({ ...p, amount: e.target.value }))} placeholder="예) 50000"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">결제수단</label>
+                  <select value={po.paymentMethod} onChange={(e) => setPo((p) => ({ ...p, paymentMethod: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="bank_transfer">무통장/현금</option>
+                    <option value="CARD">카드</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">수령 방법</label>
+                  <select value={po.deliveryMethod} onChange={(e) => setPo((p) => ({ ...p, deliveryMethod: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="delivery">택배 배송</option>
+                    <option value="pickup">직접 수령</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">초기 상태</label>
+                  <select value={po.status} onChange={(e) => setPo((p) => ({ ...p, status: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <option value="pending">입금대기</option>
+                    <option value="paid">결제완료</option>
+                    <option value="in_progress">작업중</option>
+                  </select>
+                </div>
+              </div>
+
+              {po.deliveryMethod === 'delivery' && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">배송지 주소</label>
+                  <input value={po.address} onChange={(e) => setPo((p) => ({ ...p, address: e.target.value }))} placeholder="(우편번호) 주소 상세까지 입력"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1">관리자 메모 <span className="text-gray-400 font-normal">(선택)</span></label>
+                <input value={po.memo} onChange={(e) => setPo((p) => ({ ...p, memo: e.target.value }))} placeholder="내부 메모"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setPhoneOrderOpen(false)} disabled={poSaving}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
+              <button onClick={submitPhoneOrder} disabled={poSaving}
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                {poSaving ? '등록 중...' : '주문 등록'}
               </button>
             </div>
           </div>
