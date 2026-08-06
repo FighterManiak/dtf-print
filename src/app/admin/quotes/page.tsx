@@ -95,8 +95,8 @@ function AdminManagePageContent() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
   const [carrierInputs, setCarrierInputs] = useState<Record<string, string>>({})
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '')
+  const [dateTo, setDateTo] = useState(searchParams.get('to') || '')
   const [memoInputs, setMemoInputs] = useState<Record<string, string>>({})
   const [memoSaving, setMemoSaving] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -340,11 +340,18 @@ function AdminManagePageContent() {
     catch { return [{ url: fileUrl, name: fileName }] }
   }
 
+  // 항목의 대표 날짜(KST) — 결제된 견적은 주문(결제)일, 그 외는 요청/생성일
+  const itemKstDate = (item: Item): string => {
+    const ord = (item.data as { order?: { created_at?: string } | null }).order
+    const iso = (item.type === 'quote' && ord?.created_at) ? ord.created_at : item.data.created_at
+    return new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+  }
+
   const filtered = items.filter((item) => {
     const s = getEffectiveStatus(item)
     if (tab !== 'all' && !(TAB_STATUSES[tab] || [tab]).includes(s)) return false
-    if (dateFrom && item.data.created_at < dateFrom + 'T00:00:00') return false
-    if (dateTo && item.data.created_at > dateTo + 'T23:59:59') return false
+    if (dateFrom && itemKstDate(item) < dateFrom) return false
+    if (dateTo && itemKstDate(item) > dateTo) return false
     if (search) {
       const q = search.toLowerCase()
       const d = item.data
