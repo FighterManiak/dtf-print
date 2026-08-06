@@ -213,10 +213,20 @@ function AdminManagePageContent() {
     const orderIds = (quotesData || []).map((q) => q.order_id).filter(Boolean) as string[]
     const ordersMap: Record<string, OrderInfo> = {}
     directData.forEach((o) => { ordersMap[o.id] = o })
+    const orderCreatedMap: Record<string, string> = {}
+    directData.forEach((o) => { orderCreatedMap[o.id] = o.created_at })
     const quoteItems: Item[] = (quotesData || []).map((q) => ({ type: 'quote' as const, data: { ...q, order: q.order_id ? (ordersMap[q.order_id] ?? null) : null } }))
     const linkedSet = new Set(orderIds)
     const directItems: Item[] = directData.filter((o) => !linkedSet.has(o.id)).map((o) => ({ type: 'order' as const, data: o }))
-    const merged = [...quoteItems, ...directItems].sort((a, b) => new Date(b.data.created_at).getTime() - new Date(a.data.created_at).getTime())
+    // 정렬 기준: 결제된 견적은 주문(결제) 생성일, 그 외는 요청/생성일 — 최근 활동순
+    const sortTime = (item: Item) => {
+      const base = new Date(item.data.created_at).getTime()
+      if (item.type === 'quote' && item.data.order_id && orderCreatedMap[item.data.order_id]) {
+        return Math.max(base, new Date(orderCreatedMap[item.data.order_id]).getTime())
+      }
+      return base
+    }
+    const merged = [...quoteItems, ...directItems].sort((a, b) => sortTime(b) - sortTime(a))
     setItems(merged)
     setLoading(false)
   }
