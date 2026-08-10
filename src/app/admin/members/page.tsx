@@ -22,6 +22,7 @@ interface Member {
     grade_override?: { grade?: string; until?: string } | null
     withdrawn?: boolean
     withdrawn_at?: string
+    business_license?: { path?: string; name?: string; uploaded_at?: string } | null
   }
   app_metadata: {
     provider?: string
@@ -130,6 +131,15 @@ export default function MembersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historySummary, setHistorySummary] = useState<{ totalEarned: number; totalUsed: number; totalRevoked: number; available: number } | null>(null)
   const [historyRows, setHistoryRows] = useState<PointTx[]>([])
+
+  const viewLicense = async (member: Member) => {
+    const res = await fetch(`/api/admin/member-license?userId=${member.id}`)
+    if (res.ok) {
+      const d = await res.json()
+      if (d.exists && d.url) window.open(d.url, '_blank')
+      else alert('첨부된 사업자등록증이 없습니다.')
+    } else alert('조회에 실패했습니다.')
+  }
 
   const openHistoryModal = async (member: Member) => {
     const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
@@ -414,6 +424,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-32">회사명</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-44">이메일</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">메일인증</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">사업자등록증</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">전화번호</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold w-48">주소</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
@@ -461,6 +472,16 @@ export default function MembersPage() {
                         <span className="flex items-center gap-1 text-amber-700 bg-amber-100 px-2 py-1 rounded-lg text-xs font-bold w-fit whitespace-nowrap">
                           미인증
                         </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      {member.user_metadata?.business_license?.path ? (
+                        <button onClick={() => viewLicense(member)}
+                          className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 ring-1 ring-blue-200 px-2 py-1 rounded-lg hover:bg-blue-100 font-semibold whitespace-nowrap">
+                          📄 보기
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-300">미첨부</span>
                       )}
                     </td>
                     <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{formatPhone(phone)}</td>
