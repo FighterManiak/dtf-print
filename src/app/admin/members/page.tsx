@@ -41,6 +41,29 @@ const formatPhone = (raw: string): string => {
   return raw || '-'
 }
 
+// 최근 로그인 표시 (상대 시간 + 절대 시간)
+const formatLastSignIn = (iso: string | null): { text: string; tone: string; title: string } => {
+  if (!iso) return { text: '로그인 기록 없음', tone: 'text-gray-300', title: '' }
+  const d = new Date(iso)
+  const diffMs = Date.now() - d.getTime()
+  const min = Math.floor(diffMs / 60000)
+  const hour = Math.floor(min / 60)
+  const day = Math.floor(hour / 24)
+  const title = d.toLocaleString('ko-KR')
+
+  let text: string
+  if (min < 1) text = '방금 전'
+  else if (min < 60) text = `${min}분 전`
+  else if (hour < 24) text = `${hour}시간 전`
+  else if (day < 30) text = `${day}일 전`
+  else if (day < 365) text = `${Math.floor(day / 30)}개월 전`
+  else text = `${Math.floor(day / 365)}년 전`
+
+  // 최근일수록 진하게, 오래될수록 흐리게
+  const tone = day < 7 ? 'text-emerald-600 font-semibold' : day < 30 ? 'text-gray-700' : day < 90 ? 'text-gray-500' : 'text-gray-400'
+  return { text, tone, title }
+}
+
 interface ConfirmModal {
   memberId: string
   memberName: string
@@ -402,7 +425,7 @@ export default function MembersPage() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
-          <table className="text-sm" style={{ minWidth: '1200px', width: '100%' }}>
+          <table className="text-sm" style={{ minWidth: '1400px', width: '100%' }}>
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 {currentRole === 'superadmin' && (
@@ -429,6 +452,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold w-48">주소</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입일</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">최근 로그인</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">등급 <span className="text-gray-400 font-normal">(전월)</span></th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">포인트</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
@@ -493,6 +517,12 @@ export default function MembersPage() {
                     </td>
                     <td className="px-4 py-4 text-gray-500">
                       {new Date(member.created_at).toLocaleDateString('ko-KR')}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {(() => {
+                        const s = formatLastSignIn(member.last_sign_in_at)
+                        return <span className={`text-xs ${s.tone}`} title={s.title}>{s.text}</span>
+                      })()}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-0.5 items-start">
