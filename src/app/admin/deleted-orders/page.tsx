@@ -82,7 +82,13 @@ export default function DeletedOrdersPage() {
           <Trash2 className="w-6 h-6 text-red-500" />
           <h1 className="text-2xl font-bold text-gray-900">삭제된 주문 내역</h1>
         </div>
-        <p className="text-sm text-gray-500 mb-6">관리자가 삭제한 주문·견적의 감사 기록입니다. (최고관리자 전용 · 삭제 불가)</p>
+        <p className="text-sm text-gray-500 mb-4">삭제된 주문·견적의 감사 기록입니다. 전체 관리자가 열람하며, 이 기록은 수정·삭제할 수 없습니다.</p>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-xs text-amber-800 leading-relaxed">
+          <b>🔒 삭제 기록 안내</b><br />
+          주문을 삭제하면 <b>삭제한 관리자 계정·시각·사유</b>와 <b>금액·입금여부를 포함한 원본 전체</b>가 이 페이지에 영구 보관됩니다.
+          특히 <b>결제완료 이후 삭제</b>된 건은 별도로 표시되어 정산 확인 대상이 됩니다.
+        </div>
 
         {/* 요약 */}
         <div className="grid grid-cols-3 gap-3 mb-5">

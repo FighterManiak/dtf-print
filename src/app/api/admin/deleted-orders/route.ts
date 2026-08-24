@@ -8,12 +8,13 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// 최고관리자 전용: 삭제된 주문 내역(감사 로그) 조회
+// 관리자·최고관리자: 삭제된 주문 내역(감사 로그) 조회 — 열람만 가능, 수정·삭제 불가
 export async function GET() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (user?.user_metadata?.role !== 'superadmin') {
-    return NextResponse.json({ error: '최고 관리자만 열람할 수 있습니다.' }, { status: 403 })
+  const role = user?.user_metadata?.role
+  if (role !== 'admin' && role !== 'superadmin') {
+    return NextResponse.json({ error: '관리자만 열람할 수 있습니다.' }, { status: 403 })
   }
 
   const { data, error } = await supabaseAdmin

@@ -300,14 +300,12 @@ export default function AdminPage() {
             )}
           </Link>
 
-          {isSuperAdmin && (
-            <Link href="/admin/deleted-orders"
-              className="bg-white border border-gray-200 rounded-xl p-6 hover:border-red-300 hover:shadow-md transition-all md:col-span-2">
-              <Trash2 className="w-8 h-8 text-red-500 mb-3" />
-              <h2 className="font-bold text-gray-800 text-lg mb-1">삭제된 주문 내역 <span className="text-xs text-red-500 font-normal">최고관리자 전용</span></h2>
-              <p className="text-gray-500 text-sm">관리자가 삭제한 주문의 감사 기록 — 삭제자·시각·사유·원본 데이터 확인</p>
-            </Link>
-          )}
+          <Link href="/admin/deleted-orders"
+            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-red-300 hover:shadow-md transition-all md:col-span-2">
+            <Trash2 className="w-8 h-8 text-red-500 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">삭제된 주문 내역 <span className="text-xs text-gray-400 font-normal">감사 기록</span></h2>
+            <p className="text-gray-500 text-sm">삭제된 모든 주문이 <b className="text-red-500">삭제자·시각·사유·원본 데이터</b>와 함께 영구 보관됩니다. 전체 관리자가 열람합니다.</p>
+          </Link>
 
           <Link href="/admin/mail"
             className="bg-white border border-gray-200 rounded-xl p-6 hover:border-emerald-300 hover:shadow-md transition-all">

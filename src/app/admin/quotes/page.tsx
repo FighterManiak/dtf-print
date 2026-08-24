@@ -144,8 +144,14 @@ function AdminManagePageContent() {
 
   const deleteItem = async (item: Item) => {
     const name = item.data.user_name || '고객'
-    if (!confirm(`${name} 님의 이 주문 내역을 완전히 삭제하시겠습니까?\n\n※ 삭제 기록(삭제자·시각·원본)이 감사 로그에 남습니다.\n삭제 후 목록에서는 복구할 수 없습니다.`)) return
-    const reason = prompt('삭제 사유를 입력해주세요. (필수)\n예: 실입금 없이 잘못 처리된 건')
+    if (!confirm(
+      `${name} 님의 이 주문 내역을 삭제하시겠습니까?\n\n` +
+      `⚠️ 삭제 기록이 영구 보관됩니다.\n` +
+      `· 삭제한 관리자 계정 · 삭제 시각 · 삭제 사유\n` +
+      `· 금액·입금여부를 포함한 주문 원본 전체\n` +
+      `· [삭제된 주문 내역] 페이지에서 전체 관리자가 열람하며, 기록은 지울 수 없습니다.`
+    )) return
+    const reason = prompt('삭제 사유를 입력해주세요. (필수 · 기록에 남습니다)\n예: 실입금 없이 잘못 처리된 건')
     if (reason === null) return
     if (!reason.trim()) { alert('삭제 사유를 입력해야 합니다.'); return }
     setProcessing(item.data.id)
