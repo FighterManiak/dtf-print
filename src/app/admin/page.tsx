@@ -300,13 +300,6 @@ export default function AdminPage() {
             )}
           </Link>
 
-          <Link href="/admin/deleted-orders"
-            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-red-300 hover:shadow-md transition-all md:col-span-2">
-            <Trash2 className="w-8 h-8 text-red-500 mb-3" />
-            <h2 className="font-bold text-gray-800 text-lg mb-1">삭제된 주문 내역 <span className="text-xs text-gray-400 font-normal">감사 기록</span></h2>
-            <p className="text-gray-500 text-sm">삭제된 모든 주문이 <b className="text-red-500">삭제자·시각·사유·원본 데이터</b>와 함께 영구 보관됩니다. 전체 관리자가 열람합니다.</p>
-          </Link>
-
           <Link href="/admin/mail"
             className="bg-white border border-gray-200 rounded-xl p-6 hover:border-emerald-300 hover:shadow-md transition-all">
             <Mail className="w-8 h-8 text-emerald-500 mb-3" />
@@ -335,6 +328,18 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </Link>
+
+          <Link href="/admin/deleted-orders"
+            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-red-300 hover:shadow-md transition-all">
+            <Trash2 className="w-8 h-8 text-red-500 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">삭제된 주문 내역</h2>
+            <p className="text-gray-500 text-sm">삭제된 주문의 감사 기록 확인</p>
+            <div className="mt-4 pt-3 border-t border-gray-100 text-[11px] text-gray-500 leading-relaxed">
+              <p>· 삭제자 · 시각 · 사유 · 원본 데이터 <b className="text-red-500">영구 보관</b></p>
+              <p>· 전체 관리자 열람 · 기록 삭제 불가</p>
+              <p>· <b className="text-red-500">결제완료 이후 삭제</b> 건 별도 표시</p>
+            </div>
           </Link>
 
           {/* 방문 통계 */}
