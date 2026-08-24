@@ -111,6 +111,68 @@ function AdminManagePageContent() {
   const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '' }
   const [po, setPo] = useState({ ...emptyPO })
 
+  // 전화주문 대량등록 양식 다운로드
+  const exportPhoneOrderTemplate = () => {
+    const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
+    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '57cm 롤 3M / 컷팅 포함', 50000, '무통장', '택배', '(12345) 서울시 강남구 …', '입금대기', '후불', '2026-08-10', '단골 고객']
+    const guide = ['※ 결제수단: 무통장 또는 카드', '', '', '', '', '※ 숫자만', '※ 무통장/카드', '※ 택배/직접수령', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample, guide])
+    ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '전화주문등록')
+    XLSX.writeFile(wb, `전화주문_양식_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
+  // 전화주문 엑셀 업로드 → 대량 등록
+  const importPhoneOrders = async (file: File) => {
+    setBulkRunning(true)
+    try {
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws)
+
+      const STATUS_MAP: Record<string, string> = { '입금대기': 'pending', '결제완료': 'paid', '작업중': 'in_progress', '출고': 'shipped', '배송완료': 'delivered' }
+      const s = (v: unknown) => String(v ?? '').trim()
+
+      const rows = json
+        .filter((r) => s(r['주문자이름']) && !s(r['주문자이름']).startsWith('※'))
+        .map((r) => ({
+          name: s(r['주문자이름']),
+          phone: s(r['연락처']),
+          email: s(r['이메일']),
+          orderName: s(r['주문명']),
+          content: s(r['주문내용']),
+          amount: Number(String(r['금액'] ?? '').replace(/[^0-9.-]/g, '')) || 0,
+          paymentMethod: s(r['결제수단']).includes('카드') ? 'CARD' : 'bank_transfer',
+          deliveryMethod: s(r['수령방법']).includes('직접') ? 'pickup' : 'delivery',
+          address: s(r['배송지주소']),
+          status: STATUS_MAP[s(r['진행상태'])] || 'pending',
+          paymentStatus: s(r['입금상태']).includes('후불') || s(r['입금상태']).includes('미입금') ? 'unpaid' : 'paid',
+          depositDue: s(r['입금예정일']),
+          memo: s(r['메모']),
+        }))
+
+      if (rows.length === 0) { alert('등록할 주문이 없습니다. 양식을 확인해주세요.'); setBulkRunning(false); return }
+      if (!confirm(`${rows.length}건의 전화주문을 등록하시겠습니까?`)) { setBulkRunning(false); return }
+
+      const res = await fetch('/api/admin/create-order-bulk', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows }),
+      })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok) {
+        await loadAll()
+        alert(`등록 완료 — ${d.created}건${d.skipped ? `\n제외 ${d.skipped}건:\n${(d.errors || []).slice(0, 10).join('\n')}` : ''}`)
+      } else {
+        alert(`${d.error || '등록 실패'}${d.errors?.length ? `\n\n${d.errors.slice(0, 10).join('\n')}` : ''}`)
+      }
+    } catch {
+      alert('엑셀 파일을 읽는 중 오류가 발생했습니다.')
+    }
+    setBulkRunning(false)
+  }
+
   const submitPhoneOrder = async () => {
     if (!po.name.trim()) { alert('주문자 이름을 입력해주세요.'); return }
     if (!po.amount || Number(po.amount) <= 0) { alert('금액을 입력해주세요.'); return }
@@ -557,6 +619,15 @@ function AdminManagePageContent() {
               className="flex items-center gap-1.5 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 transition-colors">
               📞 전화주문 등록
             </button>
+            <button onClick={exportPhoneOrderTemplate}
+              className="flex items-center gap-1.5 border border-blue-300 text-blue-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-50 transition-colors">
+              <Download className="w-4 h-4" /> 전화주문 양식
+            </button>
+            <label className="flex items-center gap-1.5 bg-blue-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors cursor-pointer">
+              📥 {bulkRunning ? '처리 중...' : '전화주문 대량등록'}
+              <input type="file" accept=".xlsx,.xls" className="hidden" disabled={bulkRunning}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) importPhoneOrders(f); e.target.value = '' }} />
+            </label>
             <button onClick={exportExcel} disabled={filtered.length === 0}
               className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
               <Download className="w-4 h-4" /> 엑셀 다운로드 ({filtered.length})
