@@ -144,12 +144,14 @@ function AdminManagePageContent() {
 
   const deleteItem = async (item: Item) => {
     const name = item.data.user_name || '고객'
-    if (!confirm(`${name} 님의 이 주문 내역을 완전히 삭제하시겠습니까?\n\n(실입금 없이 잘못 처리된 건 정리용)\n삭제 후 복구할 수 없습니다.`)) return
-    if (!confirm('정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return
+    if (!confirm(`${name} 님의 이 주문 내역을 완전히 삭제하시겠습니까?\n\n※ 삭제 기록(삭제자·시각·원본)이 감사 로그에 남습니다.\n삭제 후 목록에서는 복구할 수 없습니다.`)) return
+    const reason = prompt('삭제 사유를 입력해주세요. (필수)\n예: 실입금 없이 잘못 처리된 건')
+    if (reason === null) return
+    if (!reason.trim()) { alert('삭제 사유를 입력해야 합니다.'); return }
     setProcessing(item.data.id)
     const res = await fetch('/api/admin/delete-order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: item.type, id: item.data.id }),
+      body: JSON.stringify({ type: item.type, id: item.data.id, reason }),
     })
     if (res.ok) await loadAll()
     else { const e = await res.json().catch(() => ({})); alert(e.error || '삭제 실패') }
@@ -693,9 +695,9 @@ function AdminManagePageContent() {
                         })()}
                       </div>
                     </div>
-                    {isSuperAdmin && (
+                    {(
                       <button onClick={(e) => { e.stopPropagation(); deleteItem(item) }} disabled={processing === d.id}
-                        title="주문 내역 삭제 (최고관리자)"
+                        title="주문 내역 삭제 (삭제 기록이 남습니다)"
                         className="shrink-0 text-xs text-red-400 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg px-2 py-1 font-semibold transition-colors disabled:opacity-50">
                         삭제
                       </button>
