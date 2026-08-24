@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery, awardReferralCommission, revokePointsForOrder } from '@/lib/points-server'
+import { sendOrderStatusMail } from '@/lib/order-mail'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,6 +68,11 @@ export async function POST(req: Request) {
 
   if (!data || data.length === 0) {
     return NextResponse.json({ error: `orders 테이블에 해당 ID 없음: ${orderId}` }, { status: 404 })
+  }
+
+  // 작업 시작 / 출고 알림 메일 (실패해도 상태변경에는 영향 없음)
+  if (status === 'in_progress' || status === 'shipped') {
+    try { await sendOrderStatusMail(supabaseAdmin, orderId, status) } catch { /* 무시 */ }
   }
 
   // 배송 완료 시 등급별 포인트 적립 + 추천인 보상 + 추천 커미션 (중복 방지)
