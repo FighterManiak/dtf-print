@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { usePoints } from '@/lib/points-server'
-import { sendOrderStatusMail, sendAdminNewOrderMail } from '@/lib/order-mail'
+import { sendOrderStatusMail } from '@/lib/order-mail'
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
@@ -90,11 +90,10 @@ export async function POST(req: NextRequest) {
       try { await usePoints(supabaseAdmin, p.userId, effectiveUsed, newOrder.id) } catch { /* 무시 */ }
     }
 
-    // 주문 접수 알림 (고객 확인메일 + 관리자 신규주문 알림)
+    // 주문 접수 확인메일 (고객)
     if (newOrder) {
       try {
         await sendOrderStatusMail(supabaseAdmin, newOrder.id, 'ordered')
-        await sendAdminNewOrderMail(supabaseAdmin, newOrder.id)
       } catch { /* 메일 실패해도 결제는 정상 */ }
     }
   } else if (dbOrderId) {

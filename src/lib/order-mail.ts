@@ -6,10 +6,6 @@ const SITE = 'https://www.superhard.co.kr'
 const SUPPORT_EMAIL = 'superhard.int@gmail.com'
 const SUPPORT_TEL = '010-2560-9749'
 
-// 관리자 알림 수신 주소 (환경변수로 지정 가능, 없으면 기본값)
-const ADMIN_NOTIFY_TO = (process.env.ADMIN_NOTIFY_EMAIL || SUPPORT_EMAIL)
-  .split(',').map((s) => s.trim()).filter(Boolean)
-
 const BANK = { bank: '기업은행', account: '495-028223-01-021', holder: '아유디스터디 (조봉준)' }
 
 export type Kind = 'ordered' | 'payment_confirmed' | 'in_progress' | 'shipped'
@@ -152,38 +148,4 @@ export async function sendOrderStatusMail(admin: SupabaseClient, orderId: string
   })
 
   await sendMail(admin, [to], CONTENT[kind].subject, html, kind)
-}
-
-// 관리자 신규 주문 알림 — 주문 놓침 방지
-export async function sendAdminNewOrderMail(admin: SupabaseClient, orderId: string): Promise<void> {
-  const o = await loadOrder(admin, orderId)
-  if (!o) return
-
-  const isBank = o.payment_method === 'bank_transfer'
-  const payLabel = isBank ? '무통장입금 (입금대기)' : '카드결제 (결제완료)'
-  const now = new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16)
-
-  const html = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#f9fafb;">
-  <div style="background:white;border-radius:16px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.06);border-top:4px solid #2563eb;">
-    <h1 style="font-size:19px;font-weight:800;color:#111827;margin:0 0 4px;">🔔 새 주문이 접수되었습니다</h1>
-    <p style="color:#6b7280;font-size:12px;margin:0 0 20px;">${now} (KST)</p>
-    <table style="width:100%;border-collapse:collapse;background:#f3f4f6;border-radius:12px;margin-bottom:20px;"><tbody>
-      ${row('주문자', `${o.user_name || '—'}${o.user_phone ? ` (${o.user_phone})` : ''}`)}
-      ${o.order_name ? row('주문명', o.order_name) : ''}
-      ${row('금액', `${(o.total_amount || 0).toLocaleString()}원`)}
-      ${row('결제', payLabel)}
-      ${o.user_address ? row('배송지', o.user_address) : ''}
-      ${o.user_email ? row('이메일', o.user_email) : ''}
-    </tbody></table>
-    ${o.memo ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;margin-bottom:20px;">
-      <p style="color:#dc2626;font-size:12px;font-weight:700;margin:0 0 4px;">📌 요청사항 / 메모</p>
-      <p style="color:#374151;font-size:13px;margin:0;white-space:pre-wrap;">${o.memo}</p>
-    </div>` : ''}
-    <a href="${SITE}/admin/quotes" style="display:block;background:#2563eb;color:white;text-align:center;padding:14px;border-radius:12px;font-weight:700;font-size:14px;text-decoration:none;">
-      주문 관리로 이동 →
-    </a>
-  </div>
-</div>`
-
-  await sendMail(admin, ADMIN_NOTIFY_TO, `[신규주문] ${o.user_name || '고객'} · ${(o.total_amount || 0).toLocaleString()}원`, html, 'admin_new_order')
 }

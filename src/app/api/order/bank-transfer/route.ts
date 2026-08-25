@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { usePoints } from '@/lib/points-server'
-import { sendOrderStatusMail, sendAdminNewOrderMail } from '@/lib/order-mail'
+import { sendOrderStatusMail } from '@/lib/order-mail'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,10 +83,9 @@ export async function POST(req: Request) {
     try { await usePoints(supabaseAdmin, user.id, effectiveUsed, newOrder.id) } catch { /* 무시 */ }
   }
 
-  // 주문 접수 알림 (고객 확인메일 + 관리자 신규주문 알림)
+  // 주문 접수 확인메일 (고객)
   try {
     await sendOrderStatusMail(supabaseAdmin, newOrder.id, 'ordered')
-    await sendAdminNewOrderMail(supabaseAdmin, newOrder.id)
   } catch { /* 메일 실패해도 주문은 정상 */ }
 
   return NextResponse.json({ success: true, orderId: newOrder.id })

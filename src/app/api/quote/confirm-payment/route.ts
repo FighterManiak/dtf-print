@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { getShippingFee } from '@/lib/shipping'
-import { sendOrderStatusMail, sendAdminNewOrderMail } from '@/lib/order-mail'
+import { sendOrderStatusMail } from '@/lib/order-mail'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,10 +65,9 @@ export async function POST(req: Request) {
     .update({ status: 'paid', order_id: newOrder.id })
     .eq('id', quoteId)
 
-  // 주문 접수 알림 (고객 + 관리자)
+  // 주문 접수 확인메일 (고객)
   try {
     await sendOrderStatusMail(supabaseAdmin, newOrder.id, 'ordered')
-    await sendAdminNewOrderMail(supabaseAdmin, newOrder.id)
   } catch { /* 메일 실패해도 결제는 정상 */ }
 
   return NextResponse.json({ success: true, orderId: newOrder.id })
