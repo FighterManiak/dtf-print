@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery, awardReferralCommission } from '@/lib/points-server'
+import { sendOrderStatusMail } from '@/lib/order-mail'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,6 +28,9 @@ export async function POST(req: Request) {
       .update({ status: 'paid' })
       .eq('id', quoteId)
     if (quoteError) return NextResponse.json({ error: quoteError.message }, { status: 500 })
+
+    // 입금 확인 알림 메일
+    try { await sendOrderStatusMail(supabaseAdmin, orderId, 'payment_confirmed') } catch { /* 무시 */ }
 
     return NextResponse.json({ success: true, orderId })
   }

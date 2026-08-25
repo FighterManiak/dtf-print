@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 import { getShippingFee } from '@/lib/shipping'
 import { openPostcode } from '@/lib/daum-postcode'
+import { trackingUrl } from '@/lib/tracking'
 
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
@@ -606,6 +607,15 @@ export default function MyOrdersPage() {
                           {quote.order.carrier && <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">택배사</span><span className="font-semibold text-gray-800">{quote.order.carrier}</span></div>}
                           <div className="flex gap-2"><span className="text-gray-500 w-20 shrink-0">송장번호</span><span className="font-bold text-purple-700 tracking-wider">{quote.order.tracking_number}</span></div>
                         </div>
+                        {(() => {
+                          const url = trackingUrl(quote.order.carrier, quote.order.tracking_number)
+                          return url ? (
+                            <a href={url} target="_blank" rel="noopener noreferrer"
+                              className="mt-3 w-full flex items-center justify-center gap-2 bg-purple-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-purple-700 transition-colors">
+                              <Truck className="w-4 h-4" /> 배송 조회하기
+                            </a>
+                          ) : null
+                        })()}
                       </div>
                     )}
 

@@ -70,9 +70,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `orders 테이블에 해당 ID 없음: ${orderId}` }, { status: 404 })
   }
 
-  // 작업 시작 / 출고 알림 메일 (실패해도 상태변경에는 영향 없음)
-  if (status === 'in_progress' || status === 'shipped') {
-    try { await sendOrderStatusMail(supabaseAdmin, orderId, status) } catch { /* 무시 */ }
+  // 입금확인 / 작업 시작 / 출고 알림 메일 (실패해도 상태변경에는 영향 없음)
+  if (status === 'paid' || status === 'in_progress' || status === 'shipped') {
+    try {
+      await sendOrderStatusMail(supabaseAdmin, orderId, status === 'paid' ? 'payment_confirmed' : status)
+    } catch { /* 무시 */ }
   }
 
   // 배송 완료 시 등급별 포인트 적립 + 추천인 보상 + 추천 커미션 (중복 방지)
