@@ -113,7 +113,8 @@ export default function MyPointsPage() {
         <p>· VIP 3% · GOLD 2% · SILVER 1% (전월 롤 출력량 기준 등급)</p>
         <p>· 적립일로부터 <b>6개월</b> 이내 사용해야 하며, 미사용 시 소멸됩니다.</p>
         <p>· 포인트는 <b className="text-violet-600">10,000P 이상</b> 보유 시 사용할 수 있습니다.</p>
-        <p>· 사용은 <b className="text-violet-600">구매금액의 최대 20%</b>까지 적용됩니다.</p>
+        <p>· <b>출력 주문</b>은 구매금액의 <b className="text-violet-600">최대 20%</b>까지 사용 가능합니다.</p>
+        <p>· <b>자재 구매</b>는 구매금액의 <b className="text-violet-600">최대 5%</b>까지 사용 가능합니다.</p>
       </div>
 
       {/* 회원 등급 안내 */}

@@ -30,6 +30,8 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
   const [imgIdx, setImgIdx] = useState(0)
   const [qty, setQty] = useState(1)
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
+  const [availablePoints, setAvailablePoints] = useState(0)
+  const [pointInput, setPointInput] = useState('')
 
   // 주문 폼
   const [ordering, setOrdering] = useState(false)
@@ -68,6 +70,9 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
           address: u.user_metadata?.address || '',
           addressDetail: u.user_metadata?.address_detail || '',
         }))
+        fetch('/api/points/balance').then((r) => r.ok ? r.json() : null)
+          .then((d) => { if (d && typeof d.available === 'number') setAvailablePoints(d.available) })
+          .catch(() => {})
       }
     })
   }, [id])
@@ -80,7 +85,12 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
   const productAmount = (material?.price || 0) * qty
   const isPickup = form.deliveryMethod === 'pickup'
   const shipping = isPickup ? 0 : getShippingFee(productAmount, form.zonecode).total
-  const total = productAmount + shipping
+  const payable = productAmount + shipping
+  // 자재 구매 포인트: 구매금액의 최대 5% (보유 10,000P 이상부터)
+  const pointsUsable = availablePoints >= 10000
+  const maxUsablePoints = Math.max(0, Math.min(availablePoints, Math.floor(payable * 0.05), payable - 100))
+  const usedPoints = pointsUsable ? Math.min(Math.max(0, parseInt(pointInput) || 0), maxUsablePoints) : 0
+  const total = payable - usedPoints
 
   const submitOrder = async () => {
     if (!form.name.trim()) { alert('주문자 이름을 입력해주세요.'); return }
@@ -91,7 +101,7 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
     setSubmitting(true)
     const res = await fetch('/api/materials/order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, items: [{ materialId: id, qty }] }),
+      body: JSON.stringify({ ...form, items: [{ materialId: id, qty }], usedPoints }),
     })
     const d = await res.json().catch(() => ({}))
     if (res.ok) {
@@ -255,9 +265,33 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               )}
 
+              {/* 포인트 사용 */}
+              <div className="border border-gray-200 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-semibold text-gray-700">포인트 사용</span>
+                  <span className="text-xs text-gray-500">보유 <b className="text-violet-600">{availablePoints.toLocaleString()}P</b></span>
+                </div>
+                {pointsUsable ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input type="number" value={pointInput} onChange={(e) => setPointInput(e.target.value)} placeholder="0" min={0} max={maxUsablePoints}
+                        className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+                      <button type="button" onClick={() => setPointInput(String(maxUsablePoints))}
+                        className="px-4 py-2 rounded-xl bg-gray-800 text-white text-sm font-semibold whitespace-nowrap">최대 사용</button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">자재 구매는 구매금액의 <b>최대 5%</b>까지 사용할 수 있습니다. (최대 {maxUsablePoints.toLocaleString()}P)</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">보유 포인트 10,000P 이상부터 사용할 수 있습니다.</p>
+                )}
+              </div>
+
               <div className="bg-gray-50 rounded-xl p-4 space-y-1 text-sm">
                 <div className="flex justify-between text-gray-600"><span>상품 금액 ({qty}{material.unit})</span><span>{productAmount.toLocaleString()}원</span></div>
                 <div className="flex justify-between text-gray-600"><span>배송비</span><span>{shipping === 0 ? '무료' : `${shipping.toLocaleString()}원`}</span></div>
+                {usedPoints > 0 && (
+                  <div className="flex justify-between text-violet-600"><span>포인트 사용</span><span>-{usedPoints.toLocaleString()}원</span></div>
+                )}
                 <div className="flex justify-between font-bold text-blue-700 border-t border-gray-200 pt-2 mt-1"><span>총 결제금액</span><span>{total.toLocaleString()}원</span></div>
               </div>
 

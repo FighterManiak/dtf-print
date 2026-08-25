@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { getShippingFee } from '@/lib/shipping'
+import { usePoints, getAvailablePoints } from '@/lib/points-server'
+import { POINT_USE_THRESHOLD } from '@/lib/grade'
+
+// 자재 구매 포인트 사용 상한 (구매금액의 5%)
+const MATERIAL_POINT_RATE = 0.05
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,7 +45,21 @@ export async function POST(req: Request) {
 
   const isPickup = b.deliveryMethod === 'pickup'
   const shipping = isPickup ? 0 : getShippingFee(productAmount, b.zonecode || '').total
-  const total = productAmount + shipping
+  const payable = productAmount + shipping
+
+  // 포인트 사용 — 자재 구매는 구매금액의 최대 5% (로그인 + 보유 기준 충족 시)
+  let usedPoints = 0
+  if (user?.id) {
+    const requested = Math.max(0, Math.round(Number(b.usedPoints) || 0))
+    if (requested > 0) {
+      const available = await getAvailablePoints(supabaseAdmin, user.id)
+      if (available >= POINT_USE_THRESHOLD) {
+        const cap = Math.floor(payable * MATERIAL_POINT_RATE)
+        usedPoints = Math.max(0, Math.min(requested, available, cap, payable - 100))
+      }
+    }
+  }
+  const total = payable - usedPoints
 
   const address = isPickup
     ? '직접 수령'
@@ -60,15 +79,21 @@ export async function POST(req: Request) {
     items: finalItems,
     product_amount: productAmount,
     shipping_fee: shipping,
+    used_points: usedPoints,
     total_amount: total,
     status: b.paymentMethod === 'CARD' ? 'paid' : 'pending',
     is_paid: b.paymentMethod === 'CARD',
     payment_method: b.paymentMethod === 'CARD' ? 'CARD' : 'bank_transfer',
     payment_key: b.paymentKey || null,
-    memo: `자재구매${isPickup ? ' · 직접 수령' : ` · 배송비 ${shipping.toLocaleString()}원`}${b.memo ? ` · ${b.memo}` : ''}`,
+    memo: `자재구매${isPickup ? ' · 직접 수령' : ` · 배송비 ${shipping.toLocaleString()}원`}${usedPoints ? ` · 포인트 ${usedPoints.toLocaleString()}P 사용` : ''}${b.memo ? ` · ${b.memo}` : ''}`,
   }).select('id').single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 포인트 차감 (FIFO)
+  if (usedPoints > 0 && user?.id) {
+    try { await usePoints(supabaseAdmin, user.id, usedPoints, newOrder.id) } catch { /* 무시 */ }
+  }
 
   // 재고 차감
   for (const it of finalItems) {

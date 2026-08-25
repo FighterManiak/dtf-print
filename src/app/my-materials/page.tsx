@@ -10,7 +10,7 @@ import TrackingModal from '@/components/ui/TrackingModal'
 interface MaterialOrder {
   id: string; created_at: string; order_name: string | null
   items: { materialId: string; name: string; price: number; qty: number }[]
-  product_amount: number; shipping_fee: number; total_amount: number
+  product_amount: number; shipping_fee: number; used_points: number; total_amount: number
   status: string; payment_method: string | null
   carrier: string | null; tracking_number: string | null
   user_address: string | null
@@ -83,6 +83,9 @@ export default function MyMaterialsPage() {
 
                 <div className="border-t border-gray-100 pt-3 space-y-1 text-sm">
                   <div className="flex justify-between text-gray-500"><span>배송비</span><span>{o.shipping_fee === 0 ? '무료' : `${o.shipping_fee.toLocaleString()}원`}</span></div>
+                  {o.used_points > 0 && (
+                    <div className="flex justify-between text-violet-600"><span>포인트 사용</span><span>-{o.used_points.toLocaleString()}원</span></div>
+                  )}
                   <div className="flex justify-between font-bold text-gray-900"><span>결제 금액</span><span className="text-blue-600">{o.total_amount.toLocaleString()}원</span></div>
                 </div>
 
