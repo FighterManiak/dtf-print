@@ -199,10 +199,51 @@ export default function AdminPage() {
         {/* 메뉴 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link href="/admin/quotes"
-            className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-400 hover:shadow-md transition-all md:col-span-2">
+            className="bg-white border-2 border-blue-200 rounded-xl p-6 hover:border-blue-400 hover:shadow-md transition-all">
             <ClipboardList className="w-8 h-8 text-blue-600 mb-3" />
-            <h2 className="font-bold text-gray-800 text-lg mb-1">주문 관리</h2>
-            <p className="text-gray-500 text-sm">견적 요청 검토 → 견적 발송 → 입금 확인 → 작업 진행 → 출고 · 배송완료까지 통합 관리</p>
+            <h2 className="font-bold text-gray-800 text-lg mb-1">출력 주문 관리</h2>
+            <p className="text-gray-500 text-sm">DTF 출력 — 견적 검토 → 발송 → 입금 확인 → 작업 → 출고까지 통합 관리</p>
+            <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[11px] text-gray-400">견적 대기</p>
+                <p className={`text-sm font-bold ${!loading && stats.pendingQuotes > 0 ? 'text-orange-500' : 'text-gray-800'}`}>{loading ? '—' : `${stats.pendingQuotes}건`}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400">입금 대기</p>
+                <p className="text-sm font-bold text-gray-800">{loading ? '—' : `${stats.pendingPayment}건`}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400">작업 중</p>
+                <p className="text-sm font-bold text-gray-800">{loading ? '—' : `${stats.inProgress}건`}</p>
+              </div>
+            </div>
+          </Link>
+
+          <Link href="/admin/material-orders"
+            className={`bg-white border-2 rounded-xl p-6 hover:shadow-md transition-all relative ${matStats && matStats.pending > 0 ? 'border-orange-300 ring-2 ring-orange-100' : 'border-blue-200 hover:border-blue-400'}`}>
+            {matStats && matStats.pending > 0 && (
+              <span className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                입금대기 {matStats.pending}
+              </span>
+            )}
+            <ShoppingCart className="w-8 h-8 text-blue-600 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">자재 주문 관리</h2>
+            <p className="text-gray-500 text-sm">자재 구매 — 입금 확인 → 준비 → 송장 등록 → 배송완료</p>
+            <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[11px] text-gray-400">입금 대기</p>
+                <p className={`text-sm font-bold ${matStats && matStats.pending > 0 ? 'text-orange-500' : 'text-gray-800'}`}>{matStats ? `${matStats.pending}건` : '—'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400">진행 중</p>
+                <p className="text-sm font-bold text-gray-800">{matStats ? `${matStats.active}건` : '—'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400">누적 매출</p>
+                <p className="text-sm font-bold text-gray-800">{matStats ? matStats.revenue.toLocaleString() : '—'}</p>
+              </div>
+            </div>
           </Link>
 
           <Link href="/admin/verifications"
@@ -272,35 +313,6 @@ export default function AdminPage() {
             <Package className="w-8 h-8 text-violet-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">상품 관리</h2>
             <p className="text-gray-500 text-sm">바로주문 상품 등록·수정·삭제</p>
-          </Link>
-
-          <Link href="/admin/material-orders"
-            className={`bg-white border rounded-xl p-6 hover:shadow-md transition-all relative ${matStats && matStats.pending > 0 ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200 hover:border-blue-300'}`}>
-            {matStats && matStats.pending > 0 && (
-              <span className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                입금대기 {matStats.pending}
-              </span>
-            )}
-            <ShoppingCart className="w-8 h-8 text-blue-600 mb-3" />
-            <h2 className="font-bold text-gray-800 text-lg mb-1">자재 주문 관리</h2>
-            <p className="text-gray-500 text-sm">자재 구매 주문 처리·송장 등록</p>
-            {matStats && (
-              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <p className="text-[11px] text-gray-400">입금 대기</p>
-                  <p className={`text-sm font-bold ${matStats.pending > 0 ? 'text-orange-500' : 'text-gray-800'}`}>{matStats.pending}건</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-gray-400">진행 중</p>
-                  <p className="text-sm font-bold text-gray-800">{matStats.active}건</p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-gray-400">누적 매출</p>
-                  <p className="text-sm font-bold text-gray-800">{matStats.revenue.toLocaleString()}</p>
-                </div>
-              </div>
-            )}
           </Link>
 
           <Link href="/admin/materials"
