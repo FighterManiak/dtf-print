@@ -372,7 +372,7 @@ export default function OrderForm() {
                           <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all">
                             <Upload className="w-8 h-8 text-gray-400 mb-2" />
                             <span className="text-sm text-gray-500">파일을 클릭하거나 드래그하여 업로드</span>
-                            <span className="text-xs text-gray-400 mt-1">PNG, JPG, PDF, AI, PSD (최대 50MB)</span>
+                            <span className="text-xs text-gray-400 mt-1">PNG, JPG, PDF, AI, PSD (최대 100MB)</span>
                             <input
                               type="file"
                               className="hidden"

@@ -19,7 +19,7 @@ const PRODUCT_TYPES = [
 ]
 
 const CUTTING_PRICE_PER_M = 1000
-const MAX_FILE_MB = 50   // 파일 1개당 최대 용량
+const MAX_FILE_MB = 100  // 파일 1개당 최대 용량
 const MAX_FILE_COUNT = 5 // 최대 첨부 개수
 const SUPPORT_EMAIL = 'superhard.int@gmail.com'
 
