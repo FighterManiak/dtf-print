@@ -134,6 +134,22 @@ export default function ProfileEditPage() {
     setSaving(true)
     setError('')
 
+    // 다른 회원이 이미 쓰는 번호인지 확인 (본인 제외)
+    if (cleaned.length >= 10) {
+      try {
+        const chk = await fetch('/api/account/check-phone', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: cleaned, excludeSelf: true }),
+        })
+        const cd = await chk.json().catch(() => ({}))
+        if (cd.taken) {
+          setError('이미 다른 계정에서 사용 중인 전화번호입니다.')
+          setSaving(false)
+          return
+        }
+      } catch { /* 확인 실패 시에는 저장 진행 */ }
+    }
+
     const supabase = createClient()
     const { error: updateError } = await supabase.auth.updateUser({
       data: {

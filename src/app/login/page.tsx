@@ -122,8 +122,26 @@ function LoginContent() {
       setError('연락처를 입력해주세요.')
       return
     }
+    if (signupForm.phone.replace(/[^0-9]/g, '').length < 10) {
+      setError('올바른 연락처를 입력해주세요.')
+      return
+    }
 
     setLoading(true)
+
+    // 전화번호 중복 가입 방지
+    try {
+      const chk = await fetch('/api/account/check-phone', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: signupForm.phone }),
+      })
+      const cd = await chk.json().catch(() => ({}))
+      if (cd.taken) {
+        setError('이미 가입된 연락처입니다. 기존 계정으로 로그인해주세요.')
+        setLoading(false)
+        return
+      }
+    } catch { /* 확인 실패 시에는 가입 진행 */ }
     const supabase = createClient()
     const { error } = await supabase.auth.signUp({
       email: signupForm.email,
