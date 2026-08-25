@@ -88,7 +88,8 @@ export default function Header() {
 
   const navItems = [
     { href: '/', label: '홈' },
-    { href: '/order', label: '주문하기' },
+    { href: '/order', label: '출력 주문' },
+    { href: '/materials', label: '자재 구매' },
     { href: '/my-quotes', label: '내 주문 현황' },
   ]
 
@@ -159,6 +160,9 @@ export default function Header() {
                       <Link href="/my-quotes" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                         내 주문 현황
                       </Link>
+                      <Link href="/my-materials" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
+                        자재 구매 내역
+                      </Link>
                       <Link href="/my-points" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
                         내 포인트
                       </Link>
@@ -223,6 +227,9 @@ export default function Header() {
                   <ShieldCheck className="w-4 h-4" />
                   {verifyBtn.label}
                 </button>
+                <Link href="/my-materials" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+                  자재 구매 내역
+                </Link>
                 <Link href="/my-points" onClick={() => setMobileOpen(false)} className="block px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50">
                   내 포인트
                 </Link>
