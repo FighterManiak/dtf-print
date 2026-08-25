@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send, Image, CheckCircle, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
+import { compressImage } from '@/lib/image-compress'
 
 interface Room {
   id: string
@@ -112,9 +113,11 @@ export default function AdminChatPage() {
   }
 
   const handleImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const original = e.target.files?.[0]
+    if (!original) return
     setUploading(true)
+    // 업로드 전 리사이즈·압축 (원본이 작으면 그대로)
+    const file = await compressImage(original)
     const supabase = createClient()
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
     const path = `admin/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`

@@ -9,6 +9,7 @@ import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 import { getShippingFee } from '@/lib/shipping'
 import { openPostcode } from '@/lib/daum-postcode'
 import TrackingModal from '@/components/ui/TrackingModal'
+import { compressImage } from '@/lib/image-compress'
 
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
@@ -168,7 +169,9 @@ export default function MyOrdersPage() {
     setReviewSubmitting(true)
     const supabase = createClient()
     const imagePaths: string[] = []
-    for (const file of reviewFiles) {
+    for (const original of reviewFiles) {
+      // 업로드 전 리사이즈·압축 (리뷰 사진은 원본 화질 불필요)
+      const file = await compressImage(original)
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
       const path = `reviews/${user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`
       const { error } = await supabase.storage.from('order-files').upload(path, file)
