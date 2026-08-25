@@ -79,6 +79,7 @@ export default function AdminPage() {
   const [memberStats, setMemberStats] = useState<{ today: number; week: number; month: number; total: number } | null>(null)
   const [chatStats, setChatStats] = useState<{ open: number; unanswered: number; todayNew: number } | null>(null)
   const [verifyStats, setVerifyStats] = useState<{ pending: number; todayNew: number; total: number } | null>(null)
+  const [matStats, setMatStats] = useState<{ pending: number; active: number; revenue: number } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -104,6 +105,15 @@ export default function AdminPage() {
       fetch('/api/admin/member-stats').then((r) => r.ok ? r.json() : null).then((m) => { if (m && !m.error) setMemberStats(m) }).catch(() => {})
       fetch('/api/admin/chat-stats').then((r) => r.ok ? r.json() : null).then((c) => { if (c && !c.error) setChatStats(c) }).catch(() => {})
       fetch('/api/admin/verify-stats').then((r) => r.ok ? r.json() : null).then((v) => { if (v && !v.error) setVerifyStats(v) }).catch(() => {})
+      fetch('/api/admin/material-orders').then((r) => r.ok ? r.json() : null).then((mo) => {
+        if (!Array.isArray(mo)) return
+        setMatStats({
+          pending: mo.filter((o) => o.status === 'pending').length,
+          active: mo.filter((o) => ['paid', 'in_progress', 'shipped'].includes(o.status)).length,
+          revenue: mo.filter((o) => ['paid', 'in_progress', 'shipped', 'delivered'].includes(o.status) && o.is_paid !== false)
+            .reduce((s, o) => s + (o.total_amount || 0), 0),
+        })
+      }).catch(() => {})
 
       const revenueStatuses = ['paid','in_progress','shipped','delivered']
       // 매출: 결제완료+ 상태이면서 미입금(후불, is_paid===false)이 아닌 건
@@ -262,6 +272,35 @@ export default function AdminPage() {
             <Package className="w-8 h-8 text-violet-500 mb-3" />
             <h2 className="font-bold text-gray-800 text-lg mb-1">상품 관리</h2>
             <p className="text-gray-500 text-sm">바로주문 상품 등록·수정·삭제</p>
+          </Link>
+
+          <Link href="/admin/material-orders"
+            className={`bg-white border rounded-xl p-6 hover:shadow-md transition-all relative ${matStats && matStats.pending > 0 ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-200 hover:border-blue-300'}`}>
+            {matStats && matStats.pending > 0 && (
+              <span className="absolute top-4 right-4 flex items-center gap-1 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                입금대기 {matStats.pending}
+              </span>
+            )}
+            <ShoppingCart className="w-8 h-8 text-blue-600 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">자재 주문 관리</h2>
+            <p className="text-gray-500 text-sm">자재 구매 주문 처리·송장 등록</p>
+            {matStats && (
+              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-[11px] text-gray-400">입금 대기</p>
+                  <p className={`text-sm font-bold ${matStats.pending > 0 ? 'text-orange-500' : 'text-gray-800'}`}>{matStats.pending}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">진행 중</p>
+                  <p className="text-sm font-bold text-gray-800">{matStats.active}건</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-gray-400">누적 매출</p>
+                  <p className="text-sm font-bold text-gray-800">{matStats.revenue.toLocaleString()}</p>
+                </div>
+              </div>
+            )}
           </Link>
 
           <Link href="/admin/materials"
