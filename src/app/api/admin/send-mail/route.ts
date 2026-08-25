@@ -28,8 +28,12 @@ function wrapHtml(subject: string, bodyHtml: string): string {
 }
 
 // 회원 이메일 목록 조회 (대상별)
-async function getRecipients(scope: string, testEmail: string | null): Promise<string[]> {
+// scope='selected'면 userIds에 해당하는 회원만
+async function getRecipients(scope: string, testEmail: string | null, userIds?: string[]): Promise<string[]> {
   if (scope === 'test' && testEmail) return [testEmail]
+
+  const idSet = scope === 'selected' ? new Set(userIds || []) : null
+  if (idSet && idSet.size === 0) return []
 
   const emails: string[] = []
   const perPage = 1000
@@ -39,6 +43,12 @@ async function getRecipients(scope: string, testEmail: string | null): Promise<s
     for (const u of users) {
       if (!u.email) continue
       const meta = u.user_metadata || {}
+      if (idSet) {
+        // 선택 발송: 지정한 회원만 (탈퇴자 제외)
+        if (!idSet.has(u.id) || meta.withdrawn) continue
+        emails.push(u.email)
+        continue
+      }
       if (meta.withdrawn) continue // 탈퇴 회원 제외
       if (!u.email_confirmed_at) continue // 미인증 제외
       if (scope === 'verified' && meta.verify_status !== 'approved' && meta.role !== 'dtf_verified') continue
@@ -62,12 +72,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'RESEND_API_KEY가 설정되지 않았습니다. Vercel 환경변수를 확인해주세요.' }, { status: 500 })
   }
 
-  const { subject, body, scope } = await req.json()
+  const { subject, body, scope, userIds } = await req.json()
   if (!subject?.trim() || !body?.trim()) {
     return NextResponse.json({ error: '제목과 내용을 입력해주세요.' }, { status: 400 })
   }
 
-  const recipients = await getRecipients(scope || 'all', user?.email || null)
+  const recipients = await getRecipients(scope || 'all', user?.email || null, userIds)
   if (recipients.length === 0) {
     return NextResponse.json({ error: '발송 대상이 없습니다.' }, { status: 400 })
   }

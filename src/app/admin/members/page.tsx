@@ -101,6 +101,32 @@ export default function MembersPage() {
     return next
   })
 
+  // 선택 회원 메일 발송
+  const [mailOpen, setMailOpen] = useState(false)
+  const [mailSubject, setMailSubject] = useState('')
+  const [mailBody, setMailBody] = useState('')
+  const [mailSending, setMailSending] = useState(false)
+
+  const sendSelectedMail = async () => {
+    if (!mailSubject.trim() || !mailBody.trim()) { alert('제목과 내용을 입력해주세요.'); return }
+    if (!confirm(`선택한 ${selectedIds.size}명에게 메일을 발송하시겠습니까?`)) return
+    setMailSending(true)
+    const res = await fetch('/api/admin/send-mail', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject: mailSubject, body: mailBody, scope: 'selected', userIds: [...selectedIds] }),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setMailOpen(false)
+      setMailSubject(''); setMailBody('')
+      setSelectedIds(new Set())
+      alert(`발송 완료 — ${d.sent}명에게 전송했습니다.`)
+    } else {
+      alert(d.error || '발송에 실패했습니다.')
+    }
+    setMailSending(false)
+  }
+
   // 등급 일괄 지정
   const [bulkGradeOpen, setBulkGradeOpen] = useState(false)
   const [bulkGrade, setBulkGrade] = useState('vip')
@@ -392,20 +418,28 @@ export default function MembersPage() {
         </div>
 
         {/* 포인트 일괄 지급 툴바 (최고관리자) */}
-        {currentRole === 'superadmin' && selectedIds.size > 0 && (
-          <div className="flex items-center justify-between gap-2 bg-violet-600 text-white rounded-xl px-4 py-3 mb-3">
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between gap-2 bg-violet-600 text-white rounded-xl px-4 py-3 mb-3 flex-wrap">
             <span className="text-sm font-semibold">{selectedIds.size}명 선택됨</span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => setSelectedIds(new Set())}
                 className="text-xs bg-violet-500 hover:bg-violet-400 px-3 py-1.5 rounded-lg font-medium">선택 해제</button>
-              <button onClick={() => { setBulkGrade('vip'); setBulkGradeUntil(''); setBulkGradeOpen(true) }}
-                className="text-sm bg-white/15 border border-white/30 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-white/25">
-                등급 일괄 지정
-              </button>
-              <button onClick={() => { setBulkAmount(''); setBulkMemo(''); setBulkModalOpen(true) }}
+              <button onClick={() => { setMailSubject(''); setMailBody(''); setMailOpen(true) }}
                 className="text-sm bg-white text-violet-700 px-4 py-1.5 rounded-lg font-bold hover:bg-violet-50">
-                포인트 일괄 지급
+                ✉️ 메일 발송
               </button>
+              {currentRole === 'superadmin' && (
+                <>
+                  <button onClick={() => { setBulkGrade('vip'); setBulkGradeUntil(''); setBulkGradeOpen(true) }}
+                    className="text-sm bg-white/15 border border-white/30 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-white/25">
+                    등급 일괄 지정
+                  </button>
+                  <button onClick={() => { setBulkAmount(''); setBulkMemo(''); setBulkModalOpen(true) }}
+                    className="text-sm bg-white/15 border border-white/30 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-white/25">
+                    포인트 일괄 지급
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -428,7 +462,7 @@ export default function MembersPage() {
           <table className="text-sm" style={{ minWidth: '1400px', width: '100%' }}>
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {currentRole === 'superadmin' && (
+                {(
                   <th className="px-3 py-3 w-10 text-center">
                     <input type="checkbox"
                       checked={paged.length > 0 && paged.every((m) => selectedIds.has(m.id))}
@@ -475,7 +509,7 @@ export default function MembersPage() {
                 const { grade, isOverride } = resolveGrade(override, meters)
                 return (
                   <tr key={member.id} className={`hover:bg-gray-50 ${selectedIds.has(member.id) ? 'bg-violet-50' : ''}`}>
-                    {currentRole === 'superadmin' && (
+                    {(
                       <td className="px-3 py-4 text-center">
                         <input type="checkbox" checked={selectedIds.has(member.id)} onChange={() => toggleSelect(member.id)}
                           className="w-4 h-4 accent-violet-600 cursor-pointer" />
@@ -654,6 +688,42 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* 선택 회원 메일 발송 모달 */}
+      {mailOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">✉️ 선택 회원 메일 발송</h2>
+              <button onClick={() => setMailOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="bg-violet-50 rounded-xl px-4 py-3 mb-4 text-sm">
+              <p className="text-gray-700">선택한 <b className="text-violet-600">{selectedIds.size}명</b>에게 발송합니다.</p>
+              <p className="text-xs text-gray-500 mt-0.5">이메일이 없거나 탈퇴한 회원은 자동으로 제외됩니다.</p>
+            </div>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">제목 <span className="text-red-500">*</span></label>
+            <input value={mailSubject} onChange={(e) => setMailSubject(e.target.value)} placeholder="예) SUPER HARD 이벤트 안내"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-violet-400" />
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">내용 <span className="text-red-500">*</span></label>
+            <textarea value={mailBody} onChange={(e) => setMailBody(e.target.value)} rows={9}
+              placeholder={'안녕하세요, SUPER HARD입니다.\n\n내용을 입력하세요. 줄바꿈은 그대로 반영됩니다.'}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400 leading-relaxed" />
+            <p className="text-xs text-gray-400 mt-1.5 mb-5">* SUPER HARD 브랜드 디자인과 수신거부 안내가 자동 포함됩니다.</p>
+
+            <div className="flex gap-2">
+              <button onClick={() => setMailOpen(false)} disabled={mailSending}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
+              <button onClick={sendSelectedMail} disabled={mailSending}
+                className="flex-1 bg-violet-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-violet-700 disabled:opacity-50">
+                {mailSending ? '발송 중...' : `${selectedIds.size}명에게 발송`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 등급 일괄 지정 모달 */}
       {bulkGradeOpen && (
