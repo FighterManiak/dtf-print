@@ -52,7 +52,8 @@ export async function POST(req: Request) {
     const amount = Math.round(Number(r.amount) || 0)
 
     if (!name) { errors.push(`${line}행: 주문자 이름 없음`); return }
-    if (amount <= 0) { errors.push(`${line}행: 금액이 올바르지 않음`); return }
+    // 금액 0원 허용 (무료 샘플 등) — 음수만 차단
+    if (!Number.isFinite(amount) || amount < 0) { errors.push(`${line}행: 금액이 올바르지 않음`); return }
 
     const status = VALID_STATUS.includes(String(r.status || '')) ? String(r.status) : 'pending'
     const isPaid = String(r.paymentStatus || '') === 'unpaid' ? false : true

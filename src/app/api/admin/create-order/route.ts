@@ -21,7 +21,8 @@ export async function POST(req: Request) {
   const name = (b.name || '').trim()
   const amount = Math.round(Number(b.amount) || 0)
   if (!name) return NextResponse.json({ error: '주문자 이름을 입력해주세요.' }, { status: 400 })
-  if (amount <= 0) return NextResponse.json({ error: '금액을 입력해주세요.' }, { status: 400 })
+  // 금액 0원 허용 (무료 샘플 등) — 음수만 차단
+  if (!Number.isFinite(amount) || amount < 0) return NextResponse.json({ error: '금액이 올바르지 않습니다.' }, { status: 400 })
 
   const status = ['pending', 'paid', 'in_progress', 'shipped', 'delivered'].includes(b.status) ? b.status : 'pending'
   const paymentMethod = b.paymentMethod || 'bank_transfer'

@@ -115,8 +115,9 @@ function AdminManagePageContent() {
   const exportPhoneOrderTemplate = () => {
     const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
     const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '57cm 롤 3M / 컷팅 포함', 50000, '무통장', '택배', '(12345) 서울시 강남구 …', '입금대기', '후불', '2026-08-10', '단골 고객']
-    const guide = ['※ 결제수단: 무통장 또는 카드', '', '', '', '', '※ 숫자만', '※ 무통장/카드', '※ 택배/직접수령', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
-    const ws = XLSX.utils.aoa_to_sheet([headers, sample, guide])
+    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '57cm 롤 0.5M 샘플', 0, '무통장', '택배', '(54321) 부산시 기장군 …', '작업중', '입금완료', '', '무료 샘플 발송']
+    const guide = ['※ 필수', '', '', '', '', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
     ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '전화주문등록')
@@ -175,7 +176,7 @@ function AdminManagePageContent() {
 
   const submitPhoneOrder = async () => {
     if (!po.name.trim()) { alert('주문자 이름을 입력해주세요.'); return }
-    if (!po.amount || Number(po.amount) <= 0) { alert('금액을 입력해주세요.'); return }
+    if (po.amount === '' || Number(po.amount) < 0) { alert('금액을 입력해주세요. (무료 샘플은 0)'); return }
     setPoSaving(true)
     const res = await fetch('/api/admin/create-order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1429,8 +1430,8 @@ function AdminManagePageContent() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">금액(입금금액) <span className="text-red-500">*</span></label>
-                  <input type="number" value={po.amount} onChange={(e) => setPo((p) => ({ ...p, amount: e.target.value }))} placeholder="예) 50000"
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">금액(입금금액) <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">무료 샘플은 0</span></label>
+                  <input type="number" min={0} value={po.amount} onChange={(e) => setPo((p) => ({ ...p, amount: e.target.value }))} placeholder="예) 50000 (무료 샘플 0)"
                     className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
