@@ -56,7 +56,6 @@ export default function ProductsSection() {
                   <span className="text-2xl font-extrabold text-gray-900">{product.price.toLocaleString()}원</span>
                   <span className="text-gray-400 text-sm ml-1">/ {product.unit}</span>
                 </div>
-                <span className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-semibold">컷팅 가능</span>
               </div>
             </Link>
           ))}

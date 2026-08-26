@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Upload, X, CheckCircle, Scissors, Plus, Minus, Calendar, FileText, Zap } from 'lucide-react'
+import { Upload, X, CheckCircle, Plus, Minus, Calendar, FileText, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
 import type { DBProduct } from '@/types'
@@ -674,38 +674,6 @@ function OrderPageContent() {
                                 <span className="text-gray-500 text-sm">{product.unit}</span>
                               </div>
                             </div>
-                            {/* 컷팅 */}
-                            {product.cutting_available && (
-                            <div>
-                              <label className="text-sm font-semibold text-gray-700 block mb-2"><Scissors className="w-4 h-4 inline mr-1" />컷팅 옵션</label>
-                              <div className="flex gap-3">
-                                {[{v:false,l:'컷팅 없음'},{v:true,l:'컷팅 있음'}].map(({v,l}) => (
-                                  <button key={String(v)} onClick={() => setCart((p) => p.map((i) => i.productId===product.id ? {...i,cutting:v} : i))}
-                                    className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${inCart.cutting===v ? 'bg-violet-600 border-violet-600 text-white' : 'border-gray-300 text-gray-600 hover:border-violet-300'}`}>
-                                    {l}
-                                  </button>
-                                ))}
-                              </div>
-                              {inCart.cutting && (
-                                <div className="mt-2">
-                                  {isRollItem(product.id) ? (
-                                    <div className="flex items-center gap-2 p-2.5 bg-violet-50 rounded-xl text-xs text-violet-700">
-                                      컷팅 요금: 1M당 {CUTTING_PRICE_PER_M.toLocaleString()}원 × {inCart.quantity}M =
-                                      <span className="font-bold">{(inCart.quantity*CUTTING_PRICE_PER_M).toLocaleString()}원</span>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-2">
-                                      <input type="number" min="0" value={inCart.cuttingPrice}
-                                        onChange={(e) => setCart((p) => p.map((i) => i.productId===product.id ? {...i,cuttingPrice:e.target.value} : i))}
-                                        placeholder="컷팅 금액 입력"
-                                        className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-400" />
-                                      <span className="text-sm text-gray-500">원</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            )}
                             {/* 시안 파일 */}
                             <div>
                               <label className="text-sm font-semibold text-gray-700 block mb-2">시안 파일 업로드 (선택) <span className="text-gray-400 font-normal">최대 {MAX_FILE_COUNT}개</span></label>
@@ -916,7 +884,7 @@ function OrderPageContent() {
                         <div key={item.productId} className="flex justify-between items-start text-sm">
                           <div>
                             <div className="font-medium text-gray-800">{p.name}</div>
-                            <div className="text-gray-500">{item.quantity}{p.unit}{item.cutting?' / 컷팅 있음':''}{item.files.length?` / 시안 ${item.files.length}개`:''}{item.dueDate?` / 납기: ${item.dueDate}`:''}</div>
+                            <div className="text-gray-500">{item.quantity}{p.unit}{item.files.length?` / 시안 ${item.files.length}개`:''}{item.dueDate?` / 납기: ${item.dueDate}`:''}</div>
                           </div>
                           <div className="font-bold text-gray-800">{(p.price*item.quantity+cutAmt).toLocaleString()}원</div>
                         </div>
