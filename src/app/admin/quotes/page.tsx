@@ -108,7 +108,7 @@ function AdminManagePageContent() {
   // 전화주문 직접 등록
   const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
   const [poSaving, setPoSaving] = useState(false)
-  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '' }
+  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false }
   const [po, setPo] = useState({ ...emptyPO })
 
   // 전화주문 대량등록 양식 다운로드
@@ -176,11 +176,15 @@ function AdminManagePageContent() {
 
   const submitPhoneOrder = async () => {
     if (!po.name.trim()) { alert('주문자 이름을 입력해주세요.'); return }
-    if (po.amount === '' || Number(po.amount) < 0) { alert('금액을 입력해주세요. (무료 샘플은 0)'); return }
+    // 샘플 주문은 금액 0원 고정
+    if (!po.isSample && (po.amount === '' || Number(po.amount) < 0)) { alert('금액을 입력해주세요.'); return }
     setPoSaving(true)
+    const payload = po.isSample
+      ? { ...po, amount: 0, paymentStatus: 'paid', depositDue: '' }
+      : po
     const res = await fetch('/api/admin/create-order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(po),
+      body: JSON.stringify(payload),
     })
     if (res.ok) {
       setPhoneOrderOpen(false)
@@ -1395,8 +1399,22 @@ function AdminManagePageContent() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 my-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900 text-lg">📞 전화주문 등록</h2>
+              <h2 className="font-bold text-gray-900 text-lg">{po.isSample ? '🎁 샘플 주문 등록' : '📞 전화주문 등록'}</h2>
               <button onClick={() => setPhoneOrderOpen(false)} className="text-gray-400 hover:text-gray-600"><XCircle className="w-5 h-5" /></button>
+            </div>
+
+            {/* 주문 유형 */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <button type="button" onClick={() => setPo((p) => ({ ...p, isSample: false }))}
+                className={`rounded-xl p-3 border-2 text-left transition-colors ${!po.isSample ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <div className={`text-sm font-bold ${!po.isSample ? 'text-blue-700' : 'text-gray-700'}`}>📞 일반 전화주문</div>
+                <div className="text-xs text-gray-500 mt-0.5">금액 입력 · 결제 관리</div>
+              </button>
+              <button type="button" onClick={() => setPo((p) => ({ ...p, isSample: true }))}
+                className={`rounded-xl p-3 border-2 text-left transition-colors ${po.isSample ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <div className={`text-sm font-bold ${po.isSample ? 'text-emerald-700' : 'text-gray-700'}`}>🎁 샘플 주문</div>
+                <div className="text-xs text-gray-500 mt-0.5">무료 · 금액 0원 자동</div>
+              </button>
             </div>
 
             <div className="space-y-3">
@@ -1433,9 +1451,17 @@ function AdminManagePageContent() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">금액(입금금액) <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">무료 샘플은 0</span></label>
-                  <input type="number" min={0} value={po.amount} onChange={(e) => setPo((p) => ({ ...p, amount: e.target.value }))} placeholder="예) 50000 (무료 샘플 0)"
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">
+                    금액(입금금액) {!po.isSample && <span className="text-red-500">*</span>}
+                  </label>
+                  {po.isSample ? (
+                    <div className="w-full border-2 border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2 text-sm font-bold text-emerald-700">
+                      무료 (0원)
+                    </div>
+                  ) : (
+                    <input type="number" min={0} value={po.amount} onChange={(e) => setPo((p) => ({ ...p, amount: e.target.value }))} placeholder="예) 50000"
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-1">결제수단</label>
@@ -1469,6 +1495,7 @@ function AdminManagePageContent() {
                 </div>
               </div>
 
+              {!po.isSample && (
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">입금 상태</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1483,8 +1510,9 @@ function AdminManagePageContent() {
                 </div>
                 <p className="text-[11px] text-gray-400 mt-1">후불로 등록하면 결제확인 없이 배송까지 진행할 수 있어요. 입금되면 목록에서 &apos;입금완료 처리&apos;하세요.</p>
               </div>
+              )}
 
-              {po.status === 'pending' && (
+              {!po.isSample && po.status === 'pending' && (
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-1">입금 예정일 <span className="text-gray-400 font-normal">(선택)</span></label>
                   <input type="date" value={po.depositDue} onChange={(e) => setPo((p) => ({ ...p, depositDue: e.target.value }))}
@@ -1512,7 +1540,7 @@ function AdminManagePageContent() {
                 className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
               <button onClick={submitPhoneOrder} disabled={poSaving}
                 className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
-                {poSaving ? '등록 중...' : '주문 등록'}
+                {poSaving ? '등록 중...' : po.isSample ? '샘플 주문 등록' : '주문 등록'}
               </button>
             </div>
           </div>
