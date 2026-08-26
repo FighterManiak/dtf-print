@@ -51,7 +51,7 @@ interface OrderInfo {
   payment_method: string | null; assigned_machine: number | null
 }
 interface Quote {
-  id: string; created_at: string; status: string
+  id: string; created_at: string; status: string; order_no: string | null
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   product_type: string; order_name: string | null; request_note: string | null
   file_url: string | null; file_name: string | null
@@ -61,7 +61,7 @@ interface Quote {
   machine_no: number | null
 }
 interface DirectOrder {
-  id: string; created_at: string; status: string
+  id: string; created_at: string; status: string; order_no: string | null
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
   memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
@@ -491,7 +491,7 @@ function AdminManagePageContent() {
     if (search) {
       const q = search.toLowerCase()
       const d = item.data
-      if (![(d.user_name || ''), (d.user_email || ''), (d.user_phone || ''), ((d as any).order_name || '')].some((v) => v.toLowerCase().includes(q))) return false
+      if (![(d.order_no || ''), (d.user_name || ''), (d.user_email || ''), (d.user_phone || ''), ((d as any).order_name || '')].some((v) => v.toLowerCase().includes(q))) return false
     }
     return true
   })
@@ -506,7 +506,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
-    const headers = ['주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
+    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
       const s = getEffectiveStatus(item)
@@ -522,11 +522,11 @@ function AdminManagePageContent() {
       const machine = (d as { machine_no?: number | null }).machine_no
       const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      return [createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
+      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
     // 열 너비 지정
-    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '주문내역')
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -649,7 +649,7 @@ function AdminManagePageContent() {
         <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center shadow-sm">
           <div className="flex items-center gap-2 flex-1 min-w-52 border border-gray-200 rounded-xl px-3 py-2 bg-gray-50">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="이름 · 연락처 · 이메일 · 주문명" className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="주문번호 · 이름 · 연락처 · 이메일 · 주문명" className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
           </div>
           <div className="flex items-center gap-2">
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300" />
@@ -718,6 +718,9 @@ function AdminManagePageContent() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {d.order_no && (
+                          <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{d.order_no}</span>
+                        )}
                         <span className="font-bold text-gray-900 text-sm">{d.user_name || d.user_email || '—'}</span>
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${item.type === 'quote' ? 'bg-blue-50 text-blue-600 ring-blue-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
                           {item.type === 'quote' ? '📋 견적주문' : '⚡ 바로주문'}

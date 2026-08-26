@@ -5,7 +5,7 @@ import { Package, Search, Download, ChevronDown, ChevronUp, Truck, CheckCircle, 
 import * as XLSX from 'xlsx'
 
 interface MaterialOrder {
-  id: string; created_at: string
+  id: string; created_at: string; order_no: string | null
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null
   items: { materialId: string; name: string; price: number; qty: number }[]
@@ -89,6 +89,7 @@ export default function AdminMaterialOrdersPage() {
     if (!search) return true
     const q = search.toLowerCase()
     return (
+      (o.order_no || '').toLowerCase().includes(q) ||
       (o.user_name || '').toLowerCase().includes(q) ||
       (o.user_phone || '').includes(q) ||
       (o.user_email || '').toLowerCase().includes(q) ||
@@ -106,8 +107,9 @@ export default function AdminMaterialOrdersPage() {
     .reduce((s, o) => s + (o.total_amount || 0), 0)
 
   const exportExcel = () => {
-    const headers = ['주문일시', '상태', '주문자', '연락처', '이메일', '주소', '상품', '상품금액', '배송비', '결제금액', '결제수단', '입금여부', '택배사', '송장번호']
+    const headers = ['주문번호', '주문일시', '상태', '주문자', '연락처', '이메일', '주소', '상품', '상품금액', '배송비', '결제금액', '결제수단', '입금여부', '택배사', '송장번호']
     const rows = filtered.map((o) => [
+      o.order_no || '',
       new Date(o.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
       STATUS[o.status]?.label || o.status,
       o.user_name || '', o.user_phone || '', o.user_email || '', o.user_address || '',
@@ -118,7 +120,7 @@ export default function AdminMaterialOrdersPage() {
       o.carrier || '', o.tracking_number || '',
     ])
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
-    ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 32 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 32 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '자재주문')
     XLSX.writeFile(wb, `자재주문_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -158,7 +160,7 @@ export default function AdminMaterialOrdersPage() {
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 mb-4 shadow-sm">
           <Search className="w-4 h-4 text-gray-400 shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="주문자, 연락처, 이메일, 주문명, 송장번호 검색"
+            placeholder="주문번호, 주문자, 연락처, 이메일, 주문명, 송장번호 검색"
             className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
         </div>
 
@@ -198,6 +200,9 @@ export default function AdminMaterialOrdersPage() {
                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {o.order_no && (
+                          <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{o.order_no}</span>
+                        )}
                         <span className="font-bold text-gray-900 text-sm">{o.user_name || '—'}</span>
                         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 ${cfg.badge}`}>{cfg.label}</span>
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${o.payment_method === 'CARD' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>

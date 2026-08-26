@@ -52,6 +52,7 @@ interface Order {
 
 interface Quote {
   id: string
+  order_no: string | null
   created_at: string
   status: string
   product_type: string
@@ -265,6 +266,7 @@ export default function MyOrdersPage() {
         })
         .map((o) => ({
           id: o.id as string,
+          order_no: (o.order_no as string) || null,
           created_at: o.created_at as string,
           status: o.status as string,
           product_type: 'direct',
@@ -533,6 +535,9 @@ export default function MyOrdersPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                      {quote.order_no && (
+                        <span className="font-mono font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{quote.order_no}</span>
+                      )}
                       <span>
                         {new Date(quote.created_at).toLocaleDateString('ko-KR')}
                         {' '}

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase-browser'
 import TrackingModal from '@/components/ui/TrackingModal'
 
 interface MaterialOrder {
-  id: string; created_at: string; order_name: string | null
+  id: string; created_at: string; order_no: string | null; order_name: string | null
   items: { materialId: string; name: string; price: number; qty: number }[]
   product_amount: number; shipping_fee: number; used_points: number; total_amount: number
   status: string; payment_method: string | null
@@ -66,6 +66,7 @@ export default function MyMaterialsPage() {
               <div key={o.id} className="bg-white border border-gray-200 rounded-2xl p-5">
                 <div className="flex items-center gap-2 flex-wrap mb-2">
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${st.color}`}>{st.label}</span>
+                  {o.order_no && <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">#{o.order_no}</span>}
                   <span className="text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString('ko-KR')}</span>
                   {o.payment_method === 'bank_transfer' && <span className="text-xs text-orange-600 font-semibold">무통장</span>}
                 </div>
