@@ -41,9 +41,9 @@ const formatPhone = (raw: string): string => {
   return raw || '-'
 }
 
-// 최근 로그인 표시 (상대 시간 + 절대 시간)
+// 최근 활동 표시 (로그인·주문 중 더 최근 시각 기준)
 const formatLastSignIn = (iso: string | null): { text: string; tone: string; title: string } => {
-  if (!iso) return { text: '로그인 기록 없음', tone: 'text-gray-300', title: '' }
+  if (!iso) return { text: '활동 없음', tone: 'text-gray-300', title: '' }
   const d = new Date(iso)
   const diffMs = Date.now() - d.getTime()
   const min = Math.floor(diffMs / 60000)
@@ -81,6 +81,7 @@ export default function MembersPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(30)
   const [balances, setBalances] = useState<Record<string, number>>({})
+  const [lastActivity, setLastActivity] = useState<Record<string, string>>({})
 
   // 포인트 지급/차감 모달
   const [pointModal, setPointModal] = useState<{ memberId: string; memberName: string; balance: number } | null>(null)
@@ -314,6 +315,7 @@ export default function MembersPage() {
       setCurrentRole(data.user?.user_metadata?.role || null)
     })
     fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
+    fetch('/api/admin/member-activity').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.lastActivity) setLastActivity(d.lastActivity) }).catch(() => {})
     loadBalances()
     loadMembers()
   }, [])
@@ -486,7 +488,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold w-48">주소</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입일</th>
-                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">최근 로그인</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">최근 활동</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">등급 <span className="text-gray-400 font-normal">(전월)</span></th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">포인트</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
@@ -554,8 +556,22 @@ export default function MembersPage() {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       {(() => {
-                        const s = formatLastSignIn(member.last_sign_in_at)
-                        return <span className={`text-xs ${s.tone}`} title={s.title}>{s.text}</span>
+                        const login = member.last_sign_in_at || null
+                        const order = lastActivity[member.id] || null
+                        // 로그인·주문 중 더 최근 시각
+                        const latest = !login ? order : !order ? login : (order > login ? order : login)
+                        const s = formatLastSignIn(latest)
+                        const src = latest && order && latest === order ? '주문' : latest ? '로그인' : ''
+                        const title = [
+                          login ? `로그인: ${new Date(login).toLocaleString('ko-KR')}` : '로그인 기록 없음',
+                          order ? `주문: ${new Date(order).toLocaleString('ko-KR')}` : '주문 기록 없음',
+                        ].join('\n')
+                        return (
+                          <span className={`text-xs ${s.tone}`} title={title}>
+                            {s.text}
+                            {src && <span className="text-[10px] text-gray-400 ml-1">({src})</span>}
+                          </span>
+                        )
                       })()}
                     </td>
                     <td className="px-4 py-4">
