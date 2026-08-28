@@ -23,6 +23,9 @@ interface Member {
     withdrawn?: boolean
     withdrawn_at?: string
     business_license?: { path?: string; name?: string; uploaded_at?: string } | null
+    admin_note?: string
+    admin_note_by?: string | null
+    admin_note_at?: string
   }
   app_metadata: {
     provider?: string
@@ -181,6 +184,31 @@ export default function MembersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historySummary, setHistorySummary] = useState<{ totalEarned: number; totalUsed: number; totalRevoked: number; available: number } | null>(null)
   const [historyRows, setHistoryRows] = useState<PointTx[]>([])
+
+  // 회사 정보(회사명·특징 메모) 수정 모달
+  const [infoModal, setInfoModal] = useState<{ memberId: string; memberName: string } | null>(null)
+  const [infoCompany, setInfoCompany] = useState('')
+  const [infoNote, setInfoNote] = useState('')
+  const [infoSaving, setInfoSaving] = useState(false)
+
+  const openInfoModal = (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    setInfoModal({ memberId: member.id, memberName: name })
+    setInfoCompany(member.user_metadata?.company || '')
+    setInfoNote(member.user_metadata?.admin_note || '')
+  }
+
+  const saveInfo = async () => {
+    if (!infoModal) return
+    setInfoSaving(true)
+    const res = await fetch('/api/admin/member-info', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: infoModal.memberId, company: infoCompany, adminNote: infoNote }),
+    })
+    if (res.ok) { setInfoModal(null); await loadMembers() }
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '저장 실패') }
+    setInfoSaving(false)
+  }
 
   const viewLicense = async (member: Member) => {
     const res = await fetch(`/api/admin/member-license?userId=${member.id}`)
@@ -391,7 +419,8 @@ export default function MembersPage() {
       (m.user_metadata?.name || '').toLowerCase().includes(q) ||
       (m.user_metadata?.phone || '').includes(q) ||
       (m.user_metadata?.company || '').toLowerCase().includes(q) ||
-      (m.user_metadata?.address || '').toLowerCase().includes(q)
+      (m.user_metadata?.address || '').toLowerCase().includes(q) ||
+      (m.user_metadata?.admin_note || '').toLowerCase().includes(q)
     )
   })
 
@@ -415,7 +444,7 @@ export default function MembersPage() {
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 mb-4 shadow-sm">
           <Search className="w-4 h-4 text-gray-400 shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="이름, 이메일, 전화번호, 회사명, 주소 검색"
+            placeholder="이름, 이메일, 전화번호, 회사명, 주소, 메모 검색"
             className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
         </div>
 
@@ -521,7 +550,18 @@ export default function MembersPage() {
                       {name}
                       {member.user_metadata?.withdrawn && <span className="ml-1.5 text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-bold">탈퇴</span>}
                     </td>
-                    <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{company}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-col gap-0.5 items-start">
+                        <span className="text-gray-600 whitespace-nowrap">{company}</span>
+                        {member.user_metadata?.admin_note && (
+                          <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 max-w-[180px] truncate"
+                            title={member.user_metadata.admin_note}>
+                            📝 {member.user_metadata.admin_note}
+                          </span>
+                        )}
+                        <button onClick={() => openInfoModal(member)} className="text-[11px] text-blue-600 hover:underline">회사정보 수정</button>
+                      </div>
+                    </td>
                     <td className="px-4 py-4 text-gray-600">{member.email}</td>
                     <td className="px-4 py-4">
                       {member.email_confirmed_at ? (
@@ -704,6 +744,49 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* 회사 정보 수정 모달 */}
+      {infoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">회사 정보 수정</h2>
+              <button onClick={() => setInfoModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4"><b className="text-gray-900">{infoModal.memberName}</b> 님</p>
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">회사명</label>
+            <input value={infoCompany} onChange={(e) => setInfoCompany(e.target.value)} placeholder="예) 커스텀팝"
+              className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">
+              회사 특징 메모 <span className="text-gray-400 font-normal">(관리자 전용 · 고객에게 보이지 않음)</span>
+            </label>
+            <textarea value={infoNote} onChange={(e) => setInfoNote(e.target.value)} rows={5}
+              placeholder={'예) 대량 주문 고객 · 색감 진하게 선호\n납기 급한 편 · 항상 3번 장비 요청\n세금계산서 매월 말 발행'}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 leading-relaxed" />
+            <p className="text-xs text-gray-400 mt-1.5 mb-1">회원 목록과 주문 처리 시 참고할 수 있습니다.</p>
+            {infoModal && (() => {
+              const m = members.find((x) => x.id === infoModal.memberId)
+              const by = m?.user_metadata?.admin_note_by
+              const at = m?.user_metadata?.admin_note_at
+              return by || at ? (
+                <p className="text-[11px] text-gray-400 mb-4">최종 수정: {by || '—'} {at ? `· ${new Date(at).toLocaleString('ko-KR')}` : ''}</p>
+              ) : <div className="mb-4" />
+            })()}
+
+            <div className="flex gap-2">
+              <button onClick={() => setInfoModal(null)} disabled={infoSaving}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
+              <button onClick={saveInfo} disabled={infoSaving}
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                {infoSaving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 선택 회원 메일 발송 모달 */}
       {mailOpen && (
