@@ -185,6 +185,33 @@ export default function MembersPage() {
   const [historySummary, setHistorySummary] = useState<{ totalEarned: number; totalUsed: number; totalRevoked: number; available: number } | null>(null)
   const [historyRows, setHistoryRows] = useState<PointTx[]>([])
 
+  // 임시 비밀번호 발급
+  const [pwModal, setPwModal] = useState<{ memberId: string; memberName: string; email: string } | null>(null)
+  const [pwSending, setPwSending] = useState(false)
+  const [pwSendEmail, setPwSendEmail] = useState(true)
+  const [pwResult, setPwResult] = useState<{ password: string; emailed: boolean } | null>(null)
+  const [pwCopied, setPwCopied] = useState(false)
+
+  const openPwModal = (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    setPwModal({ memberId: member.id, memberName: name, email: member.email })
+    setPwResult(null); setPwCopied(false); setPwSendEmail(true)
+  }
+
+  const issueTempPassword = async () => {
+    if (!pwModal) return
+    if (!confirm(`${pwModal.memberName} 님의 비밀번호를 임시 비밀번호로 재설정합니다.\n\n기존 비밀번호는 즉시 사용할 수 없게 됩니다. 계속하시겠습니까?`)) return
+    setPwSending(true)
+    const res = await fetch('/api/admin/reset-password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: pwModal.memberId, sendEmail: pwSendEmail }),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) setPwResult({ password: d.tempPassword, emailed: !!d.emailed })
+    else alert(d.error || '발급에 실패했습니다.')
+    setPwSending(false)
+  }
+
   // 회사 정보(회사명·특징 메모) 수정 모달
   const [infoModal, setInfoModal] = useState<{ memberId: string; memberName: string } | null>(null)
   const [infoCompany, setInfoCompany] = useState('')
@@ -669,6 +696,15 @@ export default function MembersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {/* 임시 비밀번호 — 관리자 공통 */}
+                        {(role !== 'admin' && role !== 'superadmin') || isSuperAdmin ? (
+                          <button onClick={() => openPwModal(member)} disabled={processing === member.id}
+                            className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 mb-1">
+                            🔑 임시 비번
+                          </button>
+                        ) : null}
+                      </div>
                       {isSuperAdmin ? (
                         <div className="flex gap-1.5 flex-wrap">
                           {role !== 'superadmin' && (
@@ -744,6 +780,68 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* 임시 비밀번호 발급 모달 */}
+      {pwModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 my-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-900 text-lg">🔑 임시 비밀번호 발급</h2>
+              <button onClick={() => setPwModal(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="bg-blue-50 rounded-xl px-4 py-3 mb-4 text-sm">
+              <p className="text-gray-700"><b className="text-gray-900">{pwModal.memberName}</b> 님</p>
+              <p className="text-xs text-gray-500 mt-0.5 break-all">{pwModal.email}</p>
+            </div>
+
+            {!pwResult ? (
+              <>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-xs text-amber-800 leading-relaxed">
+                  <b>⚠️ 주의</b><br />
+                  발급 즉시 <b>기존 비밀번호는 사용할 수 없습니다.</b><br />
+                  회원에게 임시 비밀번호를 전달하고, 로그인 후 변경하도록 안내해주세요.
+                </div>
+
+                <label className="flex items-center gap-2 mb-5 cursor-pointer">
+                  <input type="checkbox" checked={pwSendEmail} onChange={(e) => setPwSendEmail(e.target.checked)}
+                    className="w-4 h-4 accent-blue-600" />
+                  <span className="text-sm text-gray-700">회원 이메일로 임시 비밀번호 발송</span>
+                </label>
+
+                <div className="flex gap-2">
+                  <button onClick={() => setPwModal(null)} disabled={pwSending}
+                    className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">취소</button>
+                  <button onClick={issueTempPassword} disabled={pwSending}
+                    className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                    {pwSending ? '발급 중...' : '임시 비밀번호 발급'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-gray-600 mb-1.5">발급된 임시 비밀번호</p>
+                <div className="bg-gray-900 rounded-xl px-4 py-4 mb-2 text-center">
+                  <span className="font-mono text-xl font-bold text-white tracking-widest select-all">{pwResult.password}</span>
+                </div>
+                <button onClick={() => { navigator.clipboard.writeText(pwResult.password); setPwCopied(true); setTimeout(() => setPwCopied(false), 2000) }}
+                  className="w-full border border-gray-300 text-gray-700 py-2 rounded-xl text-sm font-semibold hover:bg-gray-50 mb-3">
+                  {pwCopied ? '✓ 복사됨' : '비밀번호 복사'}
+                </button>
+
+                <div className={`rounded-xl px-4 py-3 mb-4 text-xs leading-relaxed ${pwResult.emailed ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+                  {pwResult.emailed
+                    ? <>✅ 회원 이메일로 임시 비밀번호를 발송했습니다.</>
+                    : <>⚠️ 메일 발송은 되지 않았습니다. <b>위 비밀번호를 회원에게 직접 전달</b>해주세요.<br />이 창을 닫으면 다시 확인할 수 없습니다.</>}
+                </div>
+
+                <button onClick={() => { setPwModal(null); loadMembers() }}
+                  className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-gray-800">확인</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 회사 정보 수정 모달 */}
       {infoModal && (
