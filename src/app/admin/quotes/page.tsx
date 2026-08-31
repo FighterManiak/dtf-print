@@ -73,6 +73,12 @@ interface DirectOrder {
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
 interface QuoteForm { quantity: string; unit: string; unitPrice: string; cutting: boolean; cuttingPrice: string; adminNote: string }
 
+// 관리자가 직접 등록한 주문(전화주문·샘플주문) 여부 — 메모 표식으로 판별
+function isPhoneOrder(memo: string | null | undefined): boolean {
+  const m = memo || ''
+  return m.includes('📞 전화주문') || m.includes('🎁 샘플주문')
+}
+
 function getEffectiveStatus(item: Item): string {
   if (item.type === 'quote') {
     const q = item.data
@@ -99,6 +105,8 @@ function AdminManagePageContent() {
   const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '')
   const [dateTo, setDateTo] = useState(searchParams.get('to') || '')
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  // 주문 경로: 전체 / 온라인 / 전화·샘플
+  const [source, setSource] = useState<'all' | 'online' | 'phone'>((searchParams.get('source') as 'all' | 'online' | 'phone') || 'all')
 
   useEffect(() => {
     const supabase = createClient()
@@ -334,7 +342,7 @@ function AdminManagePageContent() {
 
   useEffect(() => { loadAll() }, [])
   // 필터/검색/페이지크기 변경 시 1페이지로
-  useEffect(() => { setPage(1) }, [tab, search, dateFrom, dateTo, pageSize])
+  useEffect(() => { setPage(1) }, [tab, search, dateFrom, dateTo, pageSize, source])
 
   const loadAll = async () => {
     setLoading(true)
@@ -490,6 +498,12 @@ function AdminManagePageContent() {
     if (extraFilter === 'revenue' && !REVENUE_STATUSES.includes(s)) return false
     if (extraFilter === 'orders' && (s === 'cancelled' || s === 'refunded')) return false
     if (extraFilter === 'unpaid' && !(item.type === 'order' && (item.data as DirectOrder).is_paid === false)) return false
+    // 주문 경로 필터 (온라인 / 전화·샘플 주문)
+    if (source !== 'all') {
+      const isPhone = item.type === 'order' && isPhoneOrder((item.data as DirectOrder).memo)
+      if (source === 'phone' && !isPhone) return false
+      if (source === 'online' && isPhone) return false
+    }
     if (dateFrom && itemKstDate(item) < dateFrom) return false
     if (dateTo && itemKstDate(item) > dateTo) return false
     if (search) {
@@ -515,7 +529,10 @@ function AdminManagePageContent() {
       const d = item.data
       const s = getEffectiveStatus(item)
       const label = STATUS_CONFIG[s]?.label || s
-      const type = item.type === 'quote' ? '견적주문' : '바로주문'
+      const memoTxt = item.type === 'order' ? (d as DirectOrder).memo : null
+      const type = item.type === 'quote' ? '견적주문'
+        : (memoTxt || '').includes('🎁 샘플주문') ? '샘플주문'
+        : isPhoneOrder(memoTxt) ? '전화주문' : '바로주문'
       const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
       const pmLabel = pm === 'bank_transfer' ? '무통장' : pm === 'CARD' || pm === 'card' ? '카드' : ''
       const carrier = (item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || ''
@@ -681,6 +698,31 @@ function AdminManagePageContent() {
           })}
         </div>
 
+        {/* 주문 경로 필터 */}
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+          <span className="text-xs text-gray-400 mr-1">주문 경로</span>
+          {([
+            { key: 'all', label: '전체' },
+            { key: 'online', label: '🌐 온라인 주문' },
+            { key: 'phone', label: '📞 전화·샘플 주문' },
+          ] as const).map(({ key, label }) => {
+            const cnt = key === 'all'
+              ? items.length
+              : items.filter((it) => {
+                  const isPhone = it.type === 'order' && isPhoneOrder((it.data as DirectOrder).memo)
+                  return key === 'phone' ? isPhone : !isPhone
+                }).length
+            const active = source === key
+            return (
+              <button key={key} onClick={() => setSource(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+                {label}
+                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>{cnt}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {/* 페이지당 개수 + 결과 수 */}
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <span className="text-sm text-gray-500">총 {filtered.length}건</span>
@@ -726,9 +768,22 @@ function AdminManagePageContent() {
                           <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{d.order_no}</span>
                         )}
                         <span className="font-bold text-gray-900 text-sm">{d.user_name || d.user_email || '—'}</span>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${item.type === 'quote' ? 'bg-blue-50 text-blue-600 ring-blue-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
-                          {item.type === 'quote' ? '📋 견적주문' : '⚡ 바로주문'}
-                        </span>
+                        {(() => {
+                          const phone = item.type === 'order' && isPhoneOrder((d as DirectOrder).memo)
+                          const sample = phone && ((d as DirectOrder).memo || '').includes('🎁 샘플주문')
+                          if (phone) {
+                            return (
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${sample ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
+                                {sample ? '🎁 샘플주문' : '📞 전화주문'}
+                              </span>
+                            )
+                          }
+                          return (
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${item.type === 'quote' ? 'bg-blue-50 text-blue-600 ring-blue-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
+                              {item.type === 'quote' ? '📋 견적주문' : '⚡ 바로주문'}
+                            </span>
+                          )
+                        })()}
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 ${cfg.badge}`}>
                           <StatusIcon className="w-3 h-3" />{cfg.label}
                         </span>
