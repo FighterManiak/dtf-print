@@ -30,6 +30,10 @@ interface Stats {
   pendingPayment: number
   unpaidCount: number
   unpaidAmount: number
+  yesterdayRevenue: number
+  week7Revenue: number
+  yesterdayOrders: number
+  week7Orders: number
 }
 
 interface PeriodStat {
@@ -73,6 +77,7 @@ export default function AdminPage() {
     total: 0, inProgress: 0, monthRevenue: 0,
     todayOrders: 0, todayRevenue: 0, todayShipped: 0, pendingQuotes: 0, pendingPayment: 0,
     unpaidCount: 0, unpaidAmount: 0,
+    yesterdayRevenue: 0, week7Revenue: 0, yesterdayOrders: 0, week7Orders: 0,
   })
   const [loading, setLoading] = useState(true)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
@@ -91,6 +96,9 @@ export default function AdminPage() {
       const ky = kstNow.getUTCFullYear(), km = kstNow.getUTCMonth(), kd = kstNow.getUTCDate()
       const todayStart = new Date(Date.UTC(ky, km, kd) - 9 * 3600 * 1000).toISOString()
       const monthStart = new Date(Date.UTC(ky, km, 1) - 9 * 3600 * 1000).toISOString()
+      // 어제 구간(어제 00:00 ~ 오늘 00:00), 최근 7일(오늘 포함 7일 전 00:00 ~)
+      const yesterdayStart = new Date(Date.UTC(ky, km, kd - 1) - 9 * 3600 * 1000).toISOString()
+      const week7Start = new Date(Date.UTC(ky, km, kd - 6) - 9 * 3600 * 1000).toISOString()
 
       // orders / quotes 모두 RLS 우회를 위해 서비스롤 API로 조회 후 클라이언트에서 집계
       const [orders, quotes] = await Promise.all([
@@ -131,6 +139,10 @@ export default function AdminPage() {
         pendingPayment: orders.filter((o) => o.status === 'pending').length,
         unpaidCount: orders.filter((o) => o.is_paid === false).length,
         unpaidAmount: sum(orders.filter((o) => o.is_paid === false)),
+        yesterdayRevenue: sum(orders.filter((o) => isRevenue(o) && o.created_at >= yesterdayStart && o.created_at < todayStart)),
+        yesterdayOrders: orders.filter((o) => o.created_at >= yesterdayStart && o.created_at < todayStart && o.status !== 'cancelled' && o.status !== 'refunded').length,
+        week7Revenue: sum(orders.filter((o) => isRevenue(o) && o.created_at >= week7Start)),
+        week7Orders: orders.filter((o) => o.created_at >= week7Start && o.status !== 'cancelled' && o.status !== 'refunded').length,
       })
       setLoading(false)
     }
@@ -140,10 +152,19 @@ export default function AdminPage() {
   const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
   const todayCards = [
     { label: '오늘 주문', value: loading ? '—' : `${stats.todayOrders}건`, icon: ShoppingCart, color: 'text-blue-500', bg: 'bg-blue-50', href: `/admin/quotes?from=${todayStr}&to=${todayStr}&filter=orders` },
-    { label: '오늘 매출', value: loading ? '—' : `${stats.todayRevenue.toLocaleString()}원`, icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50', href: `/admin/quotes?from=${todayStr}&to=${todayStr}&filter=revenue` },
     { label: '오늘 출고 완료', value: loading ? '—' : `${stats.todayShipped}건`, icon: Truck, color: 'text-green-500', bg: 'bg-green-50', href: '/admin/quotes?status=shipped' },
+    { label: '입금 대기', value: loading ? '—' : `${stats.pendingPayment}건`, icon: CreditCard, color: 'text-violet-500', bg: 'bg-violet-50', href: '/admin/quotes?status=order_pending' },
     { label: '오늘 신규 가입', value: memberStats ? `${memberStats.today}명` : '—', icon: Users, color: 'text-pink-500', bg: 'bg-pink-50', href: '/admin/members' },
     { label: '견적 검토 대기', value: loading ? '—' : `${stats.pendingQuotes}건`, icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', href: '/admin/quotes?status=pending', urgent: !loading && stats.pendingQuotes > 0 },
+  ]
+
+  // 매출 현황 (오늘 / 어제 / 최근 7일)
+  const yStr = new Date(Date.now() + 9 * 3600 * 1000 - 86400000).toISOString().slice(0, 10)
+  const w7Str = new Date(Date.now() + 9 * 3600 * 1000 - 6 * 86400000).toISOString().slice(0, 10)
+  const revenueCards = [
+    { label: '오늘 매출', value: loading ? '—' : `${stats.todayRevenue.toLocaleString()}원`, sub: loading ? '' : `주문 ${stats.todayOrders}건`, color: 'text-emerald-600', href: `/admin/quotes?from=${todayStr}&to=${todayStr}&filter=revenue` },
+    { label: '어제 매출', value: loading ? '—' : `${stats.yesterdayRevenue.toLocaleString()}원`, sub: loading ? '' : `주문 ${stats.yesterdayOrders}건`, color: 'text-gray-700', href: `/admin/quotes?from=${yStr}&to=${yStr}&filter=revenue` },
+    { label: '최근 7일 매출', value: loading ? '—' : `${stats.week7Revenue.toLocaleString()}원`, sub: loading ? '' : `주문 ${stats.week7Orders}건`, color: 'text-gray-700', href: `/admin/quotes?from=${w7Str}&to=${todayStr}&filter=revenue` },
   ]
 
   const monthCards = [
@@ -176,6 +197,23 @@ export default function AdminPage() {
                 </div>
                 <div className="text-base font-bold text-gray-800">{value}</div>
                 <div className="text-[11px] text-gray-500 mt-0.5">{label}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* 매출 현황 */}
+        <div className="mt-6">
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">매출 현황</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            {revenueCards.map(({ label, value, sub, color, href }) => (
+              <Link key={label} href={href} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <DollarSign className="w-4 h-4 text-emerald-500" />
+                  <span className="text-[11px] text-gray-500 font-semibold">{label}</span>
+                </div>
+                <div className={`text-lg font-bold ${color}`}>{value}</div>
+                {sub && <div className="text-[11px] text-gray-400 mt-0.5">{sub}</div>}
               </Link>
             ))}
           </div>
