@@ -49,15 +49,24 @@ export default function AdminMaterialsPage() {
 
   const uploadImages = async (files: File[]) => {
     setUploading(true)
-    const paths: string[] = []
-    for (const original of files.slice(0, 8)) {
-      const f = await compressImage(original, { maxWidth: 1400, maxHeight: 1400, quality: 0.85 })
-      const ext = f.name.split('.').pop()?.toLowerCase() || 'jpg'
-      const path = `products/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`
-      const { error } = await supabase.storage.from('material-images').upload(path, f)
-      if (!error) paths.push(path)
+    try {
+      // 업로드 전 압축 후 서비스롤 API로 전송 (RLS 우회)
+      const fd = new FormData()
+      for (const original of files.slice(0, 8)) {
+        const f = await compressImage(original, { maxWidth: 1400, maxHeight: 1400, quality: 0.85 })
+        fd.append('files', f, f.name)
+      }
+      const res = await fetch('/api/admin/material-image', { method: 'POST', body: fd })
+      const d = await res.json().catch(() => ({}))
+      if (res.ok && Array.isArray(d.paths)) {
+        setForm((p) => ({ ...p, images: [...p.images, ...d.paths].slice(0, 8) }))
+        if (d.errors?.length) alert(`일부 파일이 업로드되지 않았습니다.\n${d.errors.join('\n')}`)
+      } else {
+        alert(d.error || '이미지 업로드에 실패했습니다.')
+      }
+    } catch {
+      alert('이미지 업로드 중 오류가 발생했습니다.')
     }
-    setForm((p) => ({ ...p, images: [...p.images, ...paths].slice(0, 8) }))
     setUploading(false)
   }
 
