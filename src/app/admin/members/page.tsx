@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Search, Shield, ShieldCheck, User, X, Lock } from 'lucide-react'
+import { Search, Shield, ShieldCheck, User, X, Lock, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { resolveGrade } from '@/lib/grade'
+import * as XLSX from 'xlsx'
 
 interface Member {
   id: string
@@ -184,6 +185,57 @@ export default function MembersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historySummary, setHistorySummary] = useState<{ totalEarned: number; totalUsed: number; totalRevoked: number; available: number } | null>(null)
   const [historyRows, setHistoryRows] = useState<PointTx[]>([])
+
+  // 회원 정보 엑셀 다운로드 (최고관리자 전용)
+  const exportMembers = () => {
+    if (filtered.length === 0) { alert('다운로드할 회원이 없습니다.'); return }
+    if (!confirm(`회원 ${filtered.length}명의 개인정보를 다운로드합니다.\n\n※ 개인정보가 포함된 파일이니 취급에 주의해주세요.\n계속하시겠습니까?`)) return
+
+    const headers = [
+      '이름', '회사명', '이메일', '메일인증', '전화번호', '주소',
+      '가입방법', '가입일', '최근활동', '등급', '전월사용량(M)', '보유포인트',
+      '권한', 'DTF인증', '사업자등록증', '탈퇴여부', '관리자메모',
+    ]
+    const rows = filtered.map((m) => {
+      const meta = m.user_metadata || {}
+      const meters = metersByUser[m.id] || 0
+      const { grade } = resolveGrade(meta.grade_override, meters)
+      const role = meta.role || 'user'
+      const roleLabel = role === 'superadmin' ? '최고관리자' : role === 'admin' ? '관리자' : role === 'dtf_verified' ? 'DTF인증' : '일반'
+      const login = m.last_sign_in_at || null
+      const order = lastActivity[m.id] || null
+      const latest = !login ? order : !order ? login : (order > login ? order : login)
+      return [
+        meta.full_name || meta.name || '',
+        meta.company || '',
+        m.email || '',
+        m.email_confirmed_at ? '완료' : '미인증',
+        formatPhone(meta.phone || ''),
+        meta.address || '',
+        PROVIDER_LABEL[m.app_metadata?.provider || 'email'] || '',
+        new Date(m.created_at).toLocaleDateString('ko-KR'),
+        latest ? new Date(latest).toLocaleString('ko-KR') : '활동 없음',
+        grade.label,
+        meters,
+        balances[m.id] || 0,
+        roleLabel,
+        (role === 'dtf_verified' || meta.verify_status === 'approved') ? '인증완료' : '미인증',
+        meta.business_license?.path ? '첨부' : '미첨부',
+        meta.withdrawn ? '탈퇴' : '',
+        meta.admin_note || '',
+      ]
+    })
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 16 }, { wch: 24 }, { wch: 9 }, { wch: 15 }, { wch: 32 },
+      { wch: 9 }, { wch: 12 }, { wch: 20 }, { wch: 8 }, { wch: 12 }, { wch: 11 },
+      { wch: 10 }, { wch: 9 }, { wch: 11 }, { wch: 8 }, { wch: 30 },
+    ]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '회원목록')
+    XLSX.writeFile(wb, `회원목록_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
 
   // 임시 비밀번호 발급
   const [pwModal, setPwModal] = useState<{ memberId: string; memberName: string; email: string } | null>(null)
@@ -461,9 +513,17 @@ export default function MembersPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-full mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">회원 관리</h1>
-          <p className="text-sm text-gray-500 mt-0.5">전체 가입 회원 목록 — 총 {filtered.length}명</p>
+        <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">회원 관리</h1>
+            <p className="text-sm text-gray-500 mt-0.5">전체 가입 회원 목록 — 총 {filtered.length}명</p>
+          </div>
+          {currentRole === 'superadmin' && (
+            <button onClick={exportMembers} disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
+              <Download className="w-4 h-4" /> 회원정보 다운로드 ({filtered.length})
+            </button>
+          )}
         </div>
 
         {error && <div className="bg-red-50 text-red-700 ring-1 ring-red-200 text-sm px-4 py-3 rounded-xl mb-4">{error}</div>}
