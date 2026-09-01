@@ -73,6 +73,9 @@ export async function DELETE(req: Request) {
     } catch { /* 로그 실패해도 삭제는 진행 */ }
   }
 
+  // 주문 삭제 전 해당 주문으로 사용/적립된 포인트 기록의 주문 연결 해제
+  try { await supabaseAdmin.from('points').update({ order_id: null }).eq('order_id', id) } catch { /* 무시 */ }
+
   const { error } = await supabaseAdmin.from('material_orders').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

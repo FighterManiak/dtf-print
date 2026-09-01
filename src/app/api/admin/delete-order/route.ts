@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { revokePointsForOrder } from '@/lib/points-server'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -68,6 +69,11 @@ export async function POST(req: Request) {
         snapshot: order,
       })
     }
+    // 주문 삭제 전 해당 주문으로 적립된 포인트 환수 (고아 포인트 방지)
+    try { await revokePointsForOrder(supabaseAdmin, orderId) } catch { /* 무시 */ }
+    // 남은 포인트 기록의 주문 연결 해제 (주문 삭제 후 참조 방지)
+    try { await supabaseAdmin.from('points').update({ order_id: null }).eq('order_id', orderId) } catch { /* 무시 */ }
+
     await supabaseAdmin.from('order_items').delete().eq('order_id', orderId)
     await supabaseAdmin.from('orders').delete().eq('id', orderId)
     return order
