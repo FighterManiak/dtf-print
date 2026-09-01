@@ -187,16 +187,18 @@ export default function MembersPage() {
   const [historyRows, setHistoryRows] = useState<PointTx[]>([])
 
   // 회원 정보 엑셀 다운로드 (최고관리자 전용)
-  const exportMembers = () => {
-    if (filtered.length === 0) { alert('다운로드할 회원이 없습니다.'); return }
-    if (!confirm(`회원 ${filtered.length}명의 개인정보를 다운로드합니다.\n\n※ 개인정보가 포함된 파일이니 취급에 주의해주세요.\n계속하시겠습니까?`)) return
+  // onlySelected=true면 체크된 회원만
+  const exportMembers = (onlySelected = false) => {
+    const targets = onlySelected ? filtered.filter((m) => selectedIds.has(m.id)) : filtered
+    if (targets.length === 0) { alert('다운로드할 회원이 없습니다.'); return }
+    if (!confirm(`${onlySelected ? '선택한 ' : ''}회원 ${targets.length}명의 개인정보를 다운로드합니다.\n\n※ 개인정보가 포함된 파일이니 취급에 주의해주세요.\n계속하시겠습니까?`)) return
 
     const headers = [
       '이름', '회사명', '이메일', '메일인증', '전화번호', '주소',
       '가입방법', '가입일', '최근활동', '등급', '전월사용량(M)', '보유포인트',
       '권한', 'DTF인증', '사업자등록증', '탈퇴여부', '관리자메모',
     ]
-    const rows = filtered.map((m) => {
+    const rows = targets.map((m) => {
       const meta = m.user_metadata || {}
       const meters = metersByUser[m.id] || 0
       const { grade } = resolveGrade(meta.grade_override, meters)
@@ -519,9 +521,10 @@ export default function MembersPage() {
             <p className="text-sm text-gray-500 mt-0.5">전체 가입 회원 목록 — 총 {filtered.length}명</p>
           </div>
           {currentRole === 'superadmin' && (
-            <button onClick={exportMembers} disabled={filtered.length === 0}
+            <button onClick={() => exportMembers(false)} disabled={filtered.length === 0}
+              title="현재 목록(검색·필터 적용) 전체를 다운로드합니다. 일부만 받으려면 체크박스로 선택하세요."
               className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-40">
-              <Download className="w-4 h-4" /> 회원정보 다운로드 ({filtered.length})
+              <Download className="w-4 h-4" /> 전체 다운로드 ({filtered.length})
             </button>
           )}
         </div>
@@ -546,6 +549,12 @@ export default function MembersPage() {
                 className="text-sm bg-white text-violet-700 px-4 py-1.5 rounded-lg font-bold hover:bg-violet-50">
                 ✉️ 메일 발송
               </button>
+              {currentRole === 'superadmin' && (
+                <button onClick={() => exportMembers(true)}
+                  className="flex items-center gap-1 text-sm bg-white/15 border border-white/30 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-white/25">
+                  <Download className="w-4 h-4" /> 선택 다운로드
+                </button>
+              )}
               {currentRole === 'superadmin' && (
                 <>
                   <button onClick={() => { setBulkGrade('vip'); setBulkGradeUntil(''); setBulkGradeOpen(true) }}
