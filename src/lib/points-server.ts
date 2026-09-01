@@ -81,11 +81,12 @@ export async function awardPointsForDeliveredOrder(admin: SupabaseClient, orderI
   if (!order || !order.user_id) return null
   if (order.status !== 'delivered') return null
 
-  // 이미 적립된 주문이면 중복 방지
+  // 이미 적립된 주문이면 중복 방지 (구매자 본인 적립분 기준 — 추천인 커미션과 구분)
   const { data: existing } = await admin
     .from('points')
     .select('id')
     .eq('order_id', orderId)
+    .eq('user_id', order.user_id)
     .eq('type', 'earn')
     .limit(1)
   if (existing && existing.length > 0) return null
@@ -136,8 +137,10 @@ export async function awardReferralIfFirstDelivery(admin: SupabaseClient, userId
     { user_id: userId, amount: REFEREE_REWARD, balance_remaining: REFEREE_REWARD, type: 'earn', expires_at: exp, memo: '추천 가입 보상 (첫 주문 완료)' },
   ])
 
-  // 중복 지급 방지 플래그
-  await admin.auth.admin.updateUserById(userId, { user_metadata: { referral_rewarded: true } })
+  // 중복 지급 방지 플래그 — 기존 회원정보를 보존한 채 플래그만 추가
+  await admin.auth.admin.updateUserById(userId, {
+    user_metadata: { ...meta, referral_rewarded: true },
+  })
 }
 
 // 추천 회원 주문 커미션: 배송완료 시 상품금액의 2%를 추천인에게 적립
