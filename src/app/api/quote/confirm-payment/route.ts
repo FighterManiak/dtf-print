@@ -1,8 +1,10 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { getShippingFee } from '@/lib/shipping'
 import { sendOrderStatusMail } from '@/lib/order-mail'
+
+const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,10 +12,10 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { quoteId, delivery } = await req.json()
+  const { quoteId, delivery, paymentKey, orderId: tossOrderId, amount } = await req.json()
   if (!quoteId) return NextResponse.json({ error: 'quoteId required' }, { status: 400 })
 
-  // 寃ъ쟻 ?뺣낫 議고쉶
+  // 견적 정보 조회
   const { data: quote, error: quoteErr } = await supabaseAdmin
     .from('quotes')
     .select('*')
@@ -24,9 +26,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'quote not found' }, { status: 404 })
   }
 
-  // ?대? 泥섎━??寃쎌슦 以묐났 諛⑹?
+  // 이미 처리된 경우 중복 방지
   if (quote.status === 'paid' && quote.order_id) {
     return NextResponse.json({ success: true, orderId: quote.order_id })
+  }
+
+  // 카드결제 승인 — 토스에 승인 요청을 해야 실제로 결제가 완료됨
+  let approvedKey: string | null = null
+  if (paymentKey && tossOrderId && amount) {
+    const res = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(TOSS_SECRET_KEY + ':').toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ paymentKey, orderId: tossOrderId, amount }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return NextResponse.json({ error: data.message || '결제 승인에 실패했습니다.' }, { status: 400 })
+    }
+    approvedKey = paymentKey
   }
 
   // 배송비 계산 — 직접수령 0원, 택배는 지역 추가배송비 포함
@@ -50,7 +70,10 @@ export async function POST(req: Request) {
       user_address: fullAddress || quote.user_address,
       total_amount: payTotal,
       status: 'paid',
-      memo: `견적주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''} · ${shipLabel}`,
+      is_paid: true,
+      payment_method: approvedKey ? 'CARD' : null,
+      payment_key: approvedKey,
+      memo: `견적주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''} · ${shipLabel}${approvedKey ? ' · 카드결제' : ''}`,
     })
     .select('id')
     .single()
@@ -59,7 +82,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: orderErr.message }, { status: 500 })
   }
 
-  // quotes ?곹깭 ?낅뜲?댄듃 + order_id ?곌껐
+  // quotes 상태 업데이트 + order_id 연결
   await supabaseAdmin
     .from('quotes')
     .update({ status: 'paid', order_id: newOrder.id })
@@ -72,4 +95,3 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ success: true, orderId: newOrder.id })
 }
-
