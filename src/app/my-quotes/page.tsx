@@ -335,6 +335,12 @@ export default function MyOrdersPage() {
     if (!quote.total_amount || !user) return
     const deliveryPayload = buildDeliveryPayload(quote)
     if (!deliveryPayload) return
+    const payAmount = shipInfo(quote).total
+    if (!payAmount || payAmount < 100) {
+      alert(`결제 금액이 올바르지 않습니다. (${payAmount.toLocaleString()}원)\n관리자에게 문의해주세요.`)
+      return
+    }
+
     setPaying(quote.id)
     try {
       // 카드 결제는 성공 후 confirm-payment에서 배송정보가 필요 → sessionStorage로 전달
@@ -343,13 +349,18 @@ export default function MyOrdersPage() {
       const payment = toss.payment({ customerKey: user.id })
       await payment.requestPayment({
         method: 'CARD',
-        amount: { currency: 'KRW', value: shipInfo(quote).total },
-        orderId: `QUOTE-${quote.id.slice(0, 8)}-${Date.now()}`,
+        amount: { currency: 'KRW', value: payAmount },
+        orderId: `QUOTE${quote.id.replace(/-/g, '').slice(0, 12)}${Date.now()}`,
         orderName: `${PRODUCT_TYPE_LABEL[quote.product_type] || quote.product_type} 견적`,
         successUrl: `${window.location.origin}/quote/success?quoteId=${quote.id}`,
         failUrl: `${window.location.origin}/payment/fail`,
       })
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      // 사용자가 결제창을 닫은 경우는 알리지 않음
+      if (!/PAYMENT_CANCELED|USER_CANCEL/i.test(msg)) {
+        alert(`결제창을 열지 못했습니다.\n\n${msg}`)
+      }
       setPaying(null)
     }
   }
