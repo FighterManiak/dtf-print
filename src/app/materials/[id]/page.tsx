@@ -9,10 +9,16 @@ import { openPostcode } from '@/lib/daum-postcode'
 import { getShippingFee } from '@/lib/shipping'
 import { compressImage } from '@/lib/image-compress'
 
+interface OptionValue { label: string; addPrice: number }
+interface ProductOption { name: string; values: OptionValue[] }
+interface SpecRow { key: string; value: string }
+
 interface Material {
   id: string; name: string; description: string | null; detail: string | null
   price: number; origin_price: number | null; unit: string; stock: number | null
   category: string | null; images: string[]
+  detail_images?: string[] | null; options?: ProductOption[] | null
+  spec?: SpecRow[] | null; shipping_info?: string | null
 }
 interface Review {
   id: string; created_at: string; user_name: string | null
@@ -32,6 +38,9 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
   const [user, setUser] = useState<{ id: string; email: string } | null>(null)
   const [availablePoints, setAvailablePoints] = useState(0)
   const [pointInput, setPointInput] = useState('')
+  const [tab, setTab] = useState<'detail' | 'shipping' | 'review'>('detail')
+  // 옵션 선택값 (옵션명 → 선택한 옵션값 label)
+  const [selectedOpts, setSelectedOpts] = useState<Record<string, string>>({})
 
   // 주문 폼
   const [ordering, setOrdering] = useState(false)
@@ -82,7 +91,21 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
     if (r) setForm((p) => ({ ...p, zonecode: r.zonecode, address: r.address }))
   }
 
-  const productAmount = (material?.price || 0) * qty
+  const options: ProductOption[] = Array.isArray(material?.options) ? material!.options! : []
+  const spec: SpecRow[] = Array.isArray(material?.spec) ? material!.spec! : []
+  const detailImages: string[] = Array.isArray(material?.detail_images) ? material!.detail_images! : []
+
+  // 선택한 옵션의 추가금 합계
+  const optionAddPrice = options.reduce((sum, o) => {
+    const picked = o.values.find((v) => v.label === selectedOpts[o.name])
+    return sum + (picked ? Number(picked.addPrice) || 0 : 0)
+  }, 0)
+  const unitPrice = (material?.price || 0) + optionAddPrice
+  // 모든 옵션을 선택해야 주문 가능
+  const optionsReady = options.every((o) => selectedOpts[o.name])
+  const optionLabel = options.map((o) => `${o.name}: ${selectedOpts[o.name] || '-'}`).join(' / ')
+
+  const productAmount = unitPrice * qty
   const isPickup = form.deliveryMethod === 'pickup'
   const shipping = isPickup ? 0 : getShippingFee(productAmount, form.zonecode).total
   const payable = productAmount + shipping
@@ -101,7 +124,13 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
     setSubmitting(true)
     const res = await fetch('/api/materials/order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, items: [{ materialId: id, qty }], usedPoints }),
+      body: JSON.stringify({
+        ...form,
+        // 선택 옵션은 메모에 함께 남겨 관리자가 확인
+        memo: [optionLabel, form.memo].filter(Boolean).join(' | '),
+        items: [{ materialId: id, qty, options: optionLabel || null, unitPrice }],
+        usedPoints,
+      }),
     })
     const d = await res.json().catch(() => ({}))
     if (res.ok) {
@@ -204,6 +233,29 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
             <div className="bg-gray-100 text-gray-500 text-center py-4 rounded-xl font-bold">품절되었습니다</div>
           ) : !ordering ? (
             <>
+              {/* 옵션 선택 */}
+              {options.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {options.map((o) => (
+                    <div key={o.name}>
+                      <p className="text-sm font-semibold text-gray-700 mb-1.5">{o.name}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {o.values.map((v) => {
+                          const active = selectedOpts[o.name] === v.label
+                          return (
+                            <button key={v.label} onClick={() => setSelectedOpts((p) => ({ ...p, [o.name]: v.label }))}
+                              className={`px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'}`}>
+                              {v.label}
+                              {v.addPrice > 0 && <span className={`text-xs ml-1 ${active ? 'text-white/80' : 'text-gray-400'}`}>+{v.addPrice.toLocaleString()}원</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-sm font-semibold text-gray-700">수량</span>
                 <div className="flex items-center border border-gray-300 rounded-xl">
@@ -217,9 +269,14 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
                 <span className="text-gray-500">상품 금액</span>
                 <span className="text-xl font-bold text-blue-600">{productAmount.toLocaleString()}원</span>
               </div>
-              <button onClick={() => { if (!user) { alert('로그인 후 주문할 수 있습니다.'); router.push('/login?redirect=/materials/' + id); return } setOrdering(true) }}
-                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors">
-                구매하기
+              <button onClick={() => {
+                if (!optionsReady) { alert('옵션을 선택해주세요.'); return }
+                if (!user) { alert('로그인 후 주문할 수 있습니다.'); router.push('/login?redirect=/materials/' + id); return }
+                setOrdering(true)
+              }}
+                disabled={!optionsReady}
+                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
+                {optionsReady ? '구매하기' : '옵션을 선택해주세요'}
               </button>
             </>
           ) : (
@@ -306,16 +363,66 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </div>
 
-      {/* 상세 설명 */}
-      {material.detail && (
+      {/* 탭 */}
+      <div className="flex border-b border-gray-200 mb-6 sticky top-0 bg-gray-50 z-10">
+        {([
+          { key: 'detail', label: '상세정보' },
+          { key: 'shipping', label: '배송/교환' },
+          { key: 'review', label: `리뷰 ${reviews.length > 0 ? reviews.length : ''}`.trim() },
+        ] as const).map(({ key, label }) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`flex-1 py-3 text-sm font-bold transition-colors border-b-2 ${tab === key ? 'text-blue-600 border-blue-600' : 'text-gray-400 border-transparent hover:text-gray-600'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* 상세정보 */}
+      {tab === 'detail' && (
         <div className="mb-12">
-          <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">상품 상세</h2>
-          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{material.detail}</p>
+          {/* 상품 정보 표 */}
+          {spec.length > 0 && (
+            <div className="border border-gray-200 rounded-2xl overflow-hidden mb-6 bg-white">
+              {spec.map((s, i) => (
+                <div key={i} className={`flex text-sm ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+                  <div className="w-32 shrink-0 bg-gray-50 px-4 py-3 font-semibold text-gray-600">{s.key}</div>
+                  <div className="flex-1 px-4 py-3 text-gray-800">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {material.detail && (
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-6">{material.detail}</p>
+          )}
+
+          {/* 상세페이지 이미지 */}
+          {detailImages.length > 0 && (
+            <div className="space-y-0 -mx-4 sm:mx-0">
+              {detailImages.map((p) => (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img key={p} src={imgUrl(p)} alt="" loading="lazy" className="w-full block sm:rounded-xl" />
+              ))}
+            </div>
+          )}
+
+          {!material.detail && detailImages.length === 0 && spec.length === 0 && (
+            <p className="text-center py-12 text-gray-400 text-sm">등록된 상세 정보가 없습니다.</p>
+          )}
+        </div>
+      )}
+
+      {/* 배송/교환 안내 */}
+      {tab === 'shipping' && (
+        <div className="mb-12 bg-white border border-gray-200 rounded-2xl p-6">
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            {material.shipping_info || '· 배송비: 3만원 이상 무료 (미만 3,000원)\n· 제주/도서산간 추가 3,000원'}
+          </p>
         </div>
       )}
 
       {/* 리뷰 */}
-      <div>
+      <div className={tab === 'review' ? '' : 'hidden'}>
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
           <h2 className="text-lg font-bold text-gray-900">리뷰 {reviews.length > 0 && <span className="text-blue-600">{reviews.length}</span>}</h2>
           {user && <button onClick={() => setReviewOpen(true)} className="text-sm font-semibold text-blue-600 hover:underline">리뷰 쓰기</button>}

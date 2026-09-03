@@ -26,10 +26,10 @@ export async function POST(req: Request) {
 
   // 가격은 서버에서 다시 계산 (조작 방지)
   const ids = items.map((i: { materialId: string }) => i.materialId)
-  const { data: mats } = await supabaseAdmin.from('materials').select('id,name,price,unit,stock,is_active').in('id', ids)
+  const { data: mats } = await supabaseAdmin.from('materials').select('id,name,price,unit,stock,is_active,options').in('id', ids)
   const map = new Map((mats || []).map((m) => [m.id as string, m]))
 
-  const finalItems: { materialId: string; name: string; price: number; qty: number }[] = []
+  const finalItems: { materialId: string; name: string; price: number; qty: number; options?: string | null }[] = []
   let productAmount = 0
   for (const it of items) {
     const m = map.get(it.materialId)
@@ -38,9 +38,21 @@ export async function POST(req: Request) {
     if (m.stock != null && qty > m.stock) {
       return NextResponse.json({ error: `${m.name} 재고가 부족합니다. (남은 수량 ${m.stock})` }, { status: 400 })
     }
-    const price = Number(m.price) || 0
+
+    // 선택 옵션의 추가금도 서버에서 다시 계산 (조작 방지)
+    const optDefs = Array.isArray(m.options) ? m.options as { name: string; values: { label: string; addPrice: number }[] }[] : []
+    const picked = String(it.options || '')
+    let addPrice = 0
+    for (const od of optDefs) {
+      // "옵션명: 값" 형태에서 선택값 추출
+      const found = od.values.find((v) => picked.includes(`${od.name}: ${v.label}`))
+      if (!found) return NextResponse.json({ error: `${m.name}의 "${od.name}" 옵션을 선택해주세요.` }, { status: 400 })
+      addPrice += Number(found.addPrice) || 0
+    }
+
+    const price = (Number(m.price) || 0) + addPrice
     productAmount += price * qty
-    finalItems.push({ materialId: m.id as string, name: m.name as string, price, qty })
+    finalItems.push({ materialId: m.id as string, name: m.name as string, price, qty, options: picked || null })
   }
 
   const isPickup = b.deliveryMethod === 'pickup'

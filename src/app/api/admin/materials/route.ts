@@ -42,6 +42,10 @@ export async function POST(req: Request) {
     stock: b.stock === '' || b.stock == null ? null : Math.max(0, Math.round(Number(b.stock))),
     category: String(b.category || '').trim() || null,
     images: Array.isArray(b.images) ? b.images : [],
+    detail_images: Array.isArray(b.detailImages) ? b.detailImages : [],
+    options: Array.isArray(b.options) ? b.options : [],
+    spec: Array.isArray(b.spec) ? b.spec : [],
+    shipping_info: String(b.shippingInfo || '').trim() || null,
     is_active: b.isActive !== false,
     sort_order: Math.round(Number(b.sortOrder) || 0),
   }).select('id').single()
@@ -66,6 +70,10 @@ export async function PATCH(req: Request) {
   if (b.stock !== undefined) patch.stock = b.stock === '' || b.stock === null ? null : Math.max(0, Math.round(Number(b.stock)))
   if (b.category !== undefined) patch.category = String(b.category).trim() || null
   if (b.images !== undefined) patch.images = Array.isArray(b.images) ? b.images : []
+  if (b.detailImages !== undefined) patch.detail_images = Array.isArray(b.detailImages) ? b.detailImages : []
+  if (b.options !== undefined) patch.options = Array.isArray(b.options) ? b.options : []
+  if (b.spec !== undefined) patch.spec = Array.isArray(b.spec) ? b.spec : []
+  if (b.shippingInfo !== undefined) patch.shipping_info = String(b.shippingInfo).trim() || null
   if (b.isActive !== undefined) patch.is_active = !!b.isActive
   if (b.sortOrder !== undefined) patch.sort_order = Math.round(Number(b.sortOrder) || 0)
 
