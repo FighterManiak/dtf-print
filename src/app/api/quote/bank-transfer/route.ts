@@ -32,6 +32,8 @@ export async function POST(req: Request) {
     user_name: quote.user_name,
     user_phone: quote.user_phone,
     user_address: fullAddress || quote.user_address,
+    // 견적번호를 그대로 승계 (같은 건이 두 개의 번호를 갖지 않도록)
+    order_no: quote.order_no || null,
     total_amount: payTotal,
     status: 'pending',
     memo: `무통장입금 견적주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''} · ${shipLabel}`,

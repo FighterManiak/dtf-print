@@ -64,6 +64,8 @@ export async function POST(req: Request) {
       user_name: quote.user_name || '',
       user_phone: quote.user_phone || '',
       user_address: quote.user_address || '',
+      // 견적번호를 그대로 승계 (같은 건이 두 개의 번호를 갖지 않도록)
+      order_no: quote.order_no || null,
       total_amount: quote.total_amount ?? 0,
       machine_no: quote.machine_no ?? null,
       status: finalStatus,
