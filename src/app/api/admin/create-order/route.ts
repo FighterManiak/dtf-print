@@ -33,11 +33,14 @@ export async function POST(req: Request) {
   const contentLine = (b.content || '').trim()
   const dueLine = (b.depositDue || '').trim()
   const isSample = !!b.isSample
-  const head = isSample ? '🎁 샘플주문 (무료)' : '📞 전화주문'
+  const company = (b.company || '').trim()
+  // 업체명은 메모 앞부분에 남겨 다음 주문 시 자동완성에 활용
+  const head = `${isSample ? '🎁 샘플주문 (무료)' : '📞 전화주문'}${company ? ` · ${company}` : ''}`
   const memo = `${head}${!isSample && dueLine && status === 'pending' ? ` · 입금예정 ${dueLine}` : ''}${contentLine ? ` · ${contentLine}` : ''}${b.memo ? ` · ${b.memo}` : ''}`
 
   const { data: newOrder, error } = await supabaseAdmin.from('orders').insert({
-    user_id: null,
+    // 회원과 연결된 경우 user_id를 넣어 포인트·등급이 정상 반영되게 함
+    user_id: (b.userId || '').trim() || null,
     user_name: name,
     user_email: (b.email || '').trim() || null,
     user_phone: (b.phone || '').trim() || null,

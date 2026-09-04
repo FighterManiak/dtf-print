@@ -6,6 +6,7 @@ import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, Chevron
 import { createClient } from '@/lib/supabase-browser'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
+import type { CustomerHit } from '@/app/api/admin/customer-search/route'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
   A4: 'A4 출력', A3: 'A3 출력', roll_58: '57cm 롤 출력', other: '기타',
@@ -116,8 +117,43 @@ function AdminManagePageContent() {
   // 전화주문 직접 등록
   const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
   const [poSaving, setPoSaving] = useState(false)
-  const emptyPO = { name: '', phone: '', email: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false }
+  const emptyPO = { name: '', phone: '', email: '', company: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false, userId: '' }
   const [po, setPo] = useState({ ...emptyPO })
+
+  // 주문자 자동완성 (회원 + 과거 주문 이력)
+  const [custQuery, setCustQuery] = useState('')
+  const [custHits, setCustHits] = useState<CustomerHit[]>([])
+  const [custOpen, setCustOpen] = useState(false)
+  const [custLoading, setCustLoading] = useState(false)
+
+  useEffect(() => {
+    const q = custQuery.trim()
+    if (q.length < 2) { setCustHits([]); return }
+    setCustLoading(true)
+    const t = setTimeout(() => {
+      fetch(`/api/admin/customer-search?q=${encodeURIComponent(q)}`)
+        .then((r) => r.ok ? r.json() : { results: [] })
+        .then((d) => setCustHits(d.results || []))
+        .catch(() => setCustHits([]))
+        .finally(() => setCustLoading(false))
+    }, 250)
+    return () => { clearTimeout(t); setCustLoading(false) }
+  }, [custQuery])
+
+  // 후보 선택 → 기준 정보 자동 입력
+  const applyCustomer = (c: CustomerHit) => {
+    setPo((p) => ({
+      ...p,
+      name: c.name || p.name,
+      phone: c.phone || p.phone,
+      email: c.email || p.email,
+      company: c.company || p.company,
+      address: c.address || p.address,
+      userId: c.userId || '',
+    }))
+    setCustOpen(false)
+    setCustQuery('')
+  }
 
   // 전화주문 대량등록 양식 다운로드
   const exportPhoneOrderTemplate = () => {
@@ -1473,6 +1509,57 @@ function AdminManagePageContent() {
             </div>
 
             <div className="space-y-3">
+              {/* 기존 고객 불러오기 */}
+              <div className="relative">
+                <label className="text-xs font-bold text-blue-700 block mb-1">🔍 기존 고객 불러오기</label>
+                <div className="flex items-center gap-2 border-2 border-blue-200 bg-blue-50/50 rounded-xl px-3 py-2">
+                  <Search className="w-4 h-4 text-blue-400 shrink-0" />
+                  <input value={custQuery}
+                    onChange={(e) => { setCustQuery(e.target.value); setCustOpen(true) }}
+                    onFocus={() => setCustOpen(true)}
+                    placeholder="이름 · 업체명 · 전화번호로 검색 (2글자 이상)"
+                    className="flex-1 bg-transparent text-sm text-gray-900 focus:outline-none placeholder:text-blue-400/70" />
+                  {custQuery && (
+                    <button onClick={() => { setCustQuery(''); setCustHits([]) }} className="text-blue-300 hover:text-blue-500">
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {custOpen && custQuery.trim().length >= 2 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-72 overflow-y-auto">
+                    {custLoading ? (
+                      <p className="text-xs text-gray-400 text-center py-4">검색 중...</p>
+                    ) : custHits.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">일치하는 고객이 없습니다. 아래에 직접 입력하세요.</p>
+                    ) : custHits.map((c, i) => (
+                      <button key={`${c.source}-${i}`} onClick={() => applyCustomer(c)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 transition-colors">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-bold text-gray-900">{c.name || '(이름 없음)'}</span>
+                          {c.company && <span className="text-xs text-gray-600">{c.company}</span>}
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${c.source === 'member' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {c.source === 'member' ? '회원' : '주문이력'}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-400 mt-0.5 truncate">
+                          {[c.phone, c.address].filter(Boolean).join(' · ') || '연락처 없음'}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {po.userId && (
+                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2">
+                  <span className="text-xs text-emerald-800 font-semibold">✅ 회원 계정과 연결됨 — 포인트 적립·등급이 정상 반영됩니다</span>
+                  <button onClick={() => setPo((p) => ({ ...p, userId: '' }))} className="text-emerald-400 hover:text-emerald-600 shrink-0">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-1">주문자 이름 <span className="text-red-500">*</span></label>
@@ -1486,10 +1573,17 @@ function AdminManagePageContent() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-gray-600 block mb-1">이메일 <span className="text-gray-400 font-normal">(선택)</span></label>
-                <input value={po.email} onChange={(e) => setPo((p) => ({ ...p, email: e.target.value }))} placeholder="example@email.com"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">업체명 <span className="text-gray-400 font-normal">(선택)</span></label>
+                  <input value={po.company} onChange={(e) => setPo((p) => ({ ...p, company: e.target.value }))} placeholder="예) 커스텀팝"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">이메일 <span className="text-gray-400 font-normal">(선택)</span></label>
+                  <input value={po.email} onChange={(e) => setPo((p) => ({ ...p, email: e.target.value }))} placeholder="example@email.com"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
               </div>
 
               <div>
