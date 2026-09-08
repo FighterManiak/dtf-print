@@ -1,8 +1,15 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Upload, Zap, Truck, ShieldCheck, Star, Clock, CheckCircle2, Printer } from 'lucide-react'
 import ProductsSection from '@/components/ui/ProductsSection'
 import ReviewsSection from '@/components/ui/ReviewsSection'
 import HeroCarousel from '@/components/ui/HeroCarousel'
+
+export const metadata: Metadata = {
+  // 홈은 layout의 기본 제목(SUPER HARD | DTF 전사 출력 전문)을 그대로 사용
+  description: 'DTF 전사 출력 전문 SUPER HARD. A4·A3·57cm 롤 출력을 합리적인 가격에, 당일 출고로 빠르게 받아보세요. 시안 업로드 한 번으로 간편 주문.',
+  alternates: { canonical: '/' },
+}
 
 export default function Home() {
   return (
