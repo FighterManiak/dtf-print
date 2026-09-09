@@ -1577,7 +1577,7 @@ function AdminManagePageContent() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-1">업체명 <span className="text-gray-400 font-normal">(선택)</span></label>
-                  <input value={po.company} onChange={(e) => setPo((p) => ({ ...p, company: e.target.value }))} placeholder="예) 커스텀팝"
+                  <input value={po.company} onChange={(e) => setPo((p) => ({ ...p, company: e.target.value }))} placeholder="예) 슈퍼하드"
                     className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>

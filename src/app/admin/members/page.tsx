@@ -925,7 +925,7 @@ export default function MembersPage() {
             <p className="text-sm text-gray-600 mb-4"><b className="text-gray-900">{infoModal.memberName}</b> 님</p>
 
             <label className="text-xs font-semibold text-gray-600 block mb-1.5">회사명</label>
-            <input value={infoCompany} onChange={(e) => setInfoCompany(e.target.value)} placeholder="예) 커스텀팝"
+            <input value={infoCompany} onChange={(e) => setInfoCompany(e.target.value)} placeholder="예) 슈퍼하드"
               className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400" />
 
             <label className="text-xs font-semibold text-gray-600 block mb-1.5">
