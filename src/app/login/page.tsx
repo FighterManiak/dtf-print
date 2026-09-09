@@ -433,7 +433,7 @@ function LoginContent() {
                   type="text"
                   value={signupForm.company}
                   onChange={(e) => setSignupForm((p) => ({ ...p, company: e.target.value }))}
-                  placeholder="예) 커스텀팝"
+                  placeholder="예) 슈퍼하드"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
                 <p className="text-xs text-blue-600 mt-1.5 leading-relaxed">
