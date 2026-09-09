@@ -93,10 +93,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko" className={`${geist.className} ${barlowCondensed.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-gray-50">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-        {/* 이벤트 공지 배너 */}
-        <div className="bg-gradient-to-r from-violet-600 to-blue-600 text-white text-center text-xs sm:text-sm px-4 py-2.5 font-medium">
-          🎉 <b>오픈 이벤트!</b> 지금 회원가입 시 <b>9월부터 1년간 VIP 등급(3% 적립)</b> 적용
-        </div>
         <Header />
         <ProfileGuard />
         <VisitTracker />
