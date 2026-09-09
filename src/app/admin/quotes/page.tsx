@@ -6,6 +6,7 @@ import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, Chevron
 import { createClient } from '@/lib/supabase-browser'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
+import { safeRows } from '@/lib/excel-safe'
 import type { CustomerHit } from '@/app/api/admin/customer-search/route'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
@@ -581,7 +582,7 @@ function AdminManagePageContent() {
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
     })
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     // 열 너비 지정
     ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
@@ -603,7 +604,7 @@ function AdminManagePageContent() {
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
       return [orderId, d.user_name || '', d.user_phone || '', (d as { order_name?: string }).order_name || '', label, '', '']
     })
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     ws['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 18 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '송장등록')
@@ -625,7 +626,7 @@ function AdminManagePageContent() {
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
       return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, d.total_amount || 0, label]
     })
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 34 }, { wch: 20 }, { wch: 12 }, { wch: 10 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '배송정보')

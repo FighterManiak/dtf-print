@@ -5,6 +5,7 @@ import { Search, Shield, ShieldCheck, User, X, Lock, Download } from 'lucide-rea
 import { createClient } from '@/lib/supabase-browser'
 import { resolveGrade } from '@/lib/grade'
 import * as XLSX from 'xlsx'
+import { safeRows } from '@/lib/excel-safe'
 
 interface Member {
   id: string
@@ -228,7 +229,7 @@ export default function MembersPage() {
       ]
     })
 
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     ws['!cols'] = [
       { wch: 10 }, { wch: 16 }, { wch: 24 }, { wch: 9 }, { wch: 15 }, { wch: 32 },
       { wch: 9 }, { wch: 12 }, { wch: 20 }, { wch: 8 }, { wch: 12 }, { wch: 11 },

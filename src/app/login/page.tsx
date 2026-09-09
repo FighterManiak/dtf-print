@@ -41,6 +41,7 @@ function LoginContent() {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' })
   const [signupForm, setSignupForm] = useState({
     name: '',
+    company: '',
     email: '',
     phone: '',
     zonecode: '',
@@ -110,6 +111,28 @@ function LoginContent() {
     setError('')
     setSuccess('')
 
+    // 이름 검증 — 앞뒤 공백 제거, 길이/문자 제한
+    const name = signupForm.name.trim()
+    const company = signupForm.company.trim()
+    if (!name) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+    if (name.length < 2 || name.length > 30) {
+      setError('이름은 2자 이상 30자 이하로 입력해주세요.')
+      return
+    }
+    // 한글·영문·숫자·공백과 일부 기호(. · - ( ))만 허용
+    const NAME_OK = /^[가-힣a-zA-Z0-9\s.·()-]+$/
+    if (!NAME_OK.test(name)) {
+      setError('이름에 사용할 수 없는 문자가 포함되어 있습니다.')
+      return
+    }
+    if (company && (company.length > 40 || !NAME_OK.test(company))) {
+      setError('회사명은 40자 이하로, 사용 가능한 문자만 입력해주세요.')
+      return
+    }
+
     if (signupForm.password !== signupForm.passwordConfirm) {
       setError('비밀번호가 일치하지 않습니다.')
       return
@@ -150,7 +173,8 @@ function LoginContent() {
         // 인증 메일 링크 클릭 후 세션 교환 처리하는 콜백으로 이동 → 로그인 상태로 진입
         emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
         data: {
-          full_name: signupForm.name,
+          full_name: name,
+          company,
           phone: signupForm.phone.replace(/[^0-9]/g, ''),
           zonecode: signupForm.zonecode,
           address: signupForm.address,
@@ -400,6 +424,21 @@ function LoginContent() {
                   placeholder="홍길동"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 block mb-1.5">
+                  회사명 <span className="text-gray-400 font-normal text-xs">(선택)</span>
+                </label>
+                <input
+                  type="text"
+                  value={signupForm.company}
+                  onChange={(e) => setSignupForm((p) => ({ ...p, company: e.target.value }))}
+                  placeholder="예) 커스텀팝"
+                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <p className="text-xs text-blue-600 mt-1.5 leading-relaxed">
+                  💡 동명이인 구분을 위해 <b>웬만하면 기입해주세요.</b> 주문 확인과 문의 응대가 훨씬 빨라집니다.
+                </p>
               </div>
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-1.5">이메일 <span className="text-red-500">*</span></label>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Package, Search, Download, ChevronDown, ChevronUp, Truck, CheckCircle, Clock, CreditCard, XCircle } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { safeRows } from '@/lib/excel-safe'
 
 interface MaterialOrder {
   id: string; created_at: string; order_no: string | null
@@ -119,7 +120,7 @@ export default function AdminMaterialOrdersPage() {
       o.is_paid === false ? '미입금' : '입금완료',
       o.carrier || '', o.tracking_number || '',
     ])
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 32 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '자재주문')
