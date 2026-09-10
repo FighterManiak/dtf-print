@@ -71,10 +71,18 @@ export async function POST(req: Request) {
   }
 
   // 입금확인 / 작업 시작 / 출고 알림 메일 (실패해도 상태변경에는 영향 없음)
-  if (status === 'paid' || status === 'in_progress' || status === 'shipped') {
+  if (status === 'paid' || status === 'in_progress') {
     try {
       await sendOrderStatusMail(supabaseAdmin, orderId, status === 'paid' ? 'payment_confirmed' : status)
     } catch { /* 무시 */ }
+  }
+  // 출고 알림은 송장번호가 있을 때만 발송 — 없으면 송장 등록 시점에 발송됨
+  if (status === 'shipped') {
+    const { data: o } = await supabaseAdmin
+      .from('orders').select('tracking_number').eq('id', orderId).single()
+    if (o?.tracking_number) {
+      try { await sendOrderStatusMail(supabaseAdmin, orderId, 'shipped') } catch { /* 무시 */ }
+    }
   }
 
   // 배송 완료 시 등급별 포인트 적립 + 추천인 보상 + 추천 커미션 (중복 방지)
