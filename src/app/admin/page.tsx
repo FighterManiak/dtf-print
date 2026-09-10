@@ -63,6 +63,9 @@ const VISIT_PERIOD_LABELS: { key: VisitPeriod; label: string }[] = [
   { key: 'all', label: '전체' },
 ]
 
+// Resend Pro 플랜 월 발송 한도
+const MAIL_MONTH_LIMIT = 50000
+
 export default function AdminPage() {
   const [storage, setStorage] = useState<StorageStats | null>(null)
   const [visits, setVisits] = useState<VisitStats | null>(null)
@@ -406,16 +409,25 @@ export default function AdminPage() {
                 <div className="grid grid-cols-3 gap-2 text-center mb-2">
                   <div>
                     <p className="text-[11px] text-gray-400">오늘</p>
-                    <p className="text-sm font-bold text-gray-800">{emailStats.total.today.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/100</span></p>
+                    <p className="text-sm font-bold text-gray-800">{emailStats.total.today.toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-gray-400">이번 달</p>
-                    <p className="text-sm font-bold text-gray-800">{emailStats.total.month.toLocaleString()}<span className="text-[10px] text-gray-400 ml-0.5">/3천</span></p>
+                    <p className={`text-sm font-bold ${emailStats.total.month >= MAIL_MONTH_LIMIT * 0.8 ? 'text-amber-600' : 'text-gray-800'}`}>
+                      {emailStats.total.month.toLocaleString()}
+                      <span className="text-[10px] text-gray-400 ml-0.5">/5만</span>
+                    </p>
                   </div>
                   <div>
                     <p className="text-[11px] text-gray-400">누적</p>
                     <p className="text-sm font-bold text-gray-800">{emailStats.total.total.toLocaleString()}</p>
                   </div>
+                </div>
+
+                {/* 이달 사용량 게이지 (Resend Pro 월 5만 건) */}
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                  <div className={`h-full rounded-full ${emailStats.total.month >= MAIL_MONTH_LIMIT * 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                    style={{ width: `${Math.min(100, (emailStats.total.month / MAIL_MONTH_LIMIT) * 100)}%` }} />
                 </div>
                 <div className="text-[11px] text-gray-500 space-y-0.5 border-t border-gray-50 pt-2">
                   <div className="flex justify-between"><span>· 회원 발송</span><span className="text-gray-700">누적 {emailStats.byType.broadcast.total.toLocaleString()} · 이달 {emailStats.byType.broadcast.month.toLocaleString()}</span></div>
