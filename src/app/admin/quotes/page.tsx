@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase-browser'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
 import { safeRows, splitAddress } from '@/lib/excel-safe'
+import { openPostcode } from '@/lib/daum-postcode'
 import type { CustomerHit } from '@/app/api/admin/customer-search/route'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
@@ -118,8 +119,14 @@ function AdminManagePageContent() {
   // 전화주문 직접 등록
   const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
   const [poSaving, setPoSaving] = useState(false)
-  const emptyPO = { name: '', phone: '', email: '', company: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', address: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false, userId: '' }
+  const emptyPO = { name: '', phone: '', email: '', company: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', zonecode: '', address: '', addressDetail: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false, userId: '' }
   const [po, setPo] = useState({ ...emptyPO })
+
+  // 전화주문 배송지 우편번호 검색
+  const handlePoPostcode = async () => {
+    const r = await openPostcode()
+    if (r) setPo((p) => ({ ...p, zonecode: r.zonecode, address: r.address }))
+  }
 
   // 주문자 자동완성 (회원 + 과거 주문 이력)
   const [custQuery, setCustQuery] = useState('')
@@ -143,13 +150,16 @@ function AdminManagePageContent() {
 
   // 후보 선택 → 기준 정보 자동 입력
   const applyCustomer = (c: CustomerHit) => {
+    // 저장된 주소에서 우편번호를 분리해 각 칸에 채움
+    const { zip, addr } = splitAddress(c.address)
     setPo((p) => ({
       ...p,
       name: c.name || p.name,
       phone: c.phone || p.phone,
       email: c.email || p.email,
       company: c.company || p.company,
-      address: c.address || p.address,
+      zonecode: zip || p.zonecode,
+      address: addr || p.address,
       userId: c.userId || '',
     }))
     setCustOpen(false)
@@ -158,10 +168,10 @@ function AdminManagePageContent() {
 
   // 전화주문 대량등록 양식 다운로드
   const exportPhoneOrderTemplate = () => {
-    const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
-    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '57cm 롤 3M / 컷팅 포함', 50000, '무통장', '택배', '(12345) 서울시 강남구 …', '입금대기', '후불', '2026-08-10', '단골 고객']
-    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '57cm 롤 0.5M 샘플', 0, '무통장', '택배', '(54321) 부산시 기장군 …', '작업중', '입금완료', '', '무료 샘플 발송']
-    const guide = ['※ 필수', '', '', '', '', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
+    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '57cm 롤 3M', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
+    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '57cm 롤 0.5M 샘플', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
+    const guide = ['※ 필수', '', '', '', '', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
     const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
     ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
@@ -192,7 +202,12 @@ function AdminManagePageContent() {
           amount: Number(String(r['금액'] ?? '').replace(/[^0-9.-]/g, '')) || 0,
           paymentMethod: s(r['결제수단']).includes('카드') ? 'CARD' : 'bank_transfer',
           deliveryMethod: s(r['수령방법']).includes('직접') ? 'pickup' : 'delivery',
-          address: s(r['배송지주소']),
+          // 우편번호 칸이 있으면 "(우편번호) 주소" 형태로 합쳐 전달
+          address: (() => {
+            const zip = s(r['우편번호']).replace(/[^0-9]/g, '')
+            const addr = s(r['배송지주소'])
+            return zip && !addr.startsWith('(') ? `(${zip}) ${addr}`.trim() : addr
+          })(),
           status: STATUS_MAP[s(r['진행상태'])] || 'pending',
           paymentStatus: s(r['입금상태']).includes('후불') || s(r['입금상태']).includes('미입금') ? 'unpaid' : 'paid',
           depositDue: s(r['입금예정일']),
@@ -1716,7 +1731,17 @@ function AdminManagePageContent() {
               {po.deliveryMethod === 'delivery' && (
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-1">배송지 주소</label>
-                  <input value={po.address} onChange={(e) => setPo((p) => ({ ...p, address: e.target.value }))} placeholder="(우편번호) 주소 상세까지 입력"
+                  <div className="flex gap-2 mb-2">
+                    <input value={po.zonecode} readOnly placeholder="우편번호"
+                      className="w-28 border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-gray-50" />
+                    <button type="button" onClick={handlePoPostcode}
+                      className="px-4 py-2 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 shrink-0">
+                      우편번호 검색
+                    </button>
+                  </div>
+                  <input value={po.address} onChange={(e) => setPo((p) => ({ ...p, address: e.target.value }))} placeholder="주소 (검색하면 자동 입력)"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-2" />
+                  <input value={po.addressDetail} onChange={(e) => setPo((p) => ({ ...p, addressDetail: e.target.value }))} placeholder="상세주소 (동·호수 등)"
                     className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
               )}

@@ -28,7 +28,14 @@ export async function POST(req: Request) {
   const paymentMethod = b.paymentMethod || 'bank_transfer'
   // 입금 여부: 후불(미입금)=false, 입금완료=true
   const isPaid = b.paymentStatus === 'unpaid' ? false : true
-  const address = b.deliveryMethod === 'pickup' ? '직접 수령' : (b.address || '').trim()
+  // 배송지: "(우편번호) 주소 상세주소" 형태로 합쳐 저장 (엑셀에서 우편번호 분리 가능)
+  const address = b.deliveryMethod === 'pickup'
+    ? '직접 수령'
+    : [
+        (b.zonecode || '').trim() ? `(${String(b.zonecode).trim()})` : '',
+        (b.address || '').trim(),
+        (b.addressDetail || '').trim(),
+      ].filter(Boolean).join(' ').trim()
 
   const contentLine = (b.content || '').trim()
   const dueLine = (b.depositDue || '').trim()
