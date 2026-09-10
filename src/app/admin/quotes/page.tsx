@@ -6,7 +6,7 @@ import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, Chevron
 import { createClient } from '@/lib/supabase-browser'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
-import { safeRows } from '@/lib/excel-safe'
+import { safeRows, splitAddress } from '@/lib/excel-safe'
 import type { CustomerHit } from '@/app/api/admin/customer-search/route'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
@@ -576,7 +576,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
-    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
+    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
       const s = getEffectiveStatus(item)
@@ -595,11 +595,12 @@ function AdminManagePageContent() {
       const machine = (d as { machine_no?: number | null }).machine_no
       const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
+      const { zip, addr } = splitAddress(d.user_address)
+      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     // 열 너비 지정
-    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 20 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '주문내역')
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -630,7 +631,7 @@ function AdminManagePageContent() {
   const exportSelectedShipping = () => {
     const chosen = items.filter((item) => selected.has(item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`))
     if (chosen.length === 0) { alert('선택된 주문이 없습니다.'); return }
-    const headers = ['주문일시', '주문명', '이름', '연락처', '이메일', '주소', '상품/상세', '금액', '상태']
+    const headers = ['주문일시', '주문명', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '금액', '상태']
     const rows = chosen.map((item) => {
       const d = item.data
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
@@ -639,10 +640,11 @@ function AdminManagePageContent() {
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
       else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
-      return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', d.user_address || '', detail, d.total_amount || 0, label]
+      const { zip, addr } = splitAddress(d.user_address)
+      return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, d.total_amount || 0, label]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
-    ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 34 }, { wch: 20 }, { wch: 12 }, { wch: 10 }]
+    ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 20 }, { wch: 12 }, { wch: 10 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '배송정보')
     XLSX.writeFile(wb, `배송정보_${new Date().toISOString().slice(0, 10)}.xlsx`)

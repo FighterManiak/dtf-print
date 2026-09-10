@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Package, Search, Download, ChevronDown, ChevronUp, Truck, CheckCircle, Clock, CreditCard, XCircle } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import { safeRows } from '@/lib/excel-safe'
+import { safeRows, splitAddress } from '@/lib/excel-safe'
 
 interface MaterialOrder {
   id: string; created_at: string; order_no: string | null
@@ -108,12 +108,13 @@ export default function AdminMaterialOrdersPage() {
     .reduce((s, o) => s + (o.total_amount || 0), 0)
 
   const exportExcel = () => {
-    const headers = ['주문번호', '주문일시', '상태', '주문자', '연락처', '이메일', '주소', '상품', '상품금액', '배송비', '결제금액', '결제수단', '입금여부', '택배사', '송장번호']
+    const headers = ['주문번호', '주문일시', '상태', '주문자', '연락처', '이메일', '우편번호', '주소', '상품', '상품금액', '배송비', '결제금액', '결제수단', '입금여부', '택배사', '송장번호']
     const rows = filtered.map((o) => [
       o.order_no || '',
       new Date(o.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
       STATUS[o.status]?.label || o.status,
-      o.user_name || '', o.user_phone || '', o.user_email || '', o.user_address || '',
+      o.user_name || '', o.user_phone || '', o.user_email || '',
+      splitAddress(o.user_address).zip, splitAddress(o.user_address).addr,
       (o.items || []).map((i) => `${i.name}×${i.qty}`).join(', '),
       o.product_amount || 0, o.shipping_fee || 0, o.total_amount || 0,
       o.payment_method === 'CARD' ? '카드' : '무통장',
@@ -121,7 +122,7 @@ export default function AdminMaterialOrdersPage() {
       o.carrier || '', o.tracking_number || '',
     ])
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
-    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 32 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 28 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '자재주문')
     XLSX.writeFile(wb, `자재주문_${new Date().toISOString().slice(0, 10)}.xlsx`)

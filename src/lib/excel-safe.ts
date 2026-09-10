@@ -12,3 +12,12 @@ export function safeCell(v: unknown): unknown {
 export function safeRows<T extends unknown[]>(rows: T[]): unknown[][] {
   return rows.map((r) => r.map(safeCell))
 }
+
+// 주소에 "(02452) 서울 …" 형태로 들어있는 우편번호를 분리
+export function splitAddress(full: string | null | undefined): { zip: string; addr: string } {
+  const s = (full || '').trim()
+  if (!s) return { zip: '', addr: '' }
+  const m = s.match(/^\(?\s*(\d{5}|\d{3}-\d{3})\s*\)?\s*(.*)$/)
+  if (m) return { zip: m[1].replace('-', ''), addr: m[2].trim() }
+  return { zip: '', addr: s }
+}
