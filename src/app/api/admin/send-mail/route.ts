@@ -88,15 +88,28 @@ export async function POST(req: Request) {
   // Resend 배치 발송 (한 번에 최대 100건) — 각 수신자에게 개별 발송(BCC 노출 방지)
   let sent = 0
   const failed: string[] = []
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
   for (let i = 0; i < recipients.length; i += 100) {
     const chunk = recipients.slice(i, i + 100)
     const payload = chunk.map((to) => ({ from: FROM, to: [to], subject, html }))
+    // Resend 속도 제한(초당 2건) 회피 — 첫 배치 이후 간격을 둠
+    if (i > 0) await wait(600)
     try {
-      const res = await fetch('https://api.resend.com/emails/batch', {
+      let res = await fetch('https://api.resend.com/emails/batch', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      // 속도 제한에 걸리면 잠시 후 한 번 재시도
+      if (res.status === 429) {
+        await wait(2000)
+        res = await fetch('https://api.resend.com/emails/batch', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      }
       if (res.ok) {
         sent += chunk.length
       } else {
