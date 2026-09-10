@@ -100,6 +100,9 @@ function OrderPageContent() {
     bizNo: '', company: '', ceo: '', email: '',   // 세금계산서
     cashPurpose: 'personal' as 'personal'|'business', cashNo: '', // 현금영수증
   })
+  // 증빙 정보 저장 — 다음 주문에서 자동 입력
+  const [saveReceipt, setSaveReceipt] = useState(true)
+  const [receiptLoaded, setReceiptLoaded] = useState(false)
   const [bankDone, setBankDone] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [availablePoints, setAvailablePoints] = useState(0)
@@ -144,6 +147,31 @@ function OrderPageContent() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [step, mode])
+
+  // 저장된 증빙 발행 정보 불러오기 (반복 입력 방지)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/account/receipt-info')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (!alive) return
+        const info = d?.info
+        if (info) {
+          setReceipt({
+            bizNo: info.bizNo || '', company: info.company || '', ceo: info.ceo || '', email: info.email || '',
+            cashPurpose: info.cashPurpose === 'business' ? 'business' : 'personal',
+            cashNo: info.cashNo || '',
+          })
+          setReceiptType(info.type === 'cash_receipt' ? 'cash_receipt' : 'tax_invoice')
+        } else if (d?.company) {
+          // 저장 이력이 없으면 가입 시 회사명만 채워둠
+          setReceipt((p) => ({ ...p, company: d.company }))
+        }
+        setReceiptLoaded(!!info)
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   // ── 공통 헬퍼 ──
   const validateCustomer = (requireZonecode = false) => {
@@ -297,6 +325,16 @@ function OrderPageContent() {
     if (receiptType === 'cash_receipt' && !receipt.cashNo.trim()) {
       alert(receipt.cashPurpose === 'personal' ? '현금영수증 발행용 휴대폰 번호를 입력해주세요.' : '현금영수증 발행용 사업자등록번호를 입력해주세요.')
       return
+    }
+
+    // 다음 주문에서 자동 입력되도록 증빙 정보 저장
+    if (saveReceipt && receiptType !== 'none') {
+      try {
+        await fetch('/api/account/receipt-info', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: receiptType, ...receipt }),
+        })
+      } catch { /* 저장 실패해도 주문은 진행 */ }
     }
 
     setSubmitting(true)
@@ -985,6 +1023,23 @@ function OrderPageContent() {
                       ))}
                     </div>
 
+                    {/* 저장된 정보 안내 */}
+                    {receiptType !== 'none' && receiptLoaded && (
+                      <div className="flex items-center justify-between gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3">
+                        <span className="text-xs text-emerald-800 font-semibold">✅ 지난번 입력하신 정보를 불러왔습니다</span>
+                        <button type="button"
+                          onClick={async () => {
+                            if (!confirm('저장된 발행 정보를 삭제할까요?')) return
+                            await fetch('/api/account/receipt-info', { method: 'DELETE' })
+                            setReceipt({ bizNo: '', company: '', ceo: '', email: '', cashPurpose: 'personal', cashNo: '' })
+                            setReceiptLoaded(false)
+                          }}
+                          className="text-xs text-emerald-500 hover:text-emerald-700 underline shrink-0">
+                          지우기
+                        </button>
+                      </div>
+                    )}
+
                     {receiptType === 'tax_invoice' && (
                       <div className="space-y-3">
                         <div>
@@ -1039,6 +1094,17 @@ function OrderPageContent() {
                         </div>
                         <p className="text-xs text-gray-400">※ 입금 확인 후 국세청에 신고됩니다.</p>
                       </div>
+                    )}
+
+                    {/* 다음 주문에 재사용 */}
+                    {receiptType !== 'none' && (
+                      <label className="flex items-center gap-2 mt-3 cursor-pointer select-none">
+                        <input type="checkbox" checked={saveReceipt} onChange={(e) => setSaveReceipt(e.target.checked)}
+                          className="w-4 h-4 accent-orange-500" />
+                        <span className="text-xs text-gray-600">
+                          이 정보를 저장하고 <b className="text-gray-800">다음 주문에서 자동으로 입력</b>
+                        </span>
+                      </label>
                     )}
                   </div>
                 )}
