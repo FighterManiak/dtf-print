@@ -304,6 +304,7 @@ function AdminManagePageContent() {
   const BULK_NEXT_LABEL: Record<string, string> = { in_progress: '작업 시작', shipped: '출고 진행', delivered: '배송 완료' }
 
   const toggleSelect = (key: string) => setSelected((p) => { const n = new Set(p); n.has(key) ? n.delete(key) : n.add(key); return n })
+  const itemKeyOf = (item: Item) => item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`
 
   // 한 주문을 다음 단계로 이동
   const advanceItem = async (item: Item): Promise<boolean> => {
@@ -559,6 +560,20 @@ function AdminManagePageContent() {
   const safePage = Math.min(page, totalPages)
   const paged = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
 
+  // 전체 선택 — 현재 페이지 / 검색·필터된 전체
+  const pageKeys = paged.map(itemKeyOf)
+  const allKeys = filtered.map(itemKeyOf)
+  const pageAllSelected = pageKeys.length > 0 && pageKeys.every((k) => selected.has(k))
+  const allSelected = allKeys.length > 0 && allKeys.every((k) => selected.has(k))
+
+  const toggleSelectPage = () => setSelected((p) => {
+    const n = new Set(p)
+    if (pageAllSelected) pageKeys.forEach((k) => n.delete(k))
+    else pageKeys.forEach((k) => n.add(k))
+    return n
+  })
+  const selectAllFiltered = () => setSelected(new Set(allKeys))
+
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
     const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '주소', '상품/상세', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
@@ -762,7 +777,33 @@ function AdminManagePageContent() {
 
         {/* 페이지당 개수 + 결과 수 */}
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <span className="text-sm text-gray-500">총 {filtered.length}건</span>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* 전체 선택 */}
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={pageAllSelected} onChange={toggleSelectPage}
+                ref={(el) => { if (el) el.indeterminate = !pageAllSelected && pageKeys.some((k) => selected.has(k)) }}
+                className="w-4 h-4 accent-blue-600 cursor-pointer" />
+              <span className="text-sm font-semibold text-gray-700">
+                {pageAllSelected ? '선택 해제' : '이 페이지 전체 선택'}
+                <span className="text-gray-400 font-normal"> ({paged.length}건)</span>
+              </span>
+            </label>
+
+            {/* 필터된 전체 선택 (페이지보다 많을 때만) */}
+            {filtered.length > paged.length && (
+              allSelected ? (
+                <button onClick={() => setSelected(new Set())} className="text-xs text-gray-500 font-semibold hover:underline">
+                  전체 선택 해제
+                </button>
+              ) : (
+                <button onClick={selectAllFiltered} className="text-xs text-blue-600 font-bold hover:underline">
+                  검색된 {filtered.length}건 모두 선택
+                </button>
+              )
+            )}
+
+            <span className="text-sm text-gray-500">총 {filtered.length}건</span>
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-gray-400 mr-1">페이지당</span>
             {[30, 50, 100, 500].map((n) => (
