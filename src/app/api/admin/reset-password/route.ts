@@ -100,6 +100,7 @@ export async function POST(req: Request) {
           await supabaseAdmin.from('email_logs').insert({
             type: 'temp_password', subject: '[SUPER HARD] 임시 비밀번호 발급',
             scope: 'single', sent_count: 1, sent_by: user?.email || null,
+            recipient: t.email || null, ok: true,
           })
         } catch { /* 무시 */ }
       }

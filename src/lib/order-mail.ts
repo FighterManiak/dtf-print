@@ -107,7 +107,7 @@ function buildHtml(kind: Kind, o: OrderInfo) {
 async function sendMail(admin: SupabaseClient, to: string[], subject: string, html: string, logType: string) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey || to.length === 0) return
-  await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from: FROM, to, subject, html }),
@@ -115,6 +115,7 @@ async function sendMail(admin: SupabaseClient, to: string[], subject: string, ht
   try {
     await admin.from('email_logs').insert({
       type: logType, subject, scope: 'single', sent_count: to.length, sent_by: null,
+      recipient: to.join(', '), ok: res.ok,
     })
   } catch { /* 무시 */ }
 }

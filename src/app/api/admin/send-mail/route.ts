@@ -139,6 +139,10 @@ export async function POST(req: Request) {
       scope: scope || 'all',
       sent_count: sent,
       sent_by: user?.email || null,
+      // 다시 보내기·내용 확인을 위해 본문과 수신자 기록
+      body,
+      recipient: recipients.length <= 5 ? recipients.join(', ') : `${recipients.length}명`,
+      ok: failed.length === 0,
     })
   } catch { /* 무시 */ }
 

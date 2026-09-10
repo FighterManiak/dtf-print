@@ -73,6 +73,7 @@ export async function POST(req: Request) {
   try {
     await supabaseAdmin.from('email_logs').insert({
       type: 'quote', subject: '[SUPER HARD] 견적이 도착했습니다', scope: 'single', sent_count: 1, sent_by: null,
+      recipient: userEmail || null, ok: true,
     })
   } catch { /* 무시 */ }
 

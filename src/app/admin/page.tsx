@@ -436,6 +436,11 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+            <span
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = '/admin/mail-history' }}
+              className="block mt-3 pt-2 border-t border-gray-100 text-xs font-bold text-violet-600 hover:underline">
+              📋 발송 내역 전체 보기 →
+            </span>
           </Link>
 
           <Link href="/admin/deleted-orders"

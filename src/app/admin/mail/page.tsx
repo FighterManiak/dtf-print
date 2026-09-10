@@ -51,9 +51,12 @@ export default function AdminMailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-3 mb-6">
-          <Mail className="w-6 h-6 text-gray-600" />
-          <h1 className="text-2xl font-bold text-gray-900">회원 메일 발송</h1>
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Mail className="w-6 h-6 text-gray-600" />
+            <h1 className="text-2xl font-bold text-gray-900">회원 메일 발송</h1>
+          </div>
+          <a href="/admin/mail-history" className="text-sm font-bold text-violet-600 hover:underline">📋 발송 내역 보기</a>
         </div>
 
         {/* 수신 대상 */}
