@@ -12,11 +12,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: Request) {
   const { userEmail, userName, productType, quantity, unit, unitPrice, cuttingPrice, totalAmount, adminNote, quoteId } = await req.json()
 
-  const { error } = await resend.emails.send({
-    from: 'SUPER HARD <onboarding@resend.dev>',
-    to: userEmail,
-    subject: '[SUPER HARD] 견적이 도착했습니다 🖨️',
-    html: `
+  const quoteHtml = `
       <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; background: #f9fafb;">
         <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <h1 style="font-size: 22px; font-weight: 800; color: #111827; margin: 0 0 8px;">견적이 도착했습니다!</h1>
@@ -64,7 +60,13 @@ export async function POST(req: Request) {
           </p>
         </div>
       </div>
-    `,
+    `
+
+  const { error } = await resend.emails.send({
+    from: 'SUPER HARD <onboarding@resend.dev>',
+    to: userEmail,
+    subject: '[SUPER HARD] 견적이 도착했습니다 🖨️',
+    html: quoteHtml,
   })
 
   if (error) return NextResponse.json({ error }, { status: 500 })
@@ -73,7 +75,7 @@ export async function POST(req: Request) {
   try {
     await supabaseAdmin.from('email_logs').insert({
       type: 'quote', subject: '[SUPER HARD] 견적이 도착했습니다', scope: 'single', sent_count: 1, sent_by: null,
-      recipient: userEmail || null, ok: true,
+      recipient: userEmail || null, ok: true, body: quoteHtml,
     })
   } catch { /* 무시 */ }
 

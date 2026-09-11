@@ -43,6 +43,9 @@ const TYPE_FILTERS = [
 const kst = (iso: string) =>
   new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ')
 
+// 저장된 본문이 HTML 메일인지 (회원 발송은 평문)
+const isHtml = (s: string) => /^\s*</.test(s)
+
 export default function MailHistoryPage() {
   const [logs, setLogs] = useState<MailLog[]>([])
   const [total, setTotal] = useState(0)
@@ -184,14 +187,30 @@ export default function MailHistoryPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-bold text-gray-800">{(l.sent_count ?? 0).toLocaleString()}건</p>
-                        {l.ok === false && <p className="text-[10px] text-red-500 font-bold">일부 실패</p>}
+                        {l.ok === false ? (
+                          <p className="text-[10px] text-red-500 font-bold">일부 실패</p>
+                        ) : hasBody ? (
+                          <p className="text-[10px] text-violet-500 font-bold">{open ? '접기' : '내용 보기'}</p>
+                        ) : (
+                          <p className="text-[10px] text-gray-300">내용 없음</p>
+                        )}
                       </div>
                       {hasBody && (open ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />)}
                     </div>
                     {open && hasBody && (
                       <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
                         <p className="text-[11px] font-bold text-gray-500 mb-1.5">발송 내용</p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{l.body}</p>
+                        {isHtml(l.body!) ? (
+                          // 실제 발송된 메일 그대로 미리보기 (샌드박스로 격리)
+                          <iframe
+                            srcDoc={l.body!}
+                            sandbox=""
+                            title="메일 미리보기"
+                            className="w-full h-[520px] bg-white border border-gray-200 rounded-lg"
+                          />
+                        ) : (
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{l.body}</p>
+                        )}
                       </div>
                     )}
                   </div>

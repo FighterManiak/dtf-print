@@ -101,6 +101,8 @@ export async function POST(req: Request) {
             type: 'temp_password', subject: '[SUPER HARD] 임시 비밀번호 발급',
             scope: 'single', sent_count: 1, sent_by: user?.email || null,
             recipient: t.email || null, ok: true,
+            // 보안상 임시 비밀번호는 로그에 남기지 않고 가림
+            body: html.replace(tempPassword, '●●●●●●●●●●'),
           })
         } catch { /* 무시 */ }
       }

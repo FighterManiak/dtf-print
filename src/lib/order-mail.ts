@@ -116,6 +116,7 @@ async function sendMail(admin: SupabaseClient, to: string[], subject: string, ht
     await admin.from('email_logs').insert({
       type: logType, subject, scope: 'single', sent_count: to.length, sent_by: null,
       recipient: to.join(', '), ok: res.ok,
+      body: html,
     })
   } catch { /* 무시 */ }
 }
