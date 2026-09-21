@@ -5,32 +5,122 @@ export const alt = 'SUPER HARD — DTF 전사 출력 전문'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-// 카카오톡·문자·SNS 공유 시 노출되는 썸네일
-export default function OgImage() {
+const BRAND = 'SUPER HARD'
+const TAGLINE = 'DTF 전사 출력 전문'
+const LINE1 = 'A4 · A3 · 57cm 롤 출력'
+const CHIPS = ['당일 출고', '대량 주문', 'DTF 자재 판매']
+const DOMAIN = 'superhard.co.kr'
+const TEL = '010-2560-9749'
+
+// 구글 폰트에서 필요한 글자만 받아옴 (한글 전체를 받으면 너무 무거움)
+async function loadFont(weight: number, text: string): Promise<ArrayBuffer | null> {
+  try {
+    const url = `https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@${weight}&text=${encodeURIComponent(text)}`
+    const css = await fetch(url, {
+      headers: {
+        // 구형 UA로 요청해야 woff2 대신 ttf 를 내려줌 (satori는 woff2 미지원)
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) AppleWebKit/533.21.1 (KHTML, like Gecko) Version/5.0.5 Safari/533.21.1',
+      },
+    }).then((r) => r.text())
+
+    const src = css.match(/src:\s*url\(([^)]+)\)/)?.[1]
+    if (!src) return null
+    return await fetch(src).then((r) => r.arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
+export default async function OgImage() {
+  const koText = TAGLINE + LINE1 + CHIPS.join('') + '전사출력전문당일대량자재판매롤'
+  const [bold, regular] = await Promise.all([
+    loadFont(800, koText + BRAND),
+    loadFont(500, koText + DOMAIN + TEL),
+  ])
+
+  const fonts = [
+    ...(bold ? [{ name: 'Noto', data: bold, weight: 800 as const, style: 'normal' as const }] : []),
+    ...(regular ? [{ name: 'Noto', data: regular, weight: 500 as const, style: 'normal' as const }] : []),
+  ]
+
   return new ImageResponse(
     (
       <div
         style={{
-          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          background: 'linear-gradient(135deg, #0f0f0f 0%, #1e1b4b 55%, #1e3a8a 100%)',
-          color: 'white', fontFamily: 'sans-serif',
+          width: '100%', height: '100%', display: 'flex', position: 'relative',
+          background: 'linear-gradient(125deg, #0a0a12 0%, #141733 45%, #1d2a6b 100%)',
+          fontFamily: fonts.length ? 'Noto' : 'sans-serif',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ fontSize: 104, fontWeight: 900, letterSpacing: -3, display: 'flex' }}>
-          SUPER HARD
-        </div>
-        <div style={{ fontSize: 40, fontWeight: 700, color: '#93c5fd', marginTop: 12, display: 'flex' }}>
-          DTF 전사 출력 전문
-        </div>
-        <div style={{ fontSize: 26, color: '#cbd5e1', marginTop: 28, display: 'flex' }}>
-          A4 · A3 · 57cm 롤 출력 &nbsp;|&nbsp; 당일 출고 &nbsp;|&nbsp; DTF 자재 판매
-        </div>
-        <div style={{ fontSize: 22, color: '#64748b', marginTop: 44, display: 'flex' }}>
-          superhard.co.kr
+        {/* 우상단 글로우 */}
+        <div style={{
+          position: 'absolute', top: -300, right: -220, width: 780, height: 780, borderRadius: 999,
+          background: 'radial-gradient(circle, rgba(79,140,255,0.42) 0%, rgba(79,140,255,0.10) 45%, rgba(0,0,0,0) 70%)',
+          display: 'flex',
+        }} />
+        {/* 좌하단 보조 글로우 */}
+        <div style={{
+          position: 'absolute', bottom: -260, left: -180, width: 620, height: 620, borderRadius: 999,
+          background: 'radial-gradient(circle, rgba(139,92,246,0.30) 0%, rgba(139,92,246,0.06) 50%, rgba(0,0,0,0) 72%)',
+          display: 'flex',
+        }} />
+
+        {/* 좌측 액센트 바 */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0, width: 14,
+          background: 'linear-gradient(180deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%)',
+          display: 'flex',
+        }} />
+
+        {/* 본문 */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          padding: '0 88px', width: '100%', height: '100%',
+        }}>
+          {/* 상단 라벨 */}
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 26 }}>
+            <div style={{ width: 34, height: 4, borderRadius: 2, background: '#60a5fa', display: 'flex', marginRight: 14 }} />
+            <span style={{ fontSize: 27, fontWeight: 500, color: '#93c5fd', letterSpacing: 4 }}>{TAGLINE}</span>
+          </div>
+
+          {/* 브랜드 */}
+          <div style={{
+            display: 'flex', fontSize: 132, fontWeight: 800, color: '#ffffff',
+            letterSpacing: -4, lineHeight: 1.02, marginBottom: 30,
+          }}>
+            {BRAND}
+          </div>
+
+          {/* 서비스 라인 */}
+          <div style={{ display: 'flex', fontSize: 35, fontWeight: 500, color: '#dbeafe', marginBottom: 34 }}>
+            {LINE1}
+          </div>
+
+          {/* 특징 칩 */}
+          <div style={{ display: 'flex', marginBottom: 56 }}>
+            {CHIPS.map((c) => (
+              <div key={c} style={{
+                display: 'flex', alignItems: 'center',
+                padding: '13px 27px', marginRight: 14, borderRadius: 999,
+                background: 'rgba(255,255,255,0.09)',
+                border: '1px solid rgba(147,197,253,0.42)',
+                fontSize: 25, fontWeight: 500, color: '#e0ecff',
+              }}>
+                {c}
+              </div>
+            ))}
+          </div>
+
+          {/* 하단 */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', letterSpacing: 0.5 }}>{DOMAIN}</span>
+            <div style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.28)', display: 'flex', margin: '0 22px' }} />
+            <span style={{ fontSize: 27, fontWeight: 500, color: '#9fb4d8' }}>{TEL}</span>
+          </div>
         </div>
       </div>
     ),
-    size
+    { ...size, fonts: fonts.length ? fonts : undefined }
   )
 }
