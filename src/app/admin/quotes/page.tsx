@@ -52,6 +52,7 @@ interface OrderInfo {
   id: string; status: string; carrier: string | null
   tracking_number: string | null; refund_reason: string | null
   payment_method: string | null; assigned_machine: number | null
+  user_address?: string | null
 }
 interface Quote {
   id: string; created_at: string; status: string; order_no: string | null
@@ -610,7 +611,9 @@ function AdminManagePageContent() {
       const machine = (d as { machine_no?: number | null }).machine_no
       const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
-      const { zip, addr } = splitAddress(d.user_address)
+      // 견적은 결제 시 입력한 배송지(주문)를 우선 사용
+      const addrSrc = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
+      const { zip, addr } = splitAddress(addrSrc)
       return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
@@ -655,7 +658,9 @@ function AdminManagePageContent() {
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
       else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
-      const { zip, addr } = splitAddress(d.user_address)
+      // 견적은 결제 시 입력한 배송지(주문)를 우선 사용
+      const addrSrc = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
+      const { zip, addr } = splitAddress(addrSrc)
       return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, d.total_amount || 0, label]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
@@ -820,6 +825,7 @@ function AdminManagePageContent() {
             )}
 
             <span className="text-sm text-gray-500">총 {filtered.length}건</span>
+            <a href="/admin/fix-zipcode" className="text-xs text-blue-600 font-bold hover:underline">📍 우편번호 정리</a>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-gray-400 mr-1">페이지당</span>
