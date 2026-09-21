@@ -48,29 +48,29 @@ export default async function OgImage() {
       <div
         style={{
           width: '100%', height: '100%', display: 'flex', position: 'relative',
-          background: 'linear-gradient(125deg, #0a0a12 0%, #141733 45%, #1d2a6b 100%)',
+          background: 'linear-gradient(135deg, #000000 0%, #0d0d0d 55%, #1a1a1a 100%)',
           fontFamily: fonts.length ? 'Noto' : 'sans-serif',
           overflow: 'hidden',
         }}
       >
-        {/* 우상단 글로우 */}
+        {/* 우상단 은은한 라이트 */}
         <div style={{
-          position: 'absolute', top: -300, right: -220, width: 780, height: 780, borderRadius: 999,
-          background: 'radial-gradient(circle, rgba(79,140,255,0.42) 0%, rgba(79,140,255,0.10) 45%, rgba(0,0,0,0) 70%)',
-          display: 'flex',
-        }} />
-        {/* 좌하단 보조 글로우 */}
-        <div style={{
-          position: 'absolute', bottom: -260, left: -180, width: 620, height: 620, borderRadius: 999,
-          background: 'radial-gradient(circle, rgba(139,92,246,0.30) 0%, rgba(139,92,246,0.06) 50%, rgba(0,0,0,0) 72%)',
+          position: 'absolute', top: -320, right: -240, width: 820, height: 820, borderRadius: 999,
+          background: 'radial-gradient(circle, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 45%, rgba(0,0,0,0) 70%)',
           display: 'flex',
         }} />
 
         {/* 좌측 액센트 바 */}
         <div style={{
-          position: 'absolute', left: 0, top: 0, bottom: 0, width: 14,
-          background: 'linear-gradient(180deg, #60a5fa 0%, #818cf8 50%, #a78bfa 100%)',
+          position: 'absolute', left: 0, top: 0, bottom: 0, width: 12,
+          background: '#ffffff',
           display: 'flex',
+        }} />
+
+        {/* 하단 미세 구분선 */}
+        <div style={{
+          position: 'absolute', left: 88, right: 88, bottom: 74, height: 1,
+          background: 'rgba(255,255,255,0.14)', display: 'flex',
         }} />
 
         {/* 본문 */}
@@ -80,8 +80,8 @@ export default async function OgImage() {
         }}>
           {/* 상단 라벨 */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 26 }}>
-            <div style={{ width: 34, height: 4, borderRadius: 2, background: '#60a5fa', display: 'flex', marginRight: 14 }} />
-            <span style={{ fontSize: 27, fontWeight: 500, color: '#93c5fd', letterSpacing: 4 }}>{TAGLINE}</span>
+            <div style={{ width: 34, height: 3, background: 'rgba(255,255,255,0.65)', display: 'flex', marginRight: 14 }} />
+            <span style={{ fontSize: 27, fontWeight: 500, color: '#b8b8b8', letterSpacing: 5 }}>{TAGLINE}</span>
           </div>
 
           {/* 브랜드 */}
@@ -93,19 +93,19 @@ export default async function OgImage() {
           </div>
 
           {/* 서비스 라인 */}
-          <div style={{ display: 'flex', fontSize: 35, fontWeight: 500, color: '#dbeafe', marginBottom: 34 }}>
+          <div style={{ display: 'flex', fontSize: 35, fontWeight: 500, color: '#e8e8e8', marginBottom: 34 }}>
             {LINE1}
           </div>
 
           {/* 특징 칩 */}
-          <div style={{ display: 'flex', marginBottom: 56 }}>
+          <div style={{ display: 'flex', marginBottom: 62 }}>
             {CHIPS.map((c) => (
               <div key={c} style={{
                 display: 'flex', alignItems: 'center',
                 padding: '13px 27px', marginRight: 14, borderRadius: 999,
-                background: 'rgba(255,255,255,0.09)',
-                border: '1px solid rgba(147,197,253,0.42)',
-                fontSize: 25, fontWeight: 500, color: '#e0ecff',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.32)',
+                fontSize: 25, fontWeight: 500, color: '#ffffff',
               }}>
                 {c}
               </div>
@@ -115,8 +115,8 @@ export default async function OgImage() {
           {/* 하단 */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <span style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', letterSpacing: 0.5 }}>{DOMAIN}</span>
-            <div style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.28)', display: 'flex', margin: '0 22px' }} />
-            <span style={{ fontSize: 27, fontWeight: 500, color: '#9fb4d8' }}>{TEL}</span>
+            <div style={{ width: 1, height: 26, background: 'rgba(255,255,255,0.3)', display: 'flex', margin: '0 22px' }} />
+            <span style={{ fontSize: 27, fontWeight: 500, color: '#999999' }}>{TEL}</span>
           </div>
         </div>
       </div>
