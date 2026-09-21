@@ -77,6 +77,22 @@ interface DirectOrder {
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
 interface QuoteForm { quantity: string; unit: string; unitPrice: string; cutting: boolean; cuttingPrice: string; adminNote: string }
 
+// 엑셀 '상품/상세' 값 — 품목이 없는 전화·샘플 주문은 주문명과 메모 내용을 사용
+function orderDetailText(d: DirectOrder): string {
+  const items = (d.order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
+  if (items) return items
+
+  const parts: string[] = []
+  if (d.order_name) parts.push(d.order_name)
+  const rest = (d.memo || '')
+    .replace(/^(📞 전화주문|🎁 샘플주문 \(무료\))/, '')
+    .replace(/입금예정\s*\d{4}-\d{2}-\d{2}/, '')
+    .split('·').map((x) => x.trim()).filter(Boolean)
+    .join(' / ')
+  if (rest) parts.push(rest)
+  return parts.join(' / ')
+}
+
 // 관리자가 직접 등록한 주문(전화주문·샘플주문) 여부 — 메모 표식으로 판별
 function isPhoneOrder(memo: string | null | undefined): boolean {
   const m = memo || ''
@@ -172,7 +188,7 @@ function AdminManagePageContent() {
     const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
     const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '57cm 롤 3M', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
     const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '57cm 롤 0.5M 샘플', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
-    const guide = ['※ 필수', '', '', '', '', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const guide = ['※ 필수', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
     const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
     ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
@@ -237,6 +253,8 @@ function AdminManagePageContent() {
 
   const submitPhoneOrder = async () => {
     if (!po.name.trim()) { alert('주문자 이름을 입력해주세요.'); return }
+    // 엑셀 '상품/상세'로 나가는 항목이라 필수
+    if (!po.content.trim()) { alert('주문 내용 / 상세를 입력해주세요.\n(주문내역 엑셀의 상품/상세 칸에 표시됩니다)'); return }
     // 샘플 주문은 금액 0원 고정
     if (!po.isSample && (po.amount === '' || Number(po.amount) < 0)) { alert('금액을 입력해주세요.'); return }
     setPoSaving(true)
@@ -607,7 +625,7 @@ function AdminManagePageContent() {
       const tracking = (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
       let detail = ''
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
-      else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
+      else detail = orderDetailText(d as DirectOrder)
       const machine = (d as { machine_no?: number | null }).machine_no
       const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
@@ -656,7 +674,7 @@ function AdminManagePageContent() {
       const orderName = (d as { order_name?: string | null }).order_name || ''
       let detail = ''
       if (item.type === 'quote') detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
-      else detail = ((d as DirectOrder).order_items || []).map((oi) => `${oi.product_id}×${oi.quantity}`).join(', ')
+      else detail = orderDetailText(d as DirectOrder)
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
       // 견적은 결제 시 입력한 배송지(주문)를 우선 사용
       const addrSrc = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
@@ -1658,9 +1676,13 @@ function AdminManagePageContent() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-600 block mb-1">주문 내용 / 상세</label>
-                <textarea value={po.content} onChange={(e) => setPo((p) => ({ ...p, content: e.target.value }))} rows={3} placeholder="상품·수량·요청사항 등을 자유롭게 입력"
+                <label className="text-xs font-semibold text-gray-600 block mb-1">
+                  주문 내용 / 상세 <span className="text-red-500">*</span>
+                </label>
+                <textarea value={po.content} onChange={(e) => setPo((p) => ({ ...p, content: e.target.value }))} rows={3}
+                  placeholder={'예) 57cm 롤 3M / 흰색 배경 제거 요청\nA3 20장 · 고해상도'}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 leading-relaxed" />
+                <p className="text-[11px] text-gray-400 mt-1">주문내역 엑셀의 <b>상품/상세</b> 칸에 그대로 표시됩니다.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
