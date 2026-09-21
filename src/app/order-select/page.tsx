@@ -4,7 +4,7 @@ import { FileText, Zap } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'DTF 출력 주문',
-  description: 'DTF 전사 출력을 바로 주문하거나 견적을 요청하세요. A4·A3·57cm 롤 출력, 시안 업로드 후 간편 결제.',
+  description: 'DTF 전사 출력을 바로 주문하거나 견적을 요청하세요. A4·A3·59cm 롤 출력, 시안 업로드 후 간편 결제.',
   alternates: { canonical: '/order-select' },
 }
 

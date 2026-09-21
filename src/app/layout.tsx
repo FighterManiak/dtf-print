@@ -16,7 +16,7 @@ const barlowCondensed = Barlow_Condensed({
 const SITE_URL = 'https://www.superhard.co.kr'
 const SITE_NAME = 'SUPER HARD'
 const SITE_DESC =
-  'DTF 전사 출력 전문. A4·A3·57cm 롤 출력을 합리적인 가격에, 당일 출고로 빠르게. DTF 필름·파우더 등 자재도 함께 판매합니다.'
+  'DTF 전사 출력 전문. A4·A3·59cm 롤 출력을 합리적인 가격에, 당일 출고로 빠르게. DTF 필름·파우더 등 자재도 함께 판매합니다.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

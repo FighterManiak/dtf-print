@@ -1,4 +1,4 @@
-// 회원 등급 (지난 달 롤 출력 58cm 미터 합산 기준)
+// 회원 등급 (지난 달 롤 출력 59cm 미터 합산 기준)
 // - VIP: 500m 이상
 // - GOLD: 200m 이상
 // - SILVER: 50m 이상
@@ -49,7 +49,7 @@ export const POINT_USE_THRESHOLD = 10000
 // 포인트 유효기간 (개월)
 export const POINT_EXPIRY_MONTHS = 6
 
-// 롤 출력(58cm) 상품 여부
+// 롤 출력(59cm) 상품 여부
 export function isRollProduct(productId: string): boolean {
   return productId.startsWith('roll_58')
 }

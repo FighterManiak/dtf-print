@@ -25,7 +25,7 @@ function checkRoll(id: string, rollIds: Set<string>): boolean {
   return rollIds.has(id) || isRollProduct(id)
 }
 
-// 특정 회원의 지난 달 롤(58cm) 미터 → 등급 판정용
+// 특정 회원의 지난 달 롤(59cm) 미터 → 등급 판정용
 export async function getUserLastMonthMeters(admin: SupabaseClient, userId: string): Promise<number> {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()

@@ -7,7 +7,7 @@ import HeroCarousel from '@/components/ui/HeroCarousel'
 
 export const metadata: Metadata = {
   // 홈은 layout의 기본 제목(SUPER HARD | DTF 전사 출력 전문)을 그대로 사용
-  description: 'DTF 전사 출력 전문 SUPER HARD. A4·A3·57cm 롤 출력을 합리적인 가격에, 당일 출고로 빠르게 받아보세요. 시안 업로드 한 번으로 간편 주문.',
+  description: 'DTF 전사 출력 전문 SUPER HARD. A4·A3·59cm 롤 출력을 합리적인 가격에, 당일 출고로 빠르게 받아보세요. 시안 업로드 한 번으로 간편 주문.',
   alternates: { canonical: '/' },
 }
 
@@ -182,7 +182,7 @@ export default function Home() {
           <div className="text-center mb-14">
             <p className="text-violet-600 font-semibold text-sm uppercase tracking-widest mb-3">Membership</p>
             <h2 className="text-4xl font-extrabold text-gray-900">많이 쓸수록 커지는 혜택</h2>
-            <p className="text-gray-500 mt-3">전월 롤 출력(57cm) 사용량에 따라 등급이 오르고, 포인트 적립률이 높아집니다.</p>
+            <p className="text-gray-500 mt-3">전월 롤 출력(59cm) 사용량에 따라 등급이 오르고, 포인트 적립률이 높아집니다.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[

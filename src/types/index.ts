@@ -90,16 +90,16 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 export const PRODUCTS: Product[] = [
   { id: 'A4', name: 'A4 출력', description: 'A4 사이즈 DTF 출력 (210×297mm)', price: 3000, unit: '장' },
   { id: 'A3', name: 'A3 출력', description: 'A3 사이즈 DTF 출력 (297×420mm)', price: 5000, unit: '장' },
-  { id: 'roll_58_1m', name: '58cm × 1M 이상', description: '58cm 폭 롤 출력, 1M 단위', price: 8900, unit: 'M' },
-  { id: 'roll_58_50m', name: '58cm × 50M 이상', description: '58cm 폭 롤 출력, 50M 이상 주문', price: 7900, unit: 'M' },
-  { id: 'roll_58_100m', name: '58cm × 100M 이상', description: '58cm 폭 롤 출력, 100M 이상 주문', price: 6900, unit: 'M' },
+  { id: 'roll_58_1m', name: '59cm × 1M 이상', description: '59cm 폭 롤 출력, 1M 단위', price: 8900, unit: 'M' },
+  { id: 'roll_58_50m', name: '59cm × 50M 이상', description: '59cm 폭 롤 출력, 50M 이상 주문', price: 7900, unit: 'M' },
+  { id: 'roll_58_100m', name: '59cm × 100M 이상', description: '59cm 폭 롤 출력, 100M 이상 주문', price: 6900, unit: 'M' },
 ]
 
 export const VERIFIED_PRODUCTS: Product[] = [
   {
     id: 'roll_58_1m_verified',
-    name: '58cm × 1M 이상 (인증 전용)',
-    description: '58cm 폭 롤 출력, 1M 단위 — DTF 장비 보유 인증 고객 전용',
+    name: '59cm × 1M 이상 (인증 전용)',
+    description: '59cm 폭 롤 출력, 1M 단위 — DTF 장비 보유 인증 고객 전용',
     price: 4400,
     unit: 'M',
     verifiedOnly: true,

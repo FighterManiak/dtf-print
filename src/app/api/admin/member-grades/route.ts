@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { isRollProduct } from '@/lib/grade'
 import { getRollProductIds } from '@/lib/points-server'
 
-// 지난 달(전월 1일~말일) 롤 출력(58cm) 미터를 회원별로 합산
+// 지난 달(전월 1일~말일) 롤 출력(59cm) 미터를 회원별로 합산
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!

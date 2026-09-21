@@ -7,7 +7,7 @@ export const contentType = 'image/png'
 
 const BRAND = 'SUPER HARD'
 const TAGLINE = 'DTF 전사 출력 전문'
-const LINE1 = 'A4 · A3 · 57cm 롤 출력'
+const LINE1 = 'A4 · A3 · 59cm 롤 출력'
 const CHIPS = ['당일 출고', '대량 주문', 'DTF 자재 판매']
 const DOMAIN = 'superhard.co.kr'
 const TEL = '010-2560-9749'

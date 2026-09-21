@@ -11,7 +11,7 @@ import { openPostcode } from '@/lib/daum-postcode'
 import type { CustomerHit } from '@/app/api/admin/customer-search/route'
 
 const PRODUCT_TYPE_LABEL: Record<string, string> = {
-  A4: 'A4 출력', A3: 'A3 출력', roll_58: '57cm 롤 출력', other: '기타',
+  A4: 'A4 출력', A3: 'A3 출력', roll_58: '59cm 롤 출력', other: '기타',
 }
 
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -186,8 +186,8 @@ function AdminManagePageContent() {
   // 전화주문 대량등록 양식 다운로드
   const exportPhoneOrderTemplate = () => {
     const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
-    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '57cm 롤 3M', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
-    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '57cm 롤 0.5M 샘플', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
+    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
+    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
     const guide = ['※ 필수', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
     const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
     ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
@@ -1680,7 +1680,7 @@ function AdminManagePageContent() {
                   주문 내용 / 상세 <span className="text-red-500">*</span>
                 </label>
                 <textarea value={po.content} onChange={(e) => setPo((p) => ({ ...p, content: e.target.value }))} rows={3}
-                  placeholder={'예) 57cm 롤 3M / 흰색 배경 제거 요청\nA3 20장 · 고해상도'}
+                  placeholder={'예) 59cm 롤 3M / 흰색 배경 제거 요청\nA3 20장 · 고해상도'}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 leading-relaxed" />
                 <p className="text-[11px] text-gray-400 mt-1">주문내역 엑셀의 <b>상품/상세</b> 칸에 그대로 표시됩니다.</p>
               </div>
