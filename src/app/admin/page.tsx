@@ -66,14 +66,26 @@ const VISIT_PERIOD_LABELS: { key: VisitPeriod; label: string }[] = [
 // Resend Pro 플랜 월 발송 한도
 const MAIL_MONTH_LIMIT = 50000
 
+interface MailBucket { today: number; month: number; total: number }
+
+// 메일 발송 현황에 표시할 항목
+const MAIL_ROWS: { key: 'broadcast' | 'quote' | 'order' | 'signup' | 'tempPw' | 'test'; label: string }[] = [
+  { key: 'broadcast', label: '회원 발송' },
+  { key: 'quote', label: '견적 안내' },
+  { key: 'order', label: '주문 알림' },
+  { key: 'signup', label: '가입 인증' },
+  { key: 'tempPw', label: '임시 비번' },
+  { key: 'test', label: '테스트' },
+]
+
 export default function AdminPage() {
   const [storage, setStorage] = useState<StorageStats | null>(null)
   const [visits, setVisits] = useState<VisitStats | null>(null)
   const [visitPeriod, setVisitPeriod] = useState<VisitPeriod>('today')
   const [chartMetric, setChartMetric] = useState<'uv' | 'pv'>('uv')
   const [emailStats, setEmailStats] = useState<{
-    total: { today: number; month: number; total: number }
-    byType: { broadcast: { today: number; month: number; total: number }; quote: { today: number; month: number; total: number }; signup: { today: number; month: number; total: number } }
+    total: MailBucket
+    byType: Record<'broadcast' | 'quote' | 'order' | 'tempPw' | 'test' | 'etc' | 'signup', MailBucket>
   } | null>(null)
 
   const [stats, setStats] = useState<Stats>({
@@ -430,9 +442,16 @@ export default function AdminPage() {
                     style={{ width: `${Math.min(100, (emailStats.total.month / MAIL_MONTH_LIMIT) * 100)}%` }} />
                 </div>
                 <div className="text-[11px] text-gray-500 space-y-0.5 border-t border-gray-50 pt-2">
-                  <div className="flex justify-between"><span>· 회원 발송</span><span className="text-gray-700">누적 {emailStats.byType.broadcast.total.toLocaleString()} · 이달 {emailStats.byType.broadcast.month.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span>· 견적 안내</span><span className="text-gray-700">누적 {emailStats.byType.quote.total.toLocaleString()} · 이달 {emailStats.byType.quote.month.toLocaleString()}</span></div>
-                  <div className="flex justify-between"><span>· 가입 인증</span><span className="text-gray-700">누적 {emailStats.byType.signup.total.toLocaleString()} · 이달 {emailStats.byType.signup.month.toLocaleString()}</span></div>
+                  {MAIL_ROWS.map(({ key, label }) => {
+                    const b = emailStats.byType[key]
+                    if (!b || b.total === 0) return null
+                    return (
+                      <div key={key} className="flex justify-between">
+                        <span>· {label}</span>
+                        <span className="text-gray-700">누적 {b.total.toLocaleString()} · 이달 {b.month.toLocaleString()}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
