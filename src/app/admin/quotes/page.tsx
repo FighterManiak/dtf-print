@@ -81,14 +81,18 @@ interface DirectOrder {
 type Item = { type: 'quote'; data: Quote } | { type: 'order'; data: DirectOrder }
 interface QuoteForm { quantity: string; unit: string; unitPrice: string; cutting: boolean; cuttingPrice: string; adminNote: string }
 
-// 엑셀 '상품/상세' + '수량'
+// 엑셀 '상품/상세' + '수량' + '단위'
+// 수량은 계산·정렬이 되도록 숫자만, 단위는 별도 칸에 표기
 // 품목이 없는 전화·샘플 주문은 주문명과 메모 내용을 상품/상세로 사용
-function orderDetailText(d: DirectOrder, names: Record<string, string> = {}): { detail: string; qty: string } {
+function orderDetailText(d: DirectOrder, products: Record<string, ProductRow> = {}): { detail: string; qty: string | number; unit: string } {
   const list = d.order_items || []
   if (list.length > 0) {
+    const units = [...new Set(list.map((oi) => products[oi.product_id]?.unit || '').filter(Boolean))]
     return {
-      detail: list.map((oi) => names[oi.product_id] || oi.product_id).join(', '),
-      qty: list.map((oi) => oi.quantity).join(', '),
+      detail: list.map((oi) => products[oi.product_id]?.name || oi.product_id).join(', '),
+      // 품목이 하나면 숫자로 넣어 엑셀에서 합계·정렬이 가능하게 함
+      qty: list.length === 1 ? list[0].quantity : list.map((oi) => oi.quantity).join(', '),
+      unit: units.join(', '),
     }
   }
 
@@ -100,7 +104,7 @@ function orderDetailText(d: DirectOrder, names: Record<string, string> = {}): { 
     .split('·').map((x) => x.trim()).filter(Boolean)
     .join(' / ')
   if (rest) parts.push(rest)
-  return { detail: parts.join(' / '), qty: '' }
+  return { detail: parts.join(' / '), qty: '', unit: '' }
 }
 
 // 관리자가 직접 등록한 주문(전화주문·샘플주문) 여부 — 메모 표식으로 판별
@@ -177,12 +181,13 @@ function AdminManagePageContent() {
 
   // 상품 목록 (엑셀 상품명 표기 + 전화주문 품목 선택)
   const [productList, setProductList] = useState<ProductRow[]>([])
-  // 상품 ID → 상품명
-  const buildProductNames = () => {
-    const map: Record<string, string> = {}
-    productList.forEach((p) => { if (p.id) map[p.id] = p.name || p.id })
+  // 상품 ID → 상품 정보 (이름·단위)
+  const buildProductMap = () => {
+    const map: Record<string, ProductRow> = {}
+    productList.forEach((p) => { if (p.id) map[p.id] = p })
     return map
   }
+  const productMap = buildProductMap()
 
   useEffect(() => {
     let alive = true
@@ -708,8 +713,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
-    const productNames = buildProductNames()
-    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
+    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '단위', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
       const s = getEffectiveStatus(item)
@@ -723,14 +727,16 @@ function AdminManagePageContent() {
       const carrier = (item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || ''
       const tracking = (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
       let detail = ''
-      let qty = ''
+      let qty: string | number = ''
+      let unit = ''
       if (item.type === 'quote') {
         detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
         const q = (d as Quote).quoted_quantity
-        qty = q != null ? `${q}${(d as Quote).quoted_unit || ''}` : ''
+        qty = q != null ? q : ''
+        unit = (d as Quote).quoted_unit || ''
       } else {
-        const r = orderDetailText(d as DirectOrder, productNames)
-        detail = r.detail; qty = r.qty
+        const r = orderDetailText(d as DirectOrder, productMap)
+        detail = r.detail; qty = r.qty; unit = r.unit
       }
       const machine = (d as { machine_no?: number | null }).machine_no
       const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
@@ -738,11 +744,11 @@ function AdminManagePageContent() {
       // 견적은 결제 시 입력한 배송지(주문)를 우선 사용
       const addrSrc = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
       const { zip, addr } = splitAddress(addrSrc)
-      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, qty, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
+      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, qty, unit, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     // 열 너비 지정
-    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 7 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '주문내역')
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -771,32 +777,33 @@ function AdminManagePageContent() {
 
   // 선택한 주문들의 배송정보 다운로드 (엑셀)
   const exportSelectedShipping = () => {
-    const productNames = buildProductNames()
     const chosen = items.filter((item) => selected.has(item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`))
     if (chosen.length === 0) { alert('선택된 주문이 없습니다.'); return }
-    const headers = ['주문일시', '주문명', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '금액', '상태']
+    const headers = ['주문일시', '주문명', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '단위', '금액', '상태']
     const rows = chosen.map((item) => {
       const d = item.data
       const createdAt = new Date(d.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
       const orderName = (d as { order_name?: string | null }).order_name || ''
       let detail = ''
-      let qty = ''
+      let qty: string | number = ''
+      let unit = ''
       if (item.type === 'quote') {
         detail = PRODUCT_TYPE_LABEL[(d as Quote).product_type] || (d as Quote).product_type
         const q = (d as Quote).quoted_quantity
-        qty = q != null ? `${q}${(d as Quote).quoted_unit || ''}` : ''
+        qty = q != null ? q : ''
+        unit = (d as Quote).quoted_unit || ''
       } else {
-        const r = orderDetailText(d as DirectOrder, productNames)
-        detail = r.detail; qty = r.qty
+        const r = orderDetailText(d as DirectOrder, productMap)
+        detail = r.detail; qty = r.qty; unit = r.unit
       }
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
       // 견적은 결제 시 입력한 배송지(주문)를 우선 사용
       const addrSrc = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
       const { zip, addr } = splitAddress(addrSrc)
-      return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, qty, d.total_amount || 0, label]
+      return [createdAt, orderName, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, qty, unit, d.total_amount || 0, label]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
-    ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 12 }, { wch: 10 }]
+    ws['!cols'] = [{ wch: 20 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 7 }, { wch: 12 }, { wch: 10 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '배송정보')
     XLSX.writeFile(wb, `배송정보_${new Date().toISOString().slice(0, 10)}.xlsx`)

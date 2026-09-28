@@ -116,7 +116,8 @@ export default function AdminMaterialOrdersPage() {
       o.user_name || '', o.user_phone || '', o.user_email || '',
       splitAddress(o.user_address).zip, splitAddress(o.user_address).addr,
       (o.items || []).map((i) => i.name).join(', '),
-      (o.items || []).map((i) => i.qty).join(', '),
+      // 품목이 하나면 숫자로 넣어 엑셀에서 합계·정렬이 가능하게 함
+      (o.items || []).length === 1 ? o.items[0].qty : (o.items || []).map((i) => i.qty).join(', '),
       o.product_amount || 0, o.shipping_fee || 0, o.total_amount || 0,
       o.payment_method === 'CARD' ? '카드' : '무통장',
       o.is_paid === false ? '미입금' : '입금완료',
