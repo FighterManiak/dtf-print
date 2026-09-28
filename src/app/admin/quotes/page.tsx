@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Download, CheckCircle, Clock, CreditCard, XCircle, ChevronDown, ChevronUp, Send, Truck, Package, RotateCcw, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
@@ -47,6 +47,10 @@ const TABS = [
 const TAB_STATUSES: Record<string, string[]> = {
   paid: ['paid', 'bank_transfer_pending'],
 }
+
+interface ProductRow { id: string; name: string; price: number; unit: string | null }
+// 전화주문 품목 입력
+interface POItem { productId: string; quantity: string; unitPrice: string }
 
 interface OrderInfo {
   id: string; status: string; carrier: string | null
@@ -145,24 +149,46 @@ function AdminManagePageContent() {
   const emptyPO = { name: '', phone: '', email: '', company: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', zonecode: '', address: '', addressDetail: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false, userId: '' }
   const [po, setPo] = useState({ ...emptyPO })
 
+  // 전화주문 품목 (상품 + 수량) — 주문내역 엑셀의 상품/상세·수량으로 나감
+  const [poItems, setPoItems] = useState<POItem[]>([])
+  const addPoItem = () => setPoItems((p) => [...p, { productId: '', quantity: '1', unitPrice: '' }])
+  const setPoItem = (i: number, patch: Partial<POItem>) => setPoItems((p) => p.map((it, x) => {
+    if (x !== i) return it
+    const next = { ...it, ...patch }
+    // 상품을 고르면 단가를 자동으로 채움
+    if (patch.productId !== undefined) {
+      const prod = productList.find((pr) => pr.id === patch.productId)
+      if (prod) next.unitPrice = String(prod.price ?? '')
+    }
+    return next
+  }))
+  const delPoItem = (i: number) => setPoItems((p) => p.filter((_, x) => x !== i))
+
+  // 품목 합계 (금액 자동 계산용)
+  const poItemsTotal = poItems.reduce(
+    (s, it) => s + (parseFloat(it.quantity) || 0) * (parseInt(it.unitPrice) || 0), 0
+  )
+
   // 전화주문 배송지 우편번호 검색
   const handlePoPostcode = async () => {
     const r = await openPostcode()
     if (r) setPo((p) => ({ ...p, zonecode: r.zonecode, address: r.address }))
   }
 
-  // 상품 ID → 상품명 (엑셀에 읽기 쉬운 이름으로 표기)
-  const [productNames, setProductNames] = useState<Record<string, string>>({})
+  // 상품 목록 (엑셀 상품명 표기 + 전화주문 품목 선택)
+  const [productList, setProductList] = useState<ProductRow[]>([])
+  // 상품 ID → 상품명
+  const buildProductNames = () => {
+    const map: Record<string, string> = {}
+    productList.forEach((p) => { if (p.id) map[p.id] = p.name || p.id })
+    return map
+  }
+
   useEffect(() => {
     let alive = true
     fetch('/api/admin/products')
       .then((r) => r.ok ? r.json() : [])
-      .then((d: { id: string; name: string }[]) => {
-        if (!alive || !Array.isArray(d)) return
-        const map: Record<string, string> = {}
-        d.forEach((p) => { if (p.id) map[p.id] = p.name || p.id })
-        setProductNames(map)
-      })
+      .then((d: ProductRow[]) => { if (alive && Array.isArray(d)) setProductList(d) })
       .catch(() => {})
     return () => { alive = false }
   }, [])
@@ -280,9 +306,18 @@ function AdminManagePageContent() {
     // 샘플 주문은 금액 0원 고정
     if (!po.isSample && (po.amount === '' || Number(po.amount) < 0)) { alert('금액을 입력해주세요.'); return }
     setPoSaving(true)
+    // 상품이 선택된 품목만 전송
+    const items = poItems
+      .filter((it) => it.productId && (parseFloat(it.quantity) || 0) > 0)
+      .map((it) => ({
+        productId: it.productId,
+        quantity: parseFloat(it.quantity) || 0,
+        unitPrice: parseInt(it.unitPrice) || 0,
+      }))
+    const base = { ...po, items }
     const payload = po.isSample
-      ? { ...po, amount: 0, paymentStatus: 'paid', depositDue: '' }
-      : po
+      ? { ...base, amount: 0, paymentStatus: 'paid', depositDue: '' }
+      : base
     const res = await fetch('/api/admin/create-order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -290,6 +325,7 @@ function AdminManagePageContent() {
     if (res.ok) {
       setPhoneOrderOpen(false)
       setPo({ ...emptyPO })
+      setPoItems([])
       await loadAll()
       alert('전화주문이 등록되었습니다.')
     } else {
@@ -632,6 +668,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
+    const productNames = buildProductNames()
     const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
@@ -694,6 +731,7 @@ function AdminManagePageContent() {
 
   // 선택한 주문들의 배송정보 다운로드 (엑셀)
   const exportSelectedShipping = () => {
+    const productNames = buildProductNames()
     const chosen = items.filter((item) => selected.has(item.type === 'quote' ? `q-${item.data.id}` : `o-${item.data.id}`))
     if (chosen.length === 0) { alert('선택된 주문이 없습니다.'); return }
     const headers = ['주문일시', '주문명', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '금액', '상태']
@@ -1719,6 +1757,51 @@ function AdminManagePageContent() {
                   placeholder={'예) 59cm 롤 3M / 흰색 배경 제거 요청\nA3 20장 · 고해상도'}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 leading-relaxed" />
                 <p className="text-[11px] text-gray-400 mt-1">주문내역 엑셀의 <b>상품/상세</b> 칸에 그대로 표시됩니다.</p>
+              </div>
+
+              {/* 품목 (상품 + 수량) */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-700">
+                    품목 <span className="text-gray-400 font-normal">(선택 · 엑셀 상품/수량 칸에 표시)</span>
+                  </label>
+                  <button type="button" onClick={addPoItem} className="text-xs text-blue-600 font-bold hover:underline">+ 품목 추가</button>
+                </div>
+
+                {poItems.length === 0 ? (
+                  <p className="text-[11px] text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                    품목을 넣으면 온라인 주문처럼 <b>상품명·수량</b>이 기록되어 엑셀에 그대로 나옵니다.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {poItems.map((it, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <select value={it.productId} onChange={(e) => setPoItem(i, { productId: e.target.value })}
+                          className="flex-1 min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 bg-white">
+                          <option value="">상품 선택</option>
+                          {productList.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <input type="number" value={it.quantity} onChange={(e) => setPoItem(i, { quantity: e.target.value })}
+                          placeholder="수량" className="w-20 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 text-right" />
+                        <input type="number" value={it.unitPrice} onChange={(e) => setPoItem(i, { unitPrice: e.target.value })}
+                          placeholder="단가" className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 text-right" />
+                        <button type="button" onClick={() => delPoItem(i)} className="text-gray-300 hover:text-red-500 shrink-0">
+                          <XCircle className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {!po.isSample && poItemsTotal > 0 && (
+                      <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mt-2">
+                        <span className="text-xs text-blue-800">품목 합계 <b>{poItemsTotal.toLocaleString()}원</b></span>
+                        <button type="button" onClick={() => setPo((p) => ({ ...p, amount: String(poItemsTotal) }))}
+                          className="text-xs font-bold text-blue-600 hover:underline">금액에 적용</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

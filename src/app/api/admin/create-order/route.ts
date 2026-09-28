@@ -61,5 +61,25 @@ export async function POST(req: Request) {
   }).select('id').single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 품목 저장 — 온라인 주문과 동일하게 order_items 에 기록(엑셀 상품/수량에 사용)
+  const items = Array.isArray(b.items) ? b.items : []
+  if (items.length > 0) {
+    const rows = items
+      .filter((it: { productId?: string; quantity?: number }) => it.productId && Number(it.quantity) > 0)
+      .map((it: { productId: string; quantity: number; unitPrice?: number }) => ({
+        order_id: newOrder.id,
+        product_id: String(it.productId),
+        quantity: Number(it.quantity),
+        unit_price: Math.max(0, Math.round(Number(it.unitPrice) || 0)),
+        cutting: false,
+        cutting_price: 0,
+      }))
+    if (rows.length > 0) {
+      // 품목 저장이 실패해도 주문 자체는 유지
+      try { await supabaseAdmin.from('order_items').insert(rows) } catch { /* 무시 */ }
+    }
+  }
+
   return NextResponse.json({ success: true, orderId: newOrder.id })
 }
