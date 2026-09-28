@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { usePoints } from '@/lib/points-server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
+import { saveProfileAddress } from '@/lib/save-profile-address'
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
@@ -13,7 +14,7 @@ const supabaseAdmin = createClient(
 
 interface OrderPayload {
   orderName: string
-  customer: { name: string; email: string; phone: string; address: string }
+  customer: { name: string; email: string; phone: string; address: string; zonecode?: string; addressDetail?: string }
   cart: Array<{ productId: string; quantity: number; unitPrice: number; cutting: boolean; cuttingPrice: number; requestNote: string; dueDate: string | null; filePath?: string | null; fileName?: string | null }>
   totalAmount: number
   usedPoints?: number
@@ -67,6 +68,9 @@ export async function POST(req: NextRequest) {
       })
       .select('id')
       .single()
+
+    // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
+    try { await saveProfileAddress(supabaseAdmin, p.userId, p.customer) } catch { /* 무시 */ }
 
     if (newOrder && p.cart?.length) {
       await supabaseAdmin.from('order_items').insert(

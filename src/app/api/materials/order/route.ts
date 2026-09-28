@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { getShippingFee } from '@/lib/shipping'
 import { usePoints, getAvailablePoints } from '@/lib/points-server'
 import { POINT_USE_THRESHOLD } from '@/lib/grade'
+import { saveProfileAddress } from '@/lib/save-profile-address'
 
 // 자재 구매 포인트 사용 상한 (구매금액의 5%)
 const MATERIAL_POINT_RATE = 0.05
@@ -101,6 +102,11 @@ export async function POST(req: Request) {
   }).select('id').single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
+  if (!isPickup) {
+    try { await saveProfileAddress(supabaseAdmin, user?.id, b) } catch { /* 무시 */ }
+  }
 
   // 포인트 차감 (FIFO)
   if (usedPoints > 0 && user?.id) {

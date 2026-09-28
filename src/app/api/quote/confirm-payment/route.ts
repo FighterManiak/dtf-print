@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { getShippingFee } from '@/lib/shipping'
 import { sendOrderStatusMail } from '@/lib/order-mail'
+import { saveProfileAddress } from '@/lib/save-profile-address'
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
@@ -82,6 +83,11 @@ export async function POST(req: Request) {
 
   if (orderErr) {
     return NextResponse.json({ error: orderErr.message }, { status: 500 })
+  }
+
+  // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
+  if (!isPickup) {
+    try { await saveProfileAddress(supabaseAdmin, quote.user_id, { ...delivery, phone: quote.user_phone }) } catch { /* 무시 */ }
   }
 
   // quotes 상태 업데이트 + order_id 연결

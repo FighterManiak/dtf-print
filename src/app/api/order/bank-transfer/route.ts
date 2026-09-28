@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { usePoints } from '@/lib/points-server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
+import { saveProfileAddress } from '@/lib/save-profile-address'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
   if (orderErr || !newOrder) {
     return NextResponse.json({ error: orderErr?.message || 'order insert failed' }, { status: 500 })
   }
+
+  // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
+  try { await saveProfileAddress(supabaseAdmin, user?.id, customer) } catch { /* 무시 */ }
 
   const items = cart.map((item: {
     productId: string
