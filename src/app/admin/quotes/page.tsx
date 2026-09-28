@@ -107,6 +107,16 @@ function orderDetailText(d: DirectOrder, products: Record<string, ProductRow> = 
   return { detail: parts.join(' / '), qty: '', unit: '' }
 }
 
+// 직접 수령(방문) 주문 여부
+// 바로주문은 메모에, 견적·전화주문은 주소에 '직접 수령'이 기록된다
+function isPickupOrder(item: Item): boolean {
+  const d = item.data
+  const addr = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
+  if (String(addr || '').includes('직접 수령')) return true
+  const memo = item.type === 'order' ? (d as DirectOrder).memo : null
+  return String(memo || '').includes('직접 수령')
+}
+
 // 관리자가 직접 등록한 주문(전화주문·샘플주문) 여부 — 메모 표식으로 판별
 function isPhoneOrder(memo: string | null | undefined): boolean {
   const m = memo || ''
@@ -724,7 +734,11 @@ function AdminManagePageContent() {
         : isPhoneOrder(memoTxt) ? '전화주문' : '바로주문'
       const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
       const pmLabel = pm === 'bank_transfer' ? '무통장' : pm === 'CARD' || pm === 'card' ? '카드' : ''
-      const carrier = (item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || ''
+      // 직접 수령은 택배사가 없으므로 '직접수령'으로 표기
+      // (바로주문은 메모에, 견적·전화주문은 주소에 '직접 수령'이 기록됨)
+      const carrier = isPickupOrder(item)
+        ? '직접수령'
+        : ((item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || '')
       const tracking = (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
       let detail = ''
       let qty: string | number = ''

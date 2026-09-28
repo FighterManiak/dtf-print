@@ -121,7 +121,9 @@ export default function AdminMaterialOrdersPage() {
       o.product_amount || 0, o.shipping_fee || 0, o.total_amount || 0,
       o.payment_method === 'CARD' ? '카드' : '무통장',
       o.is_paid === false ? '미입금' : '입금완료',
-      o.carrier || '', o.tracking_number || '',
+      // 직접 수령은 택배사가 없으므로 '직접수령'으로 표기
+      String(o.user_address || '').includes('직접 수령') ? '직접수령' : (o.carrier || ''),
+      o.tracking_number || '',
     ])
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }]
