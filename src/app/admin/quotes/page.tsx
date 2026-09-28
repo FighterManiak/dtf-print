@@ -768,22 +768,21 @@ function AdminManagePageContent() {
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
-  // 송장 일괄등록 양식 다운로드 (송장 입력이 필요한 주문 = 주문ID 있는 결제완료·작업중·출고)
+  // 송장 일괄등록 양식 다운로드 (결제완료·작업중·출고 + 주문번호가 있는 건)
   const exportShippingTemplate = () => {
     const shippable = filtered.filter((item) => {
       const orderId = item.type === 'quote' ? (item.data as Quote).order_id : item.data.id
-      return orderId && ['paid', 'in_progress', 'shipped'].includes(getEffectiveStatus(item))
+      return orderId && item.data.order_no && ['paid', 'in_progress', 'shipped'].includes(getEffectiveStatus(item))
     })
-    if (shippable.length === 0) { alert('송장 등록 대상 주문이 없습니다.\n(주문ID가 있는 결제완료·작업중·출고 주문만 대상)'); return }
-    const headers = ['주문ID', '이름', '연락처', '주문명', '상태', '택배사', '송장번호']
+    if (shippable.length === 0) { alert('송장 등록 대상 주문이 없습니다.\n(결제완료·작업중·출고 주문만 대상)'); return }
+    const headers = ['주문번호', '이름', '연락처', '주문명', '상태', '택배사', '송장번호']
     const rows = shippable.map((item) => {
       const d = item.data
-      const orderId = item.type === 'quote' ? (d as Quote).order_id : d.id
       const label = STATUS_CONFIG[getEffectiveStatus(item)]?.label || ''
-      return [orderId, d.user_name || '', d.user_phone || '', (d as { order_name?: string }).order_name || '', label, '', '']
+      return [d.order_no || '', d.user_name || '', d.user_phone || '', (d as { order_name?: string }).order_name || '', label, '', '']
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
-    ws['!cols'] = [{ wch: 38 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 18 }]
+    ws['!cols'] = [{ wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 18 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '송장등록')
     XLSX.writeFile(wb, `송장양식_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -831,19 +830,43 @@ function AdminManagePageContent() {
       const wb = XLSX.read(buf, { type: 'array' })
       const ws = wb.Sheets[wb.SheetNames[0]]
       const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws)
+      // 주문번호 → 주문ID 매핑 (견적은 연결된 주문의 ID 사용)
+      const byOrderNo = new Map<string, string>()
+      items.forEach((it) => {
+        const no = String(it.data.order_no || '').trim()
+        if (!no) return
+        const oid = it.type === 'quote' ? (it.data as Quote).order_id : it.data.id
+        if (oid) byOrderNo.set(no.toUpperCase(), oid)
+      })
+
+      const notFound: string[] = []
       const rows = json
-        .map((r) => ({
-          orderId: String(r['주문ID'] ?? '').trim(),
-          carrier: String(r['택배사'] ?? '').trim(),
-          tracking_number: String(r['송장번호'] ?? '').trim(),
-        }))
+        .map((r) => {
+          // 이전 양식(주문ID)도 계속 인식
+          const no = String(r['주문번호'] ?? '').trim()
+          const legacyId = String(r['주문ID'] ?? '').trim()
+          const orderId = no ? (byOrderNo.get(no.toUpperCase()) || '') : legacyId
+          if (no && !orderId) notFound.push(no)
+          return {
+            orderId,
+            carrier: String(r['택배사'] ?? '').trim(),
+            tracking_number: String(r['송장번호'] ?? '').trim(),
+          }
+        })
         .filter((r) => r.orderId && r.tracking_number)
+
+      if (notFound.length > 0) {
+        const list = [...new Set(notFound)].slice(0, 10).join(', ')
+        if (!confirm(`현재 목록에서 찾을 수 없는 주문번호가 있습니다. 해당 행은 제외됩니다.\n\n${list}\n\n계속하시겠습니까?`)) {
+          setBulkRunning(false); return
+        }
+      }
       if (rows.length === 0) { alert('송장번호가 입력된 행이 없습니다.\n양식의 "송장번호" 열을 채웠는지 확인해주세요.'); setBulkRunning(false); return }
       const res = await fetch('/api/admin/bulk-tracking', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) })
       const data = await res.json()
       if (res.ok) {
         await loadAll()
-        alert(`송장 ${data.updated}건 등록 완료 (출고 처리)${data.failed?.length ? `\n실패 ${data.failed.length}건 (주문ID 불일치)` : ''}`)
+        alert(`송장 ${data.updated}건 등록 완료 (출고 처리)${data.failed?.length ? `\n실패 ${data.failed.length}건` : ''}`)
       } else {
         alert(data.error || '일괄 등록 실패')
       }
