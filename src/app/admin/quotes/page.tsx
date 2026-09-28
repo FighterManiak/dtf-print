@@ -233,14 +233,25 @@ function AdminManagePageContent() {
 
   // 전화주문 대량등록 양식 다운로드
   const exportPhoneOrderTemplate = () => {
-    const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
-    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
-    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
-    const guide = ['※ 필수', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const p0 = productList[0]?.name || 'DTF 필름 (1M)'
+    const p1 = productList[1]?.name || p0
+
+    const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '상품', '수량', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
+    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', `${p0}, ${p1}`, '3, 10', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
+    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', p0, '1', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
+    const guide = ['※ 필수', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 상품목록 시트의 이름 그대로 · 여러 개는 쉼표', '※ 상품 순서와 같게 · 쉼표', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
     const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
-    ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
+
+    // 상품명을 그대로 복사해 쓸 수 있도록 목록 시트 제공
+    const pHeaders = ['상품명', '단가', '단위']
+    const pRows = productList.map((p) => [p.name, p.price ?? '', p.unit || ''])
+    const wsP = XLSX.utils.aoa_to_sheet([pHeaders, ...safeRows(pRows)])
+    wsP['!cols'] = [{ wch: 34 }, { wch: 12 }, { wch: 8 }]
+
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '전화주문등록')
+    XLSX.utils.book_append_sheet(wb, wsP, '상품목록')
     XLSX.writeFile(wb, `전화주문_양식_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
@@ -255,6 +266,24 @@ function AdminManagePageContent() {
 
       const STATUS_MAP: Record<string, string> = { '입금대기': 'pending', '결제완료': 'paid', '작업중': 'in_progress', '출고': 'shipped', '배송완료': 'delivered' }
       const s = (v: unknown) => String(v ?? '').trim()
+
+      // 상품명 → 상품 (공백·대소문자 무시하고 매칭)
+      const norm = (x: string) => x.replace(/\s+/g, '').toLowerCase()
+      const byName = new Map(productList.map((p) => [norm(p.name || ''), p]))
+      const unknownNames = new Set<string>()
+
+      // '상품' / '수량' 열을 쉼표로 나눠 품목 목록 구성
+      const parseItems = (r: Record<string, unknown>) => {
+        const names = s(r['상품']).split(',').map((x) => x.trim()).filter(Boolean)
+        if (names.length === 0) return []
+        const qtys = s(r['수량']).split(',').map((x) => x.trim())
+        return names.map((nm, i) => {
+          const prod = byName.get(norm(nm))
+          if (!prod) { unknownNames.add(nm); return null }
+          const qty = parseFloat(qtys[i] ?? qtys[0] ?? '1') || 1
+          return { productId: prod.id, quantity: qty, unitPrice: Number(prod.price) || 0 }
+        }).filter(Boolean) as { productId: string; quantity: number; unitPrice: number }[]
+      }
 
       const rows = json
         .filter((r) => s(r['주문자이름']) && !s(r['주문자이름']).startsWith('※'))
@@ -277,10 +306,21 @@ function AdminManagePageContent() {
           paymentStatus: s(r['입금상태']).includes('후불') || s(r['입금상태']).includes('미입금') ? 'unpaid' : 'paid',
           depositDue: s(r['입금예정일']),
           memo: s(r['메모']),
+          items: parseItems(r),
         }))
 
       if (rows.length === 0) { alert('등록할 주문이 없습니다. 양식을 확인해주세요.'); setBulkRunning(false); return }
-      if (!confirm(`${rows.length}건의 전화주문을 등록하시겠습니까?`)) { setBulkRunning(false); return }
+
+      // 상품목록에 없는 이름이 있으면 먼저 알림
+      if (unknownNames.size > 0) {
+        const list = [...unknownNames].slice(0, 10).join('\n· ')
+        if (!confirm(`상품목록에 없는 상품명이 있습니다. 해당 품목은 제외하고 등록됩니다.\n\n· ${list}\n\n계속하시겠습니까?`)) {
+          setBulkRunning(false); return
+        }
+      }
+
+      const withItems = rows.filter((r) => r.items.length > 0).length
+      if (!confirm(`${rows.length}건의 전화주문을 등록하시겠습니까?\n(품목 입력된 주문 ${withItems}건)`)) { setBulkRunning(false); return }
 
       const res = await fetch('/api/admin/create-order-bulk', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -289,7 +329,7 @@ function AdminManagePageContent() {
       const d = await res.json().catch(() => ({}))
       if (res.ok) {
         await loadAll()
-        alert(`등록 완료 — ${d.created}건${d.skipped ? `\n제외 ${d.skipped}건:\n${(d.errors || []).slice(0, 10).join('\n')}` : ''}`)
+        alert(`등록 완료 — ${d.created}건${d.items ? ` · 품목 ${d.items}개` : ''}${d.skipped ? `\n제외 ${d.skipped}건:\n${(d.errors || []).slice(0, 10).join('\n')}` : ''}`)
       } else {
         alert(`${d.error || '등록 실패'}${d.errors?.length ? `\n\n${d.errors.slice(0, 10).join('\n')}` : ''}`)
       }

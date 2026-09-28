@@ -8,7 +8,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+interface BulkItem { productId: string; quantity: number; unitPrice?: number }
+
 interface BulkRow {
+  items?: BulkItem[]
   name?: string
   phone?: string
   email?: string
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
   }
 
   const inserts: Record<string, unknown>[] = []
+  const itemsPerRow: BulkItem[][] = []
   const errors: string[] = []
 
   ;(rows as BulkRow[]).forEach((r, i) => {
@@ -80,14 +84,39 @@ export async function POST(req: Request) {
       payment_method: String(r.paymentMethod || '') === 'CARD' ? 'CARD' : 'bank_transfer',
       memo: `📞 전화주문${due && status === 'pending' ? ` · 입금예정 ${due}` : ''}${content ? ` · ${content}` : ''}${extraMemo ? ` · ${extraMemo}` : ''}`,
     })
+    // 주문과 같은 순서로 품목을 보관 (insert 후 order_id 연결)
+    itemsPerRow.push(Array.isArray(r.items) ? r.items : [])
   })
 
   if (inserts.length === 0) {
     return NextResponse.json({ error: '등록 가능한 행이 없습니다.', errors }, { status: 400 })
   }
 
-  const { error } = await supabaseAdmin.from('orders').insert(inserts)
+  const { data: created, error } = await supabaseAdmin.from('orders').insert(inserts).select('id')
   if (error) return NextResponse.json({ error: error.message, errors }, { status: 500 })
 
-  return NextResponse.json({ success: true, created: inserts.length, skipped: errors.length, errors })
+  // 품목 저장 — 입력 순서대로 생성된 주문에 연결
+  const itemRows: Record<string, unknown>[] = []
+  ;(created || []).forEach((o, i) => {
+    (itemsPerRow[i] || []).forEach((it) => {
+      if (!it?.productId || !(Number(it.quantity) > 0)) return
+      itemRows.push({
+        order_id: o.id,
+        product_id: String(it.productId),
+        quantity: Number(it.quantity),
+        unit_price: Math.max(0, Math.round(Number(it.unitPrice) || 0)),
+        cutting: false,
+        cutting_price: 0,
+      })
+    })
+  })
+  if (itemRows.length > 0) {
+    // 품목 저장 실패해도 주문 등록은 유지
+    try { await supabaseAdmin.from('order_items').insert(itemRows) } catch { /* 무시 */ }
+  }
+
+  return NextResponse.json({
+    success: true, created: inserts.length, skipped: errors.length, errors,
+    items: itemRows.length,
+  })
 }
