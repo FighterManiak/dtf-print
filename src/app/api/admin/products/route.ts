@@ -67,6 +67,25 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id 필요' }, { status: 400 })
+  // 주문 이력이 있는 상품은 삭제하지 않고 판매중지 처리
+  // (삭제하면 과거 주문의 상품명·단위를 복원할 수 없어 엑셀이 깨짐)
+  const { count } = await supabaseAdmin
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', id)
+
+  if ((count ?? 0) > 0) {
+    const { error: offErr } = await supabaseAdmin
+      .from('products').update({ active: false }).eq('id', id)
+    if (offErr) return NextResponse.json({ error: offErr.message }, { status: 500 })
+    return NextResponse.json({
+      success: true,
+      softDeleted: true,
+      orderCount: count,
+      message: `이 상품으로 주문된 내역이 ${count}건 있어 삭제 대신 판매중지 처리했습니다.\n(과거 주문의 상품명·단위를 유지하기 위함입니다)`,
+    })
+  }
+
   const { error } = await supabaseAdmin.from('products').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

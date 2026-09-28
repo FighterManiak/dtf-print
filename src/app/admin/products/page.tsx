@@ -38,10 +38,14 @@ export default function AdminProductsPage() {
   }
 
   const remove = async (id: string, name: string) => {
-    if (!confirm(`'${name}' 상품을 삭제할까요?\n(기존 주문 내역에는 영향 없습니다)`)) return
+    if (!confirm(`'${name}' 상품을 삭제할까요?\n\n주문 이력이 있으면 삭제 대신 판매중지 처리됩니다.\n(과거 주문의 상품명·단위를 유지하기 위함입니다)`)) return
     setSaving(id)
     const res = await fetch(`/api/admin/products?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
-    if (res.ok) await load()
+    if (res.ok) {
+      const d = await res.json().catch(() => ({}))
+      if (d.softDeleted) alert(d.message)
+      await load()
+    }
     else { const e = await res.json().catch(() => ({})); alert(e.error || '삭제 실패') }
     setSaving(null)
   }
