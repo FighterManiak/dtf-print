@@ -721,6 +721,15 @@ function AdminManagePageContent() {
   })
   const selectAllFiltered = () => setSelected(new Set(allKeys))
 
+  // 송장 미등록 주문 (출고·배송완료 중 택배 발송 건)
+  const noTrackingItems = filtered.filter((it) => {
+    if (!['shipped', 'delivered'].includes(getEffectiveStatus(it))) return false
+    if (isPickupOrder(it)) return false
+    const tn = (it.type === 'quote' ? (it.data as Quote).order?.tracking_number : (it.data as DirectOrder).tracking_number) || ''
+    return !tn
+  })
+  const selectNoTracking = () => setSelected(new Set(noTrackingItems.map(itemKeyOf)))
+
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
     const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '단위', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
@@ -770,7 +779,9 @@ function AdminManagePageContent() {
 
   // 송장 일괄등록 양식 다운로드 (결제완료·작업중·출고 + 주문번호가 있는 건)
   const exportShippingTemplate = () => {
-    const shippable = filtered.filter((item) => {
+    // 선택된 주문이 있으면 그 건만, 없으면 현재 목록 전체
+    const base = selected.size > 0 ? filtered.filter((it) => selected.has(itemKeyOf(it))) : filtered
+    const shippable = base.filter((item) => {
       const orderId = item.type === 'quote' ? (item.data as Quote).order_id : item.data.id
       return orderId && item.data.order_no && ['paid', 'in_progress', 'shipped'].includes(getEffectiveStatus(item))
     })
@@ -905,8 +916,9 @@ function AdminManagePageContent() {
               <Download className="w-4 h-4" /> 엑셀 다운로드 ({filtered.length})
             </button>
             <button onClick={exportShippingTemplate}
+              title={selected.size > 0 ? '선택한 주문만 양식으로 받습니다' : '현재 목록 전체를 양식으로 받습니다'}
               className="flex items-center gap-1.5 border border-gray-300 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4" /> 송장 양식
+              <Download className="w-4 h-4" /> 송장 양식{selected.size > 0 ? ` (선택 ${selected.size})` : ''}
             </button>
             <label className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors cursor-pointer">
               <Truck className="w-4 h-4" /> {bulkRunning ? '처리 중...' : '송장 일괄등록'}
@@ -1002,21 +1014,13 @@ function AdminManagePageContent() {
 
             <span className="text-sm text-gray-500">총 {filtered.length}건</span>
 
-            {/* 송장 미등록 건수 (출고·배송완료 중 택배 발송 건 기준) */}
-            {(() => {
-              const missing = filtered.filter((it) => {
-                const st = getEffectiveStatus(it)
-                if (!['shipped', 'delivered'].includes(st)) return false
-                if (isPickupOrder(it)) return false
-                const tn = (it.type === 'quote' ? (it.data as Quote).order?.tracking_number : (it.data as DirectOrder).tracking_number) || ''
-                return !tn
-              }).length
-              return missing > 0 ? (
-                <span className="text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-600 ring-1 ring-red-200">
-                  ⚠️ 송장 미등록 {missing}건
-                </span>
-              ) : null
-            })()}
+            {/* 송장 미등록만 한 번에 선택 */}
+            {noTrackingItems.length > 0 && (
+              <button onClick={selectNoTracking}
+                className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-50 text-red-600 ring-1 ring-red-200 hover:bg-red-100 transition-colors">
+                ⚠️ 송장 미등록 {noTrackingItems.length}건 선택
+              </button>
+            )}
 
             <a href="/admin/fix-zipcode" className="text-xs text-blue-600 font-bold hover:underline">📍 우편번호 정리</a>
           </div>
