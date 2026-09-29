@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, use as usePromise } from 'react'
+import { useEffect, useState, useRef, use as usePromise } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Star, Package, ChevronLeft, Minus, Plus, Upload, X } from 'lucide-react'
+import { Star, Package, ChevronLeft, Minus, Plus, Upload, X, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { openPostcode } from '@/lib/daum-postcode'
 import { getShippingFee } from '@/lib/shipping'
@@ -27,6 +27,9 @@ interface Review {
 
 const BANK = { bank: '기업은행', account: '495-028223-01-021', holder: '아유디스터디 (조봉준)' }
 
+// 상세 이미지를 접어서 보여줄 높이 (이보다 길면 '상품정보 더보기' 노출)
+const DETAIL_FOLD_PX = 1200
+
 export default function MaterialDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params)
   const router = useRouter()
@@ -39,6 +42,10 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
   const [availablePoints, setAvailablePoints] = useState(0)
   const [pointInput, setPointInput] = useState('')
   const [tab, setTab] = useState<'detail' | 'shipping' | 'review'>('detail')
+  // 상세 이미지 접기/펼치기
+  const [detailExpanded, setDetailExpanded] = useState(false)
+  const [detailOverflow, setDetailOverflow] = useState(false)
+  const detailRef = useRef<HTMLDivElement>(null)
   // 옵션 선택값 (옵션명 → 선택한 옵션값 label)
   const [selectedOpts, setSelectedOpts] = useState<Record<string, string>>({})
 
@@ -85,6 +92,17 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
       }
     })
   }, [id])
+
+  // 상세 이미지가 접힘 높이를 넘는지 감지 (이미지 로드에 따라 높이가 변하므로 관찰)
+  useEffect(() => {
+    const el = detailRef.current
+    if (!el) return
+    const check = () => setDetailOverflow(el.scrollHeight > DETAIL_FOLD_PX + 80)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [material, tab, detailExpanded])
 
   const searchAddress = async () => {
     const r = await openPostcode()
@@ -400,10 +418,42 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
           {detailImages.length > 0 && (
             <div className="-mx-4 sm:mx-0">
               <div className="max-w-[860px] mx-auto">
-                {detailImages.map((p) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img key={p} src={imgUrl(p)} alt="" loading="lazy" className="w-full block" />
-                ))}
+                {/* 길면 일부만 보여주고 '상품정보 더보기'로 펼침 */}
+                <div
+                  ref={detailRef}
+                  className="relative overflow-hidden transition-[max-height] duration-300"
+                  style={detailExpanded ? undefined : { maxHeight: DETAIL_FOLD_PX }}
+                >
+                  {detailImages.map((p) => (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img key={p} src={imgUrl(p)} alt="" loading="lazy" className="w-full block" />
+                  ))}
+
+                  {/* 접힌 상태에서 하단 페이드 */}
+                  {!detailExpanded && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-white to-transparent" />
+                  )}
+                </div>
+
+                {/* 이미지가 접힘 기준보다 길 때만 버튼 노출 */}
+                {detailOverflow && (
+                  <div className="flex justify-center mt-4 px-4 sm:px-0">
+                    <button
+                      onClick={() => {
+                        if (detailExpanded) {
+                          setDetailExpanded(false)
+                          detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        } else {
+                          setDetailExpanded(true)
+                        }
+                      }}
+                      className="w-full max-w-sm border border-gray-300 rounded-xl py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      {detailExpanded ? '상품정보 접기' : '상품정보 더보기'}
+                      <ChevronDown className={`w-4 h-4 transition-transform ${detailExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
