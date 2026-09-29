@@ -1001,6 +1001,23 @@ function AdminManagePageContent() {
             )}
 
             <span className="text-sm text-gray-500">총 {filtered.length}건</span>
+
+            {/* 송장 미등록 건수 (출고·배송완료 중 택배 발송 건 기준) */}
+            {(() => {
+              const missing = filtered.filter((it) => {
+                const st = getEffectiveStatus(it)
+                if (!['shipped', 'delivered'].includes(st)) return false
+                if (isPickupOrder(it)) return false
+                const tn = (it.type === 'quote' ? (it.data as Quote).order?.tracking_number : (it.data as DirectOrder).tracking_number) || ''
+                return !tn
+              }).length
+              return missing > 0 ? (
+                <span className="text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-600 ring-1 ring-red-200">
+                  ⚠️ 송장 미등록 {missing}건
+                </span>
+              ) : null
+            })()}
+
             <a href="/admin/fix-zipcode" className="text-xs text-blue-600 font-bold hover:underline">📍 우편번호 정리</a>
           </div>
           <div className="flex items-center gap-1.5">
@@ -1064,6 +1081,30 @@ function AdminManagePageContent() {
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 ${cfg.badge}`}>
                           <StatusIcon className="w-3 h-3" />{cfg.label}
                         </span>
+
+                        {/* 출고·배송완료 건의 송장 등록 여부 */}
+                        {['shipped', 'delivered'].includes(effectiveStatus) && (() => {
+                          if (isPickupOrder(item)) {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 ring-1 ring-violet-200">
+                                🏢 직접수령
+                              </span>
+                            )
+                          }
+                          const tn = (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
+                          const cr = (item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || ''
+                          return tn ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                              title={`${cr} ${tn}`}>
+                              <Truck className="w-3 h-3" />송장 {cr ? `${cr} ` : ''}{tn}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 ring-1 ring-red-200">
+                              ⚠️ 송장 미등록
+                            </span>
+                          )
+                        })()}
+
                         {item.type === 'order' && (d as DirectOrder).is_paid === false && (
                           <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 ring-1 ring-red-200">
                             💰 미입금(후불)
