@@ -75,8 +75,9 @@ export default function AdminMaterialsPage() {
       const detail = target === 'detailImages'
       const fd = new FormData()
       for (const original of files.slice(0, detail ? 20 : 8)) {
+        // 상세컷은 표시 폭 860px의 2배(고해상도 화면 대응)
         const f = detail
-          ? await compressImage(original, { maxWidth: 1200, maxHeight: 6000, quality: 0.88 })
+          ? await compressImage(original, { maxWidth: 1720, maxHeight: 8000, quality: 0.88 })
           : await compressImage(original, { maxWidth: 1400, maxHeight: 1400, quality: 0.85 })
         fd.append('files', f, f.name)
       }
@@ -372,7 +373,9 @@ export default function AdminMaterialsPage() {
                 <label className="text-xs font-bold text-gray-700 block mb-1">
                   상세페이지 이미지 <span className="text-gray-400 font-normal">(최대 20장 · 위에서부터 순서대로 노출)</span>
                 </label>
-                <p className="text-[11px] text-gray-400 mb-2">스마트스토어처럼 세로로 긴 상세컷을 순서대로 올리세요.</p>
+                <p className="text-[11px] text-gray-400 mb-2">
+                  스마트스토어처럼 세로로 긴 상세컷을 순서대로 올리세요. 권장 가로 <b>860px</b>(고화질은 1720px).
+                </p>
                 <div className="space-y-2">
                   {form.detailImages.map((p, i) => (
                     <div key={p} className="flex items-center gap-2 border border-gray-200 rounded-xl p-2 bg-gray-50/60">

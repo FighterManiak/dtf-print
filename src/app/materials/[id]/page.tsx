@@ -396,13 +396,15 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap mb-6">{material.detail}</p>
           )}
 
-          {/* 상세페이지 이미지 */}
+          {/* 상세페이지 이미지 — 스마트스토어 기본 폭(860px) 기준 */}
           {detailImages.length > 0 && (
-            <div className="space-y-0 -mx-4 sm:mx-0">
-              {detailImages.map((p) => (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img key={p} src={imgUrl(p)} alt="" loading="lazy" className="w-full block sm:rounded-xl" />
-              ))}
+            <div className="-mx-4 sm:mx-0">
+              <div className="max-w-[860px] mx-auto">
+                {detailImages.map((p) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img key={p} src={imgUrl(p)} alt="" loading="lazy" className="w-full block" />
+                ))}
+              </div>
             </div>
           )}
 
