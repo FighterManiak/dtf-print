@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery, awardReferralCommission, revokePointsForOrder } from '@/lib/points-server'
+import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery, awardReferralCommission, revokePointsForOrder, refundUsedPoints } from '@/lib/points-server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 
 const supabaseAdmin = createClient(
@@ -95,9 +95,10 @@ export async function POST(req: Request) {
     } catch { /* 적립 실패는 상태변경에 영향 없음 */ }
   }
 
-  // 취소/환불 시 해당 주문으로 적립된 포인트 자동 환수
+  // 취소/환불 시 적립 포인트는 환수, 사용했던 포인트는 회원에게 환원
   if (status === 'cancelled' || status === 'refunded') {
     try { await revokePointsForOrder(supabaseAdmin, orderId) } catch { /* 무시 */ }
+    try { await refundUsedPoints(supabaseAdmin, orderId) } catch { /* 무시 */ }
   }
 
   return NextResponse.json({ success: true })

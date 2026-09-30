@@ -200,6 +200,46 @@ export async function awardReferralCommission(admin: SupabaseClient, orderId: st
 
 // 주문 취소/환불 시 해당 주문으로 적립된 포인트 자동 환수
 // (본인 등급 적립 + 추천인 커미션 모두, 남은 잔액만큼 회수)
+// 주문 취소·삭제 시 사용했던 포인트를 회원에게 돌려준다.
+// 어떤 적립분에서 차감했는지는 기록이 없으므로, 환원분은 새 적립으로 만들어 준다.
+// 같은 주문을 두 번 환원하지 않도록 사용 기록 메모에 '환원됨'을 남긴다.
+export async function refundUsedPoints(admin: SupabaseClient, orderId: string): Promise<number> {
+  const { data: uses } = await admin
+    .from('points')
+    .select('id,user_id,amount,memo')
+    .eq('order_id', orderId)
+    .eq('type', 'use')
+
+  let refunded = 0
+  for (const u of uses || []) {
+    const memo = String(u.memo || '')
+    if (memo.includes('환원됨')) continue // 이미 처리됨
+    const amount = Math.abs(Number(u.amount) || 0)
+    if (amount <= 0) continue
+
+    const expiresAt = new Date()
+    expiresAt.setMonth(expiresAt.getMonth() + POINT_EXPIRY_MONTHS)
+
+    // order_id 는 비워둔다 — 배송완료 적립의 중복 판정과 섞이지 않도록
+    const { error } = await admin.from('points').insert({
+      user_id: u.user_id,
+      amount,
+      balance_remaining: amount,
+      type: 'earn',
+      expires_at: expiresAt.toISOString(),
+      order_id: null,
+      memo: '주문 취소/삭제 · 사용 포인트 환원',
+    })
+    if (error) continue
+
+    await admin.from('points')
+      .update({ memo: `${memo || '주문 시 사용'} · 환원됨` })
+      .eq('id', u.id)
+    refunded += amount
+  }
+  return refunded
+}
+
 export async function revokePointsForOrder(admin: SupabaseClient, orderId: string): Promise<void> {
   const { data: earns } = await admin
     .from('points')

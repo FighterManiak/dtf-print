@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import { revokePointsForOrder } from '@/lib/points-server'
+import { revokePointsForOrder, refundUsedPoints } from '@/lib/points-server'
 
 const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
 
@@ -80,6 +80,8 @@ export async function POST(req: Request) {
   if (!isPartial) {
     await supabaseAdmin.from('quotes').update({ status: 'refunded' }).eq('order_id', orderId)
     try { await revokePointsForOrder(supabaseAdmin, orderId) } catch { /* 무시 */ }
+    // 사용했던 포인트는 회원에게 환원
+    try { await refundUsedPoints(supabaseAdmin, orderId) } catch { /* 무시 */ }
   }
 
   return NextResponse.json({ success: true, partial: isPartial, method: isCard ? 'CARD' : 'BANK', amount })

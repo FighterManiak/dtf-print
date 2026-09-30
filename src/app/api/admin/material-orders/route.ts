@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { refundUsedPoints } from '@/lib/points-server'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,12 @@ export async function PATCH(req: Request) {
 
   const { error } = await supabaseAdmin.from('material_orders').update(patch).eq('id', b.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // 취소 처리 시 사용했던 포인트를 회원에게 환원
+  if (b.status === 'cancelled') {
+    try { await refundUsedPoints(supabaseAdmin, String(b.id)) } catch { /* 무시 */ }
+  }
+
   return NextResponse.json({ success: true })
 }
 
@@ -73,7 +80,8 @@ export async function DELETE(req: Request) {
     } catch { /* 로그 실패해도 삭제는 진행 */ }
   }
 
-  // 주문 삭제 전 해당 주문으로 사용/적립된 포인트 기록의 주문 연결 해제
+  // 사용했던 포인트를 먼저 환원한 뒤(주문 연결이 남아 있어야 조회 가능) 연결을 해제한다
+  try { await refundUsedPoints(supabaseAdmin, id) } catch { /* 무시 */ }
   try { await supabaseAdmin.from('points').update({ order_id: null }).eq('order_id', id) } catch { /* 무시 */ }
 
   const { error } = await supabaseAdmin.from('material_orders').delete().eq('id', id)
