@@ -721,7 +721,14 @@ function AdminManagePageContent() {
     if (search) {
       const q = search.toLowerCase()
       const d = item.data
-      if (![(d.order_no || ''), (d.user_name || ''), (d.user_email || ''), (d.user_phone || ''), ((d as any).order_name || '')].some((v) => v.toLowerCase().includes(q))) return false
+      const textHit = [(d.order_no || ''), (d.user_name || ''), (d.user_email || ''), (d.user_phone || ''), (d.order_name || '')]
+        .some((v) => v.toLowerCase().includes(q))
+      // 주소는 띄어쓰기가 제각각이라 공백을 빼고 비교 (견적은 결제 시 입력한 배송지도 포함)
+      const squash = (v: string) => v.replace(/\s+/g, '').toLowerCase()
+      const qs = squash(search)
+      const addrHit = !!qs && [d.user_address || '', item.type === 'quote' ? ((d as Quote).order?.user_address || '') : '']
+        .some((v) => squash(v).includes(qs))
+      if (!textHit && !addrHit) return false
     }
     return true
   })
@@ -962,7 +969,7 @@ function AdminManagePageContent() {
         <div className="bg-white border border-gray-200 rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center shadow-sm">
           <div className="flex items-center gap-2 flex-1 min-w-52 border border-gray-200 rounded-xl px-3 py-2 bg-gray-50">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="주문번호 · 이름 · 연락처 · 이메일 · 주문명" className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="주문번호 · 이름 · 연락처 · 이메일 · 주문명 · 주소" className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
           </div>
           <div className="flex items-center gap-2">
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-300" />
