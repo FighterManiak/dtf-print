@@ -6,6 +6,7 @@ import { createServerClient } from '@supabase/ssr'
 import { usePoints } from '@/lib/points-server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 import { saveProfileAddress } from '@/lib/save-profile-address'
+import { insertWithOptional } from '@/lib/safe-insert'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +14,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { orderName, customer, cart, totalAmount, paymentMethod, shippingNote, usedPoints, machineNo, receiptType, receiptInfo } = await req.json()
+  const { orderName, customer, cart, totalAmount, paymentMethod, shippingNote, usedPoints, machineNo, receiptType, receiptInfo, depositorName } = await req.json()
 
   // 포인트 사용 상한: 구매금액(=결제액+사용포인트)의 20%
   const reqUsed = Math.max(0, Math.round(Number(usedPoints) || 0))
@@ -29,26 +30,27 @@ export async function POST(req: Request) {
   )
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: newOrder, error: orderErr } = await supabaseAdmin
-    .from('orders')
-    .insert({
-      user_id: user?.id || null,
-      user_name: customer.name,
-      user_email: customer.email,
-      user_phone: customer.phone,
-      user_address: customer.address,
-      order_name: orderName || null,
-      total_amount: totalAmount,
-      used_points: effectiveUsed,
-      machine_no: machineNo || null,
-      receipt_type: receiptType && receiptType !== 'none' ? receiptType : null,
-      receipt_info: receiptInfo || null,
-      status: 'pending',
-      payment_method: paymentMethod || 'bank_transfer',
-      memo: `${paymentMethod === 'CARD' ? '카드결제' : '무통장입금'} 바로주문${orderName ? ` · ${orderName}` : ''}${shippingNote ? ` · ${shippingNote}` : ''}${effectiveUsed ? ` · 포인트 ${effectiveUsed.toLocaleString()}P 사용` : ''}`,
-    })
-    .select('id')
-    .single()
+  const isBank = (paymentMethod || 'bank_transfer') !== 'CARD'
+  // 무통장은 입금자명 기록 (비어 있으면 주문자명)
+  const depositor = isBank ? (String(depositorName || '').trim() || String(customer.name || '').trim() || null) : null
+
+  const { data: newOrder, error: orderErr } = await insertWithOptional(supabaseAdmin, 'orders', {
+    user_id: user?.id || null,
+    user_name: customer.name,
+    user_email: customer.email,
+    user_phone: customer.phone,
+    user_address: customer.address,
+    order_name: orderName || null,
+    total_amount: totalAmount,
+    used_points: effectiveUsed,
+    machine_no: machineNo || null,
+    receipt_type: receiptType && receiptType !== 'none' ? receiptType : null,
+    receipt_info: receiptInfo || null,
+    depositor_name: depositor,
+    status: 'pending',
+    payment_method: paymentMethod || 'bank_transfer',
+    memo: `${paymentMethod === 'CARD' ? '카드결제' : '무통장입금'} 바로주문${orderName ? ` · ${orderName}` : ''}${shippingNote ? ` · ${shippingNote}` : ''}${effectiveUsed ? ` · 포인트 ${effectiveUsed.toLocaleString()}P 사용` : ''}${depositor && depositor !== customer.name ? ` · 입금자 ${depositor}` : ''}`,
+  }, ['depositor_name']) as { data: { id: string } | null; error: { message: string } | null }
 
   if (orderErr || !newOrder) {
     return NextResponse.json({ error: orderErr?.message || 'order insert failed' }, { status: 500 })

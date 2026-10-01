@@ -57,6 +57,7 @@ interface OrderInfo {
   tracking_number: string | null; refund_reason: string | null
   payment_method: string | null; assigned_machine: number | null
   user_address?: string | null
+  depositor_name?: string | null
 }
 interface Quote {
   id: string; created_at: string; status: string; order_no: string | null; user_id: string | null
@@ -74,6 +75,7 @@ interface DirectOrder {
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
   memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
   is_paid: boolean | null
+  depositor_name?: string | null
   receipt_type: string | null
   receipt_info: Record<string, string> | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
@@ -162,7 +164,7 @@ function AdminManagePageContent() {
   // 전화주문 직접 등록
   const [phoneOrderOpen, setPhoneOrderOpen] = useState(false)
   const [poSaving, setPoSaving] = useState(false)
-  const emptyPO = { name: '', phone: '', email: '', company: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', zonecode: '', address: '', addressDetail: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false, userId: '' }
+  const emptyPO = { name: '', phone: '', email: '', company: '', orderName: '', content: '', amount: '', paymentMethod: 'bank_transfer', deliveryMethod: 'delivery', zonecode: '', address: '', addressDetail: '', status: 'pending', paymentStatus: 'paid', depositDue: '', memo: '', isSample: false, userId: '', depositorName: '' }
   const [po, setPo] = useState({ ...emptyPO })
 
   // 전화주문 품목 (상품 + 수량) — 주문내역 엑셀의 상품/상세·수량으로 나감
@@ -272,12 +274,12 @@ function AdminManagePageContent() {
     const p0 = productList[0]?.name || 'DTF 필름 (1M)'
     const p1 = productList[1]?.name || p0
 
-    const headers = ['주문자이름', '업체명', '연락처', '이메일', '주문명', '주문내용', '상품', '수량', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
-    const sample = ['홍길동', '슈퍼하드', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', `${p0}, ${p1}`, '3, 10', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
-    const sample2 = ['김샘플', '', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', p0, '1', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
-    const guide = ['※ 필수', '※ 선택', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 상품목록 시트의 이름 그대로 · 여러 개는 쉼표', '※ 상품 순서와 같게 · 쉼표', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const headers = ['주문자이름', '업체명', '연락처', '이메일', '주문명', '주문내용', '상품', '수량', '금액', '결제수단', '입금자명', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
+    const sample = ['홍길동', '슈퍼하드', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', `${p0}, ${p1}`, '3, 10', 50000, '무통장', '(주)슈퍼하드', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
+    const sample2 = ['김샘플', '', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', p0, '1', 0, '무통장', '', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
+    const guide = ['※ 필수', '※ 선택', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 상품목록 시트의 이름 그대로 · 여러 개는 쉼표', '※ 상품 순서와 같게 · 쉼표', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 비우면 업체명→주문자명', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
     const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
-    ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
 
     // 상품명을 그대로 복사해 쓸 수 있도록 목록 시트 제공
     const pHeaders = ['상품명', '단가', '단위']
@@ -342,6 +344,7 @@ function AdminManagePageContent() {
           status: STATUS_MAP[s(r['진행상태'])] || 'pending',
           paymentStatus: s(r['입금상태']).includes('후불') || s(r['입금상태']).includes('미입금') ? 'unpaid' : 'paid',
           depositDue: s(r['입금예정일']),
+          depositorName: s(r['입금자명']),
           memo: s(r['메모']),
           items: parseItems(r),
         }))
@@ -754,7 +757,7 @@ function AdminManagePageContent() {
 
   // 현재 필터된 주문 내역을 엑셀(CSV)로 다운로드
   const exportExcel = () => {
-    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '단위', '요청장비', '작업장비', '결제수단', '금액', '택배사', '송장번호']
+    const headers = ['주문번호', '주문일시', '유형', '상태', '이름', '연락처', '이메일', '우편번호', '주소', '상품/상세', '수량', '단위', '요청장비', '작업장비', '결제수단', '입금자명', '금액', '택배사', '송장번호']
     const rows = filtered.map((item) => {
       const d = item.data
       const s = getEffectiveStatus(item)
@@ -789,11 +792,14 @@ function AdminManagePageContent() {
       // 견적은 결제 시 입력한 배송지(주문)를 우선 사용
       const addrSrc = (item.type === 'quote' ? (d as Quote).order?.user_address : null) || d.user_address
       const { zip, addr } = splitAddress(addrSrc)
-      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, qty, unit, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, d.total_amount || 0, carrier, tracking]
+      const depositor = pm === 'bank_transfer'
+        ? ((item.type === 'quote' ? (d as Quote).order?.depositor_name : (d as DirectOrder).depositor_name) || '')
+        : ''
+      return [d.order_no || '', createdAt, type, label, d.user_name || '', d.user_phone || '', d.user_email || '', zip, addr, detail, qty, unit, machine ? `${machine}번` : '자동 배정', assigned ? `${assigned}번` : '', pmLabel, depositor, d.total_amount || 0, carrier, tracking]
     })
     const ws = XLSX.utils.aoa_to_sheet([headers, ...safeRows(rows)])
     // 열 너비 지정
-    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 7 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 10 }, { wch: 34 }, { wch: 26 }, { wch: 8 }, { wch: 7 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 16 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '주문내역')
     XLSX.writeFile(wb, `주문내역_${new Date().toISOString().slice(0, 10)}.xlsx`)
@@ -1116,7 +1122,18 @@ function AdminManagePageContent() {
                         {(() => {
                           const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
                           if (!pm) return null
-                          return <><span className="text-gray-300">·</span><span>{pm === 'bank_transfer' ? '무통장' : '카드'}</span></>
+                          // 무통장은 입금자명을 함께 표시 (주문자와 다르면 강조)
+                          const dep = (item.type === 'quote' ? (d as Quote).order?.depositor_name : (d as DirectOrder).depositor_name) || ''
+                          const differs = dep && dep !== d.user_name
+                          return (
+                            <>
+                              <span className="text-gray-300">·</span>
+                              <span>{pm === 'bank_transfer' ? '무통장' : '카드'}</span>
+                              {pm === 'bank_transfer' && dep && (
+                                <span className={differs ? 'text-amber-600 font-semibold' : ''}>입금 {dep}</span>
+                              )}
+                            </>
+                          )
                         })()}
                         {d.user_phone && <><span className="text-gray-300">·</span><span>{d.user_phone}</span></>}
                         {item.type === 'quote' && <><span className="text-gray-300">·</span><span>{PRODUCT_TYPE_LABEL[(d as Quote).product_type]}</span></>}
@@ -2012,6 +2029,18 @@ function AdminManagePageContent() {
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-1">입금 예정일 <span className="text-gray-400 font-normal">(선택)</span></label>
                   <input type="date" value={po.depositDue} onChange={(e) => setPo((p) => ({ ...p, depositDue: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </div>
+              )}
+
+              {/* 무통장 입금자명 */}
+              {!po.isSample && po.paymentMethod === 'bank_transfer' && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">
+                    입금자명 <span className="text-gray-400 font-normal">(비우면 주문자명)</span>
+                  </label>
+                  <input value={po.depositorName} onChange={(e) => setPo((p) => ({ ...p, depositorName: e.target.value }))}
+                    placeholder={po.company || po.name || '통장에 찍힐 이름'}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
               )}

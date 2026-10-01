@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { getShippingFee } from '@/lib/shipping'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 import { saveProfileAddress } from '@/lib/save-profile-address'
+import { insertWithOptional } from '@/lib/safe-insert'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,7 +12,7 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
-  const { quoteId, delivery } = await req.json()
+  const { quoteId, delivery, depositorName } = await req.json()
   if (!quoteId) return NextResponse.json({ error: 'quoteId required' }, { status: 400 })
 
   const { data: quote } = await supabaseAdmin.from('quotes').select('*').eq('id', quoteId).single()
@@ -27,7 +28,10 @@ export async function POST(req: Request) {
     : `${delivery?.zonecode ? `(${delivery.zonecode}) ` : ''}${delivery?.address || quote.user_address || ''}${delivery?.addressDetail ? ` ${delivery.addressDetail}` : ''}`.trim()
   const shipLabel = isPickup ? '직접 수령 (배송비 없음)' : `배송비 ${shipTotal.toLocaleString()}원`
 
-  const { data: newOrder, error: orderErr } = await supabaseAdmin.from('orders').insert({
+  // 입금자명 (비어 있으면 주문자명)
+  const depositor = String(depositorName || '').trim() || String(quote.user_name || '').trim() || null
+
+  const { data: newOrder, error: orderErr } = await insertWithOptional(supabaseAdmin, 'orders', {
     user_id: quote.user_id,
     user_email: quote.user_email,
     user_name: quote.user_name,
@@ -37,10 +41,12 @@ export async function POST(req: Request) {
     order_no: quote.order_no || null,
     total_amount: payTotal,
     status: 'pending',
-    memo: `무통장입금 견적주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''} · ${shipLabel}`,
-  }).select('id').single()
+    payment_method: 'bank_transfer',
+    depositor_name: depositor,
+    memo: `무통장입금 견적주문 (${quote.product_type})${quote.admin_note ? ' · ' + quote.admin_note : ''} · ${shipLabel}${depositor && depositor !== quote.user_name ? ` · 입금자 ${depositor}` : ''}`,
+  }, ['depositor_name']) as { data: { id: string } | null; error: { message: string } | null }
 
-  if (orderErr) return NextResponse.json({ error: orderErr.message }, { status: 500 })
+  if (orderErr || !newOrder) return NextResponse.json({ error: orderErr?.message || 'order insert failed' }, { status: 500 })
 
   // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
   if (!isPickup) {

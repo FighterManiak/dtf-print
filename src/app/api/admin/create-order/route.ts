@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { insertWithOptional } from '@/lib/safe-insert'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,7 +46,12 @@ export async function POST(req: Request) {
   const head = `${isSample ? '🎁 샘플주문 (무료)' : '📞 전화주문'}${company ? ` · [업체] ${company}` : ''}`
   const memo = `${head}${!isSample && dueLine && status === 'pending' ? ` · 입금예정 ${dueLine}` : ''}${contentLine ? ` · ${contentLine}` : ''}${b.memo ? ` · ${b.memo}` : ''}`
 
-  const { data: newOrder, error } = await supabaseAdmin.from('orders').insert({
+  // 무통장은 입금자명 기록 (비어 있으면 업체명 → 주문자명)
+  const depositor = paymentMethod === 'bank_transfer' && !isSample
+    ? ((b.depositorName || '').trim() || company || name)
+    : null
+
+  const { data: newOrder, error } = await insertWithOptional(supabaseAdmin, 'orders', {
     // 회원과 연결된 경우 user_id를 넣어 포인트·등급이 정상 반영되게 함
     user_id: (b.userId || '').trim() || null,
     user_name: name,
@@ -57,10 +63,11 @@ export async function POST(req: Request) {
     status,
     is_paid: isPaid,
     payment_method: paymentMethod,
+    depositor_name: depositor,
     memo,
-  }).select('id').single()
+  }, ['depositor_name']) as { data: { id: string } | null; error: { message: string } | null }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error || !newOrder) return NextResponse.json({ error: error?.message || 'order insert failed' }, { status: 500 })
 
   // 품목 저장 — 온라인 주문과 동일하게 order_items 에 기록(엑셀 상품/수량에 사용)
   const items = Array.isArray(b.items) ? b.items : []

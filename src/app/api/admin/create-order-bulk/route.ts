@@ -17,6 +17,7 @@ interface BulkRow {
   email?: string
   orderName?: string
   company?: string
+  depositorName?: string
   content?: string
   amount?: number | string
   paymentMethod?: string
@@ -72,6 +73,11 @@ export async function POST(req: Request) {
     const due = String(r.depositDue ?? '').trim()
     const extraMemo = String(r.memo ?? '').trim()
     const company = String(r.company ?? '').trim()
+    const pm = String(r.paymentMethod || '') === 'CARD' ? 'CARD' : 'bank_transfer'
+    // 무통장은 입금자명 기록 (비어 있으면 업체명 → 주문자명)
+    const depositor = pm === 'bank_transfer'
+      ? (String(r.depositorName ?? '').trim() || company || name)
+      : null
 
     inserts.push({
       user_id: null,
@@ -83,7 +89,8 @@ export async function POST(req: Request) {
       total_amount: amount,
       status,
       is_paid: isPaid,
-      payment_method: String(r.paymentMethod || '') === 'CARD' ? 'CARD' : 'bank_transfer',
+      payment_method: pm,
+      depositor_name: depositor,
       memo: `📞 전화주문${company ? ` · [업체] ${company}` : ''}${due && status === 'pending' ? ` · 입금예정 ${due}` : ''}${content ? ` · ${content}` : ''}${extraMemo ? ` · ${extraMemo}` : ''}`,
     })
     // 주문과 같은 순서로 품목을 보관 (insert 후 order_id 연결)
@@ -94,7 +101,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '등록 가능한 행이 없습니다.', errors }, { status: 400 })
   }
 
-  const { data: created, error } = await supabaseAdmin.from('orders').insert(inserts).select('id')
+  let { data: created, error } = await supabaseAdmin.from('orders').insert(inserts).select('id')
+  // depositor_name 컬럼이 아직 없으면 해당 필드를 빼고 다시 저장
+  if (error && String(error.message || '').includes('depositor_name')) {
+    const stripped = inserts.map((row) => { const c = { ...row }; delete c.depositor_name; return c })
+    ;({ data: created, error } = await supabaseAdmin.from('orders').insert(stripped).select('id'))
+  }
   if (error) return NextResponse.json({ error: error.message, errors }, { status: 500 })
 
   // 품목 저장 — 입력 순서대로 생성된 주문에 연결

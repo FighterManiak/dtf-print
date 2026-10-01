@@ -122,6 +122,8 @@ export default function MyOrdersPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [paying, setPaying] = useState<string | null>(null)
   const [payMethod, setPayMethod] = useState<Record<string, 'card' | 'bank'>>({})
+  // 견적별 무통장 입금자명 (비우면 주문자명)
+  const [depositor, setDepositor] = useState<Record<string, string>>({})
   const [trackModal, setTrackModal] = useState<{ carrier: string | null; invoice: string } | null>(null)
   // 견적별 배송 정보 (결제 시 선택)
   const [delivery, setDelivery] = useState<Record<string, { method: 'delivery' | 'pickup'; zonecode: string; address: string; addressDetail: string }>>({})
@@ -374,7 +376,10 @@ export default function MyOrdersPage() {
     const res = await fetch('/api/quote/bank-transfer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ quoteId: quote.id, delivery: deliveryPayload }),
+      body: JSON.stringify({
+        quoteId: quote.id, delivery: deliveryPayload,
+        depositorName: (depositor[quote.id] || '').trim() || quote.user_name || '',
+      }),
     })
     if (res.ok) {
       setQuotes((prev) => prev.map((q) => q.id === quote.id ? { ...q, status: 'bank_transfer_pending', order: null } : q))
@@ -716,6 +721,18 @@ export default function MyOrdersPage() {
                                 <span className="font-bold text-orange-700 text-base">{shipInfo(quote).total.toLocaleString()}원</span>
                               </div>
                             </div>
+
+                            {/* 입금자명 — 통장 내역과 주문을 맞춰보기 위해 수집 */}
+                            <div className="border-t border-orange-200 pt-2">
+                              <label className="text-xs font-bold text-orange-800 block mb-1">
+                                입금자명 <span className="font-normal text-orange-700/70">(비우면 주문자명)</span>
+                              </label>
+                              <input value={depositor[quote.id] || ''}
+                                onChange={(e) => setDepositor((p) => ({ ...p, [quote.id]: e.target.value }))}
+                                placeholder={quote.user_name || '통장에 찍힐 이름'}
+                                className="w-full border border-orange-200 bg-white rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                            </div>
+
                             <p className="text-xs text-orange-600">입금 후 버튼을 눌러주세요.</p>
                           </div>
                         )}

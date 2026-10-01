@@ -94,6 +94,8 @@ function OrderPageContent() {
   const [products, setProducts] = useState<DBProduct[]>([])
   const [isVerified, setIsVerified] = useState(false)
   const [payMethod, setPayMethod] = useState<'card'|'bank'>('card')
+  // 무통장 입금자명 (비우면 주문자명으로 처리)
+  const [depositorName, setDepositorName] = useState('')
   // 무통장 입금 시 증빙 발행
   const [receiptType, setReceiptType] = useState<'none'|'tax_invoice'|'cash_receipt'>('none')
   const [receipt, setReceipt] = useState({
@@ -345,6 +347,7 @@ function OrderPageContent() {
         orderName: orderName.trim() || null, customer: buildCustomerPayload(),
         cart: cartPayload,
         totalAmount: finalPay, usedPoints, shippingNote, machineNo,
+        depositorName: depositorName.trim() || customer.name.trim(),
         receiptType,
         receiptInfo: receiptType === 'none' ? null
           : receiptType === 'tax_invoice'
@@ -1002,6 +1005,19 @@ function OrderPageContent() {
                     <div className="flex justify-between border-t border-orange-200 pt-2 mt-1">
                       <span className="text-gray-600">입금 금액</span>
                       <span className="font-bold text-orange-700 text-base">{finalPay.toLocaleString()}원</span>
+                    </div>
+
+                    {/* 입금자명 — 통장 내역과 주문을 맞춰보기 위해 수집 */}
+                    <div className="border-t border-orange-200 pt-3 mt-2">
+                      <label className="text-xs font-bold text-orange-800 block mb-1">
+                        입금자명 <span className="font-normal text-orange-700/70">(비우면 주문자명으로 처리)</span>
+                      </label>
+                      <input value={depositorName} onChange={(e) => setDepositorName(e.target.value)}
+                        placeholder={customer.name || '통장에 찍힐 이름'}
+                        className="w-full border border-orange-200 bg-white rounded-xl px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                      <p className="text-[11px] text-orange-700/80 mt-1">
+                        주문자와 입금자가 다르면 꼭 입력해주세요. (예: 회사명, 가족 명의)
+                      </p>
                     </div>
                   </div>
                 )}
