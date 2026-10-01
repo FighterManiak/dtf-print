@@ -6,6 +6,7 @@ import { getShippingFee } from '@/lib/shipping'
 import { usePoints, getAvailablePoints } from '@/lib/points-server'
 import { POINT_USE_THRESHOLD } from '@/lib/grade'
 import { saveProfileAddress } from '@/lib/save-profile-address'
+import { insertWithOptional } from '@/lib/safe-insert'
 
 // 자재 구매 포인트 사용 상한 (구매금액의 5%)
 const MATERIAL_POINT_RATE = 0.05
@@ -82,7 +83,15 @@ export async function POST(req: Request) {
     ? finalItems[0].name
     : `${finalItems[0].name} 외 ${finalItems.length - 1}건`
 
-  const { data: newOrder, error } = await supabaseAdmin.from('material_orders').insert({
+  // 무통장 입금자명·증빙 정보 (카드는 저장하지 않음)
+  const isBankPay = b.paymentMethod !== 'CARD'
+  const depositor = isBankPay ? (String(b.depositorName || '').trim() || String(b.name || '').trim() || null) : null
+  const rType = isBankPay && (b.receiptType === 'tax_invoice' || b.receiptType === 'cash_receipt') ? b.receiptType : null
+
+  const { data: newOrder, error } = await insertWithOptional(supabaseAdmin, 'material_orders', {
+    depositor_name: depositor,
+    receipt_type: rType,
+    receipt_info: rType ? (b.receiptInfo || null) : null,
     user_id: user?.id || null,
     user_name: String(b.name).trim(),
     user_email: String(b.email || user?.email || '').trim() || null,
@@ -99,9 +108,9 @@ export async function POST(req: Request) {
     payment_method: b.paymentMethod === 'CARD' ? 'CARD' : 'bank_transfer',
     payment_key: b.paymentKey || null,
     memo: `자재구매${isPickup ? ' · 직접 수령' : ` · 배송비 ${shipping.toLocaleString()}원`}${usedPoints ? ` · 포인트 ${usedPoints.toLocaleString()}P 사용` : ''}${b.memo ? ` · ${b.memo}` : ''}`,
-  }).select('id').single()
+  }, ['depositor_name', 'receipt_type', 'receipt_info']) as { data: { id: string } | null; error: { message: string } | null }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error || !newOrder) return NextResponse.json({ error: error?.message || 'order insert failed' }, { status: 500 })
 
   // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
   if (!isPickup) {

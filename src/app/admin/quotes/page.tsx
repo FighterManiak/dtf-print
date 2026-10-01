@@ -76,6 +76,8 @@ interface DirectOrder {
   memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
   is_paid: boolean | null
   depositor_name?: string | null
+  receipt_issued_at?: string | null
+  receipt_doc_no?: string | null
   receipt_type: string | null
   receipt_info: Record<string, string> | null
   order_items: { id: string; product_id: string; quantity: number; unit_price: number; cutting: boolean; cutting_price: number; request_note: string | null; file_url: string | null; file_name: string | null }[]
@@ -1226,7 +1228,22 @@ function AdminManagePageContent() {
                                     <span className="font-bold text-emerald-700">
                                       {rt === 'tax_invoice' ? '🧾 세금계산서' : '🧾 현금영수증'}
                                     </span>
+                                    {/* 그룹웨어(MCP)에서 기록한 발행 완료 여부 */}
+                                    {(d as DirectOrder).receipt_issued_at ? (
+                                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                                        발행 완료 {new Date((d as DirectOrder).receipt_issued_at!).toLocaleDateString('ko-KR')}
+                                        {(d as DirectOrder).receipt_doc_no ? ` · ${(d as DirectOrder).receipt_doc_no}` : ''}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200">미발행</span>
+                                    )}
                                   </div>
+                                  {(d as DirectOrder).depositor_name && (
+                                    <div className="flex gap-3 mb-1">
+                                      <span className="w-12 shrink-0 text-gray-400">입금자</span>
+                                      <span className="font-semibold text-gray-800">{(d as DirectOrder).depositor_name}</span>
+                                    </div>
+                                  )}
                                   {rt === 'tax_invoice' ? (
                                     <div className="pl-[3.75rem] space-y-0.5 text-xs text-gray-600">
                                       <div>사업자번호: <b className="text-gray-800">{ri.bizNo || '—'}</b></div>

@@ -13,6 +13,11 @@ interface MaterialOrder {
   product_amount: number; shipping_fee: number; total_amount: number
   status: string; is_paid: boolean | null; payment_method: string | null
   carrier: string | null; tracking_number: string | null; memo: string | null
+  depositor_name?: string | null
+  receipt_type?: string | null
+  receipt_info?: Record<string, string> | null
+  receipt_issued_at?: string | null
+  receipt_doc_no?: string | null
 }
 
 const STATUS: Record<string, { label: string; badge: string; dot: string }> = {
@@ -215,10 +220,20 @@ export default function AdminMaterialOrdersPage() {
                           {o.payment_method === 'CARD' ? '카드' : '무통장'}
                         </span>
                         {o.is_paid === false && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">미입금</span>}
+                        {/* 증빙 요청과 발행 여부 */}
+                        {o.receipt_type && (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ring-1 ${o.receipt_issued_at ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}
+                            title={o.receipt_doc_no ? `문서번호 ${o.receipt_doc_no}` : undefined}>
+                            🧾 {o.receipt_type === 'tax_invoice' ? '세금계산서' : '현금영수증'} {o.receipt_issued_at ? '발행 완료' : '미발행'}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-400">
                         <span className="font-semibold text-gray-700">{o.order_name}</span>
                         <span className="font-bold text-blue-600">{o.total_amount.toLocaleString()}원</span>
+                        {o.payment_method !== 'CARD' && o.depositor_name && (
+                          <span className={o.depositor_name !== o.user_name ? 'text-amber-600 font-semibold' : ''}>입금 {o.depositor_name}</span>
+                        )}
                         {o.user_phone && <span>{o.user_phone}</span>}
                         <span>{new Date(o.created_at).toLocaleDateString('ko-KR')}</span>
                         {o.tracking_number && <span className="text-indigo-600 font-semibold">{o.carrier} {o.tracking_number}</span>}
