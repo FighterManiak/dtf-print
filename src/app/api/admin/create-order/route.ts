@@ -41,8 +41,8 @@ export async function POST(req: Request) {
   const dueLine = (b.depositDue || '').trim()
   const isSample = !!b.isSample
   const company = (b.company || '').trim()
-  // 업체명은 메모 앞부분에 남겨 다음 주문 시 자동완성에 활용
-  const head = `${isSample ? '🎁 샘플주문 (무료)' : '📞 전화주문'}${company ? ` · ${company}` : ''}`
+  // 업체명은 [업체] 표식과 함께 남겨 주문내용과 구분되게 한다
+  const head = `${isSample ? '🎁 샘플주문 (무료)' : '📞 전화주문'}${company ? ` · [업체] ${company}` : ''}`
   const memo = `${head}${!isSample && dueLine && status === 'pending' ? ` · 입금예정 ${dueLine}` : ''}${contentLine ? ` · ${contentLine}` : ''}${b.memo ? ` · ${b.memo}` : ''}`
 
   const { data: newOrder, error } = await supabaseAdmin.from('orders').insert({

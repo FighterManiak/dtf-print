@@ -77,9 +77,9 @@ export async function GET(req: Request) {
     const key = digits(phone) || String(o.user_email || '')
     if (!key || seen.has(key)) continue
     seen.add(key)
-    // 전화주문 메모에 남긴 업체명 추출: "📞 전화주문 · 업체명"
+    // 전화주문 메모에 남긴 업체명 추출: "📞 전화주문 · [업체] 업체명"
     const memo = String(o.memo || '')
-    const company = memo.match(/전화주문\s*·\s*([^|·\n]+)/)?.[1]?.trim() || ''
+    const company = memo.match(/\[업체\]\s*([^|·\n]+)/)?.[1]?.trim() || ''
     hits.push({
       source: 'history', userId: (o.user_id as string) || null,
       name: String(o.user_name || ''), company, phone,

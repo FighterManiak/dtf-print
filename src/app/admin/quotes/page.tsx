@@ -59,7 +59,7 @@ interface OrderInfo {
   user_address?: string | null
 }
 interface Quote {
-  id: string; created_at: string; status: string; order_no: string | null
+  id: string; created_at: string; status: string; order_no: string | null; user_id: string | null
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   product_type: string; order_name: string | null; request_note: string | null
   file_url: string | null; file_name: string | null
@@ -69,7 +69,7 @@ interface Quote {
   machine_no: number | null
 }
 interface DirectOrder {
-  id: string; created_at: string; status: string; order_no: string | null
+  id: string; created_at: string; status: string; order_no: string | null; user_id: string | null
   user_name: string | null; user_email: string | null; user_phone: string | null; user_address: string | null
   order_name: string | null; total_amount: number; carrier: string | null; tracking_number: string | null
   memo: string | null; refund_reason: string | null; payment_method: string | null; machine_no: number | null; assigned_machine: number | null
@@ -101,7 +101,9 @@ function orderDetailText(d: DirectOrder, products: Record<string, ProductRow> = 
   const rest = (d.memo || '')
     .replace(/^(📞 전화주문|🎁 샘플주문 \(무료\))/, '')
     .replace(/입금예정\s*\d{4}-\d{2}-\d{2}/, '')
-    .split('·').map((x) => x.trim()).filter(Boolean)
+    .split('·').map((x) => x.trim())
+    // 업체명은 상품 정보가 아니므로 제외
+    .filter((x) => x && !x.startsWith('[업체]'))
     .join(' / ')
   if (rest) parts.push(rest)
   return { detail: parts.join(' / '), qty: '', unit: '' }
@@ -208,6 +210,25 @@ function AdminManagePageContent() {
     return () => { alive = false }
   }, [])
 
+  // 회원 ID → 회사명 (목록에 업체명 표시)
+  const [companies, setCompanies] = useState<Record<string, string>>({})
+  useEffect(() => {
+    let alive = true
+    fetch('/api/admin/member-companies')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (alive && d?.companies) setCompanies(d.companies) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
+
+  // 주문의 업체명 — 회원이면 회원정보, 전화주문이면 메모에 남긴 업체명
+  const companyOf = (item: Item): string => {
+    const uid = item.data.user_id
+    if (uid && companies[uid]) return companies[uid]
+    const memo = item.type === 'order' ? (item.data as DirectOrder).memo : null
+    return (memo || '').match(/\[업체\]\s*([^·|\n]+)/)?.[1]?.trim() || ''
+  }
+
   // 주문자 자동완성 (회원 + 과거 주문 이력)
   const [custQuery, setCustQuery] = useState('')
   const [custHits, setCustHits] = useState<CustomerHit[]>([])
@@ -251,12 +272,12 @@ function AdminManagePageContent() {
     const p0 = productList[0]?.name || 'DTF 필름 (1M)'
     const p1 = productList[1]?.name || p0
 
-    const headers = ['주문자이름', '연락처', '이메일', '주문명', '주문내용', '상품', '수량', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
-    const sample = ['홍길동', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', `${p0}, ${p1}`, '3, 10', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
-    const sample2 = ['김샘플', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', p0, '1', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
-    const guide = ['※ 필수', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 상품목록 시트의 이름 그대로 · 여러 개는 쉼표', '※ 상품 순서와 같게 · 쉼표', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
+    const headers = ['주문자이름', '업체명', '연락처', '이메일', '주문명', '주문내용', '상품', '수량', '금액', '결제수단', '수령방법', '우편번호', '배송지주소', '진행상태', '입금상태', '입금예정일', '메모']
+    const sample = ['홍길동', '슈퍼하드', '010-1234-5678', 'example@email.com', '로고 패치 200장', '59cm 롤 3M', `${p0}, ${p1}`, '3, 10', 50000, '무통장', '택배', '12345', '서울시 강남구 테헤란로 1 2층', '입금대기', '후불', '2026-08-10', '단골 고객']
+    const sample2 = ['김샘플', '', '010-9999-8888', '', '무료 샘플', '59cm 롤 0.5M 샘플', p0, '1', 0, '무통장', '택배', '54321', '부산시 기장군 장안읍 …', '작업중', '입금완료', '', '무료 샘플 발송']
+    const guide = ['※ 필수', '※ 선택', '', '', '', '※ 필수 · 엑셀 상품/상세로 표시', '※ 상품목록 시트의 이름 그대로 · 여러 개는 쉼표', '※ 상품 순서와 같게 · 쉼표', '※ 숫자만 · 무료 샘플은 0', '※ 무통장/카드', '※ 택배/직접수령', '※ 5자리 숫자', '', '※ 입금대기/결제완료/작업중/출고/배송완료', '※ 입금완료/후불', '※ YYYY-MM-DD', '']
     const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2, guide])
-    ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 15 }, { wch: 22 }, { wch: 18 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 30 }, { wch: 14 }, { wch: 10 }, { wch: 13 }, { wch: 16 }]
 
     // 상품명을 그대로 복사해 쓸 수 있도록 목록 시트 제공
     const pHeaders = ['상품명', '단가', '단위']
@@ -304,6 +325,7 @@ function AdminManagePageContent() {
         .filter((r) => s(r['주문자이름']) && !s(r['주문자이름']).startsWith('※'))
         .map((r) => ({
           name: s(r['주문자이름']),
+          company: s(r['업체명']),
           phone: s(r['연락처']),
           email: s(r['이메일']),
           orderName: s(r['주문명']),
@@ -1066,7 +1088,11 @@ function AdminManagePageContent() {
                         {d.order_no && (
                           <span className="font-mono text-xs text-gray-400 shrink-0">{d.order_no}</span>
                         )}
-                        <span className="font-bold text-gray-900 text-sm truncate">{d.user_name || d.user_email || '—'}</span>
+                        <span className="font-bold text-gray-900 text-sm shrink-0">{d.user_name || d.user_email || '—'}</span>
+                        {(() => {
+                          const co = companyOf(item)
+                          return co ? <span className="text-xs text-gray-500 truncate">{co}</span> : null
+                        })()}
                         {/* 주문 경로는 아이콘으로만 구분 */}
                         {(() => {
                           const memo = item.type === 'order' ? (d as DirectOrder).memo : null

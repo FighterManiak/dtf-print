@@ -16,6 +16,7 @@ interface BulkRow {
   phone?: string
   email?: string
   orderName?: string
+  company?: string
   content?: string
   amount?: number | string
   paymentMethod?: string
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
     const content = String(r.content ?? '').trim()
     const due = String(r.depositDue ?? '').trim()
     const extraMemo = String(r.memo ?? '').trim()
+    const company = String(r.company ?? '').trim()
 
     inserts.push({
       user_id: null,
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
       status,
       is_paid: isPaid,
       payment_method: String(r.paymentMethod || '') === 'CARD' ? 'CARD' : 'bank_transfer',
-      memo: `📞 전화주문${due && status === 'pending' ? ` · 입금예정 ${due}` : ''}${content ? ` · ${content}` : ''}${extraMemo ? ` · ${extraMemo}` : ''}`,
+      memo: `📞 전화주문${company ? ` · [업체] ${company}` : ''}${due && status === 'pending' ? ` · 입금예정 ${due}` : ''}${content ? ` · ${content}` : ''}${extraMemo ? ` · ${extraMemo}` : ''}`,
     })
     // 주문과 같은 순서로 품목을 보관 (insert 후 order_id 연결)
     itemsPerRow.push(Array.isArray(r.items) ? r.items : [])
