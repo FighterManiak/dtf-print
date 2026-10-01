@@ -28,7 +28,8 @@ const INSTRUCTIONS = [
 
 // ── 인증 ──────────────────────────────────────────────────────
 function authorized(req: Request): boolean {
-  const expected = process.env.MCP_TOKEN || ''
+  // Vercel 화면에 붙여넣을 때 섞여 들어간 앞뒤 공백·줄바꿈은 무시
+  const expected = (process.env.MCP_TOKEN || '').trim()
   if (!expected) return false
   const h = req.headers.get('authorization') || ''
   const got = h.toLowerCase().startsWith('bearer ') ? h.slice(7).trim() : ''
@@ -484,7 +485,7 @@ async function handle(m: RpcMessage) {
 }
 
 export async function POST(req: Request) {
-  if (!process.env.MCP_TOKEN) {
+  if (!(process.env.MCP_TOKEN || '').trim()) {
     return NextResponse.json(fail(null, -32000, 'MCP_TOKEN 이 설정되지 않았습니다.'), { status: 503 })
   }
   if (!authorized(req)) {
