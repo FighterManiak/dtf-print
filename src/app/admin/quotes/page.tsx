@@ -1051,119 +1051,105 @@ function AdminManagePageContent() {
               const d = item.data
 
               return (
-                <div key={itemKey} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                <div className={`bg-white border rounded-xl overflow-hidden transition-colors ${isExpanded ? 'border-gray-300 shadow-sm' : 'border-gray-200'}`}>
                   {/* 카드 헤더 */}
-                  <div className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExpanded(isExpanded ? null : itemKey)}>
+                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setExpanded(isExpanded ? null : itemKey)}>
                     {/* 일괄 선택 체크박스 */}
                     <input type="checkbox" checked={selected.has(itemKey)} onClick={(e) => e.stopPropagation()} onChange={() => toggleSelect(itemKey)}
                       className="w-4 h-4 accent-gray-900 shrink-0 cursor-pointer" />
                     {/* 상태 도트 */}
                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
 
+                    {/* 본문 — 1행: 주문번호·고객 / 2행: 주문명 / 3행: 메타 */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-baseline gap-2 min-w-0">
                         {d.order_no && (
-                          <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{d.order_no}</span>
+                          <span className="font-mono text-xs text-gray-400 shrink-0">{d.order_no}</span>
                         )}
-                        <span className="font-bold text-gray-900 text-sm">{d.user_name || d.user_email || '—'}</span>
+                        <span className="font-bold text-gray-900 text-sm truncate">{d.user_name || d.user_email || '—'}</span>
+                        {/* 주문 경로는 아이콘으로만 구분 */}
                         {(() => {
-                          const phone = item.type === 'order' && isPhoneOrder((d as DirectOrder).memo)
-                          const sample = phone && ((d as DirectOrder).memo || '').includes('🎁 샘플주문')
-                          if (phone) {
-                            return (
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${sample ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-amber-50 text-amber-700 ring-amber-200'}`}>
-                                {sample ? '🎁 샘플주문' : '📞 전화주문'}
-                              </span>
-                            )
-                          }
-                          return (
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${item.type === 'quote' ? 'bg-blue-50 text-blue-600 ring-blue-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
-                              {item.type === 'quote' ? '📋 견적주문' : '⚡ 바로주문'}
-                            </span>
-                          )
-                        })()}
-                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 ${cfg.badge}`}>
-                          <StatusIcon className="w-3 h-3" />{cfg.label}
-                        </span>
-
-                        {/* 출고·배송완료 건의 송장 등록 여부 */}
-                        {['shipped', 'delivered'].includes(effectiveStatus) && (() => {
-                          if (isPickupOrder(item)) {
-                            return (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 ring-1 ring-violet-200">
-                                🏢 직접수령
-                              </span>
-                            )
-                          }
-                          const tn = (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
-                          const cr = (item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier) || ''
-                          return tn ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                              title={`${cr} ${tn}`}>
-                              <Truck className="w-3 h-3" />송장 {cr ? `${cr} ` : ''}{tn}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 ring-1 ring-red-200">
-                              ⚠️ 송장 미등록
-                            </span>
-                          )
-                        })()}
-
-                        {item.type === 'order' && (d as DirectOrder).is_paid === false && (
-                          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 ring-1 ring-red-200">
-                            💰 미입금(후불)
-                          </span>
-                        )}
-                        {item.type === 'order' && (d as DirectOrder).is_paid === false && (
-                          <button onClick={(e) => { e.stopPropagation(); setOrderPaid(d.id, true) }} disabled={processing === d.id}
-                            className="text-xs bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-emerald-600 transition-colors disabled:opacity-50">
-                            입금완료 처리
-                          </button>
-                        )}
-                        {/* 파일 다운 버튼 */}
-                        {item.type === 'quote' && (() => {
-                          const files = parseFiles((d as Quote).file_url, (d as Quote).file_name)
-                          return files.map((f, i) => (
-                            <button key={i} onClick={(e) => { e.stopPropagation(); downloadFile(f.url, f.name) }}
-                              className="inline-flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 px-2 py-0.5 rounded-full hover:bg-emerald-100 transition-colors font-semibold">
-                              <Download className="w-3 h-3" />시안{files.length > 1 ? ` ${i+1}` : ''}
-                            </button>
-                          ))
+                          const memo = item.type === 'order' ? (d as DirectOrder).memo : null
+                          const sample = (memo || '').includes('🎁 샘플주문')
+                          const phone = item.type === 'order' && isPhoneOrder(memo)
+                          const label = sample ? '샘플주문' : phone ? '전화주문' : item.type === 'quote' ? '견적주문' : '바로주문'
+                          const icon = sample ? '🎁' : phone ? '📞' : item.type === 'quote' ? '📋' : '⚡'
+                          return <span className="text-xs text-gray-400 shrink-0" title={label}>{icon}</span>
                         })()}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {(d as any).order_name && <span className="text-sm font-semibold text-gray-800">{(d as any).order_name}</span>}
-                        {item.type === 'quote' && <span className="text-xs text-gray-400">{PRODUCT_TYPE_LABEL[(d as Quote).product_type]}</span>}
-                        <span className="text-xs text-gray-400">{new Date(d.created_at).toLocaleDateString('ko-KR')} {new Date(d.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        {d.total_amount && <span className="text-xs font-bold text-blue-600">{d.total_amount.toLocaleString()}원</span>}
+
+                      {(d as { order_name?: string | null }).order_name && (
+                        <p className="text-sm text-gray-700 truncate mt-0.5">{(d as { order_name?: string | null }).order_name}</p>
+                      )}
+
+                      <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-400 flex-wrap">
+                        <span>{new Date(d.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} {new Date(d.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        {d.total_amount != null && (
+                          <><span className="text-gray-300">·</span><span className="font-bold text-gray-800">{d.total_amount.toLocaleString()}원</span></>
+                        )}
                         {(() => {
                           const pm = item.type === 'quote' ? (d as Quote).order?.payment_method : (d as DirectOrder).payment_method
                           if (!pm) return null
-                          const isBank = pm === 'bank_transfer'
-                          return <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${isBank ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>{isBank ? '무통장' : '카드'}</span>
+                          return <><span className="text-gray-300">·</span><span>{pm === 'bank_transfer' ? '무통장' : '카드'}</span></>
                         })()}
-                        {d.user_phone && <span className="text-xs text-gray-400">{d.user_phone}</span>}
+                        {d.user_phone && <><span className="text-gray-300">·</span><span>{d.user_phone}</span></>}
+                        {item.type === 'quote' && <><span className="text-gray-300">·</span><span>{PRODUCT_TYPE_LABEL[(d as Quote).product_type]}</span></>}
                         {(() => {
                           const assigned = item.type === 'quote' ? (d as Quote).order?.assigned_machine : (d as DirectOrder).assigned_machine
                           const m = (d as { machine_no?: number | null }).machine_no
-                          if (assigned) return <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">작업 {assigned}번</span>
-                          return m ? <span className="text-xs font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">요청 {m}번</span> : null
+                          const txt = assigned ? `작업 ${assigned}번` : m ? `요청 ${m}번` : null
+                          return txt ? <><span className="text-gray-300">·</span><span>{txt}</span></> : null
                         })()}
-                        {/* 송장 미리보기 */}
                         {(() => {
                           const carrier = item.type === 'quote' ? (d as Quote).order?.carrier : (d as DirectOrder).carrier
                           const tracking = item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number
-                          return tracking ? <span className="text-xs font-semibold text-indigo-600">{carrier} {tracking}</span> : null
+                          return tracking ? <><span className="text-gray-300">·</span><span>{carrier} {tracking}</span></> : null
                         })()}
                       </div>
                     </div>
-                    {(
-                      <button onClick={(e) => { e.stopPropagation(); deleteItem(item) }} disabled={processing === d.id}
-                        title="주문 내역 삭제 (삭제 기록이 남습니다)"
-                        className="shrink-0 text-xs text-red-400 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg px-2 py-1 font-semibold transition-colors disabled:opacity-50">
-                        삭제
-                      </button>
-                    )}
+
+                    {/* 우측 — 상태와 주의 표시만 모아 세로로 스캔되게 */}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ring-1 whitespace-nowrap ${cfg.badge}`}>
+                        <StatusIcon className="w-3 h-3" />{cfg.label}
+                      </span>
+
+                      {/* 주의가 필요한 항목만 빨갛게 */}
+                      {item.type === 'order' && (d as DirectOrder).is_paid === false && (
+                        <button onClick={(e) => { e.stopPropagation(); setOrderPaid(d.id, true) }} disabled={processing === d.id}
+                          title="클릭하면 입금완료로 처리됩니다"
+                          className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 ring-1 ring-red-200 hover:bg-red-100 transition-colors disabled:opacity-50 whitespace-nowrap">
+                          미입금 · 입금확인 →
+                        </button>
+                      )}
+
+                      {['shipped', 'delivered'].includes(effectiveStatus) && !isPickupOrder(item) && !(
+                        (item.type === 'quote' ? (d as Quote).order?.tracking_number : (d as DirectOrder).tracking_number) || ''
+                      ) && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-600 ring-1 ring-red-200 whitespace-nowrap">
+                          ⚠️ 송장 미등록
+                        </span>
+                      )}
+
+                      {/* 시안 파일 */}
+                      {item.type === 'quote' && (() => {
+                        const files = parseFiles((d as Quote).file_url, (d as Quote).file_name)
+                        if (files.length === 0) return null
+                        return (
+                          <button onClick={(e) => { e.stopPropagation(); files.forEach((f) => downloadFile(f.url, f.name)) }}
+                            title={`시안 ${files.length}개 다운로드`}
+                            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 transition-colors whitespace-nowrap">
+                            <Download className="w-3 h-3" />시안{files.length > 1 ? ` ${files.length}` : ''}
+                          </button>
+                        )
+                      })()}
+                    </div>
+                    {/* 삭제는 평소 흐리게, 마우스를 올렸을 때만 드러나도록 */}
+                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item) }} disabled={processing === d.id}
+                      title="주문 내역 삭제 (삭제 기록이 남습니다)"
+                      className="shrink-0 text-xs text-gray-300 hover:text-red-600 transition-colors disabled:opacity-50 px-1">
+                      삭제
+                    </button>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
                   </div>
 
