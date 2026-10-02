@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Package, Plus, X, Upload, Trash2, Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { compressImage } from '@/lib/image-compress'
+import { MATERIAL_SHIPPING_TYPES, normalizeMaterialShipping, describeMaterialShipping, materialItemFee } from '@/lib/shipping'
 
 interface OptionValue { label: string; addPrice: number }
 interface ProductOption { name: string; values: OptionValue[] }
@@ -15,6 +16,7 @@ interface Material {
   category: string | null; images: string[]; is_active: boolean; sort_order: number
   detail_images?: string[] | null; options?: ProductOption[] | null
   spec?: SpecRow[] | null; shipping_info?: string | null
+  shipping?: unknown
 }
 
 const DEFAULT_SHIPPING = `· 배송비: 3만원 이상 무료 (미만 3,000원)
@@ -30,6 +32,7 @@ const empty = {
   options: [] as ProductOption[],
   spec: [] as SpecRow[],
   shippingInfo: DEFAULT_SHIPPING,
+  shipping: normalizeMaterialShipping(null),
 }
 
 export default function AdminMaterialsPage() {
@@ -63,6 +66,7 @@ export default function AdminMaterialsPage() {
       options: Array.isArray(m.options) ? m.options : [],
       spec: Array.isArray(m.spec) ? m.spec : [],
       shippingInfo: m.shipping_info || DEFAULT_SHIPPING,
+      shipping: normalizeMaterialShipping(m.shipping),
     })
     setModalOpen(true)
   }
@@ -146,7 +150,11 @@ export default function AdminMaterialsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (res.ok) { setModalOpen(false); load() }
+    if (res.ok) {
+      const d = await res.json().catch(() => ({}))
+      if (d.warning) alert(d.warning)
+      setModalOpen(false); load()
+    }
     else { const e = await res.json().catch(() => ({})); alert(e.error || '저장 실패') }
     setSaving(false)
   }
@@ -403,6 +411,54 @@ export default function AdminMaterialsPage() {
                     </label>
                   )}
                 </div>
+              </div>
+
+              {/* 택배비 설정 — 실제 결제 금액에 반영됨 */}
+              <div className="border-t border-gray-100 pt-4">
+                <label className="text-xs font-bold text-gray-700 block mb-1">택배비</label>
+                <p className="text-[11px] text-gray-400 mb-2">실제 결제 금액에 반영됩니다. 제주 +3,000원 · 도서산간 +5,000원은 모든 상품에 공통으로 붙습니다.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 mb-2">
+                  {MATERIAL_SHIPPING_TYPES.map((t) => (
+                    <button key={t.value} type="button"
+                      onClick={() => setForm((f) => ({ ...f, shipping: { ...f.shipping, type: t.value } }))}
+                      className={`py-2 rounded-lg text-xs font-semibold border transition-colors ${form.shipping.type === t.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-500 hover:border-gray-400'}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 방식별 입력 */}
+                {(form.shipping.type === 'fixed' || form.shipping.type === 'conditional' || form.shipping.type === 'per_qty') && (
+                  <div className="flex items-center gap-2 flex-wrap text-sm text-gray-700">
+                    {form.shipping.type === 'conditional' && (
+                      <>
+                        <input type="number" min={0} step={1000} value={form.shipping.freeOver}
+                          onChange={(e) => setForm((f) => ({ ...f, shipping: { ...f.shipping, freeOver: Number(e.target.value) || 0 } }))}
+                          className="w-28 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 text-right" />
+                        <span>원 이상 무료, 미만</span>
+                      </>
+                    )}
+                    {form.shipping.type === 'per_qty' && (
+                      <>
+                        <input type="number" min={1} value={form.shipping.perQty}
+                          onChange={(e) => setForm((f) => ({ ...f, shipping: { ...f.shipping, perQty: Math.max(1, Number(e.target.value) || 1) } }))}
+                          className="w-20 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 text-right" />
+                        <span>{form.unit || '개'}마다</span>
+                      </>
+                    )}
+                    <input type="number" min={0} step={500} value={form.shipping.fee}
+                      onChange={(e) => setForm((f) => ({ ...f, shipping: { ...f.shipping, fee: Number(e.target.value) || 0 } }))}
+                      className="w-28 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 text-right" />
+                    <span>원</span>
+                  </div>
+                )}
+
+                <p className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2 mt-2">
+                  고객에게 표시: <b>{describeMaterialShipping(normalizeMaterialShipping(form.shipping))}</b>
+                  {form.shipping.type === 'per_qty' && form.shipping.perQty > 0 && (
+                    <span className="text-blue-500"> (예: 3{form.unit || '개'} 주문 시 {materialItemFee(normalizeMaterialShipping(form.shipping), 0, 3).toLocaleString()}원)</span>
+                  )}
+                </p>
               </div>
 
               {/* 배송/교환 안내 */}

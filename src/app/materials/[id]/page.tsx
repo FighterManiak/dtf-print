@@ -6,7 +6,10 @@ import Link from 'next/link'
 import { Star, Package, ChevronLeft, Minus, Plus, Upload, X, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { openPostcode } from '@/lib/daum-postcode'
-import { getShippingFee, FREE_SHIPPING_THRESHOLD, BASE_SHIPPING_FEE, JEJU_SURCHARGE, ISLAND_SURCHARGE } from '@/lib/shipping'
+import {
+  FREE_SHIPPING_THRESHOLD, JEJU_SURCHARGE, ISLAND_SURCHARGE,
+  getMaterialShippingFee, normalizeMaterialShipping, materialItemFee, describeMaterialShipping,
+} from '@/lib/shipping'
 import { compressImage } from '@/lib/image-compress'
 
 interface OptionValue { label: string; addPrice: number }
@@ -19,6 +22,7 @@ interface Material {
   category: string | null; images: string[]
   detail_images?: string[] | null; options?: ProductOption[] | null
   spec?: SpecRow[] | null; shipping_info?: string | null
+  shipping?: unknown
 }
 interface Review {
   id: string; created_at: string; user_name: string | null
@@ -158,7 +162,10 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
 
   const productAmount = unitPrice * qty
   const isPickup = form.deliveryMethod === 'pickup'
-  const shipping = isPickup ? 0 : getShippingFee(productAmount, form.zonecode).total
+  // 상품별 택배비 설정 (주문 서버와 같은 계산식)
+  const shipSetting = normalizeMaterialShipping(material?.shipping)
+  const itemShipFee = materialItemFee(shipSetting, productAmount, qty)
+  const shipping = isPickup ? 0 : getMaterialShippingFee([{ amount: productAmount, qty, shipping: shipSetting }], form.zonecode).total
   const payable = productAmount + shipping
   // 자재 구매 포인트: 구매금액의 최대 5% (보유 10,000P 이상부터)
   const pointsUsable = availablePoints >= 10000
@@ -351,27 +358,33 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
                 <span className="text-xl font-bold text-blue-600">{productAmount.toLocaleString()}원</span>
               </div>
 
-              {/* 택배비 안내 — 현재 담은 금액 기준으로 무료배송 여부 표시 */}
-              <div className="border border-gray-200 rounded-xl px-4 py-3 mb-4 text-sm">
-                <div className="flex justify-between items-center gap-3">
-                  <span className="text-gray-500">택배비</span>
-                  {productAmount >= FREE_SHIPPING_THRESHOLD ? (
-                    <span className="font-bold text-emerald-600">무료배송</span>
-                  ) : (
-                    <span className="font-bold text-gray-900">{BASE_SHIPPING_FEE.toLocaleString()}원</span>
-                  )}
-                </div>
-                {productAmount < FREE_SHIPPING_THRESHOLD && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    {(FREE_SHIPPING_THRESHOLD - productAmount).toLocaleString()}원 더 구매하면 무료배송
-                  </p>
-                )}
-                <ul className="text-xs text-gray-400 mt-2 space-y-0.5">
-                  <li>· {FREE_SHIPPING_THRESHOLD.toLocaleString()}원 이상 무료배송, 미만 {BASE_SHIPPING_FEE.toLocaleString()}원</li>
-                  <li>· 제주 +{JEJU_SURCHARGE.toLocaleString()}원 · 도서산간 +{ISLAND_SURCHARGE.toLocaleString()}원 (무료배송이어도 별도)</li>
-                  <li>· 직접 수령 시 택배비 없음</li>
-                </ul>
-              </div>
+              {/* 택배비 안내 — 이 상품의 택배비 설정과 담은 수량·금액 기준 */}
+              {(() => {
+                // 무료배송까지 남은 금액 (기본 정책·조건부 무료일 때만)
+                const freeLine = shipSetting.type === 'default' ? FREE_SHIPPING_THRESHOLD
+                  : shipSetting.type === 'conditional' ? shipSetting.freeOver : null
+                const remain = freeLine != null && itemShipFee > 0 ? freeLine - productAmount : 0
+                return (
+                  <div className="border border-gray-200 rounded-xl px-4 py-3 mb-4 text-sm">
+                    <div className="flex justify-between items-center gap-3">
+                      <span className="text-gray-500">택배비</span>
+                      {itemShipFee === 0 ? (
+                        <span className="font-bold text-emerald-600">무료배송</span>
+                      ) : (
+                        <span className="font-bold text-gray-900">{itemShipFee.toLocaleString()}원</span>
+                      )}
+                    </div>
+                    {remain > 0 && (
+                      <p className="text-xs text-blue-600 mt-1">{remain.toLocaleString()}원 더 구매하면 무료배송</p>
+                    )}
+                    <ul className="text-xs text-gray-400 mt-2 space-y-0.5">
+                      <li>· {describeMaterialShipping(shipSetting)}</li>
+                      <li>· 제주 +{JEJU_SURCHARGE.toLocaleString()}원 · 도서산간 +{ISLAND_SURCHARGE.toLocaleString()}원{shipSetting.type === 'free' || shipSetting.type === 'default' || shipSetting.type === 'conditional' ? ' (무료배송이어도 별도)' : ''}</li>
+                      <li>· 직접 수령 시 택배비 없음</li>
+                    </ul>
+                  </div>
+                )
+              })()}
 
               <button onClick={() => {
                 if (!optionsReady) { alert('옵션을 선택해주세요.'); return }

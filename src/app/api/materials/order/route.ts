@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
-import { getShippingFee } from '@/lib/shipping'
+import { getMaterialShippingFee, normalizeMaterialShipping, type MaterialShipping } from '@/lib/shipping'
 import { usePoints, getAvailablePoints } from '@/lib/points-server'
 import { POINT_USE_THRESHOLD } from '@/lib/grade'
 import { saveProfileAddress } from '@/lib/save-profile-address'
@@ -28,10 +28,13 @@ export async function POST(req: Request) {
 
   // 가격은 서버에서 다시 계산 (조작 방지)
   const ids = items.map((i: { materialId: string }) => i.materialId)
-  const { data: mats } = await supabaseAdmin.from('materials').select('id,name,price,unit,stock,is_active,options').in('id', ids)
+  // shipping 컬럼이 아직 없어도 실패하지 않도록 전체 조회
+  const { data: mats } = await supabaseAdmin.from('materials').select('*').in('id', ids)
   const map = new Map((mats || []).map((m) => [m.id as string, m]))
 
   const finalItems: { materialId: string; name: string; price: number; qty: number; options?: string | null }[] = []
+  // 상품별 택배비 계산용 (서버에서 상품 설정으로 다시 계산)
+  const shipItems: { amount: number; qty: number; shipping: MaterialShipping }[] = []
   let productAmount = 0
   for (const it of items) {
     const m = map.get(it.materialId)
@@ -55,10 +58,11 @@ export async function POST(req: Request) {
     const price = (Number(m.price) || 0) + addPrice
     productAmount += price * qty
     finalItems.push({ materialId: m.id as string, name: m.name as string, price, qty, options: picked || null })
+    shipItems.push({ amount: price * qty, qty, shipping: normalizeMaterialShipping(m.shipping) })
   }
 
   const isPickup = b.deliveryMethod === 'pickup'
-  const shipping = isPickup ? 0 : getShippingFee(productAmount, b.zonecode || '').total
+  const shipping = isPickup ? 0 : getMaterialShippingFee(shipItems, b.zonecode || '').total
   const payable = productAmount + shipping
 
   // 포인트 사용 — 자재 구매는 구매금액의 최대 5% (로그인 + 보유 기준 충족 시)

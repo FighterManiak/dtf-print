@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { normalizeMaterialShipping } from '@/lib/shipping'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
   const b = await req.json()
   if (!String(b.name || '').trim()) return NextResponse.json({ error: '상품명을 입력해주세요.' }, { status: 400 })
 
-  const { data, error } = await supabaseAdmin.from('materials').insert({
+  const row: Record<string, unknown> = {
     name: String(b.name).trim(),
     description: String(b.description || '').trim() || null,
     detail: String(b.detail || '').trim() || null,
@@ -46,13 +47,27 @@ export async function POST(req: Request) {
     options: Array.isArray(b.options) ? b.options : [],
     spec: Array.isArray(b.spec) ? b.spec : [],
     shipping_info: String(b.shippingInfo || '').trim() || null,
+    shipping: normalizeMaterialShipping(b.shipping),
     is_active: b.isActive !== false,
     sort_order: Math.round(Number(b.sortOrder) || 0),
-  }).select('id').single()
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true, id: data.id })
+  let { data, error } = await supabaseAdmin.from('materials').insert(row).select('id').single()
+  // 택배비 컬럼이 아직 없으면 나머지는 저장하고 안내
+  let warning: string | undefined
+  if (error && isMissingShippingColumn(error.message)) {
+    delete row.shipping
+    ;({ data, error } = await supabaseAdmin.from('materials').insert(row).select('id').single())
+    warning = SHIPPING_SQL_WARNING
+  }
+
+  if (error || !data) return NextResponse.json({ error: error?.message || '저장 실패' }, { status: 500 })
+  return NextResponse.json({ success: true, id: data.id, warning })
 }
+
+// 택배비 설정 컬럼(materials.shipping) 미생성 여부
+const isMissingShippingColumn = (msg: string) => /'shipping'|materials\.shipping\b/.test(msg)
+const SHIPPING_SQL_WARNING = '상품 정보는 저장됐지만 택배비 설정은 저장되지 않았습니다. supabase-material-shipping.sql 을 실행한 뒤 다시 저장해주세요.'
 
 // 관리자: 상품 수정
 export async function PATCH(req: Request) {
@@ -74,12 +89,20 @@ export async function PATCH(req: Request) {
   if (b.options !== undefined) patch.options = Array.isArray(b.options) ? b.options : []
   if (b.spec !== undefined) patch.spec = Array.isArray(b.spec) ? b.spec : []
   if (b.shippingInfo !== undefined) patch.shipping_info = String(b.shippingInfo).trim() || null
+  if (b.shipping !== undefined) patch.shipping = normalizeMaterialShipping(b.shipping)
   if (b.isActive !== undefined) patch.is_active = !!b.isActive
   if (b.sortOrder !== undefined) patch.sort_order = Math.round(Number(b.sortOrder) || 0)
 
-  const { error } = await supabaseAdmin.from('materials').update(patch).eq('id', b.id)
+  let { error } = await supabaseAdmin.from('materials').update(patch).eq('id', b.id)
+  // 택배비 컬럼이 아직 없으면 나머지는 저장하고 안내
+  let warning: string | undefined
+  if (error && 'shipping' in patch && isMissingShippingColumn(error.message)) {
+    delete patch.shipping
+    ;({ error } = await supabaseAdmin.from('materials').update(patch).eq('id', b.id))
+    warning = SHIPPING_SQL_WARNING
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, warning })
 }
 
 // 관리자: 상품 삭제
