@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Star, Package, ChevronLeft, Minus, Plus, Upload, X, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 import { openPostcode } from '@/lib/daum-postcode'
-import { getShippingFee } from '@/lib/shipping'
+import { getShippingFee, FREE_SHIPPING_THRESHOLD, BASE_SHIPPING_FEE, JEJU_SURCHARGE, ISLAND_SURCHARGE } from '@/lib/shipping'
 import { compressImage } from '@/lib/image-compress'
 
 interface OptionValue { label: string; addPrice: number }
@@ -346,10 +346,33 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
                 </div>
                 {material.stock != null && <span className="text-xs text-gray-400">재고 {material.stock}{material.unit}</span>}
               </div>
-              <div className="flex justify-between items-center mb-4 text-sm">
+              <div className="flex justify-between items-center mb-3 text-sm">
                 <span className="text-gray-500">상품 금액</span>
                 <span className="text-xl font-bold text-blue-600">{productAmount.toLocaleString()}원</span>
               </div>
+
+              {/* 택배비 안내 — 현재 담은 금액 기준으로 무료배송 여부 표시 */}
+              <div className="border border-gray-200 rounded-xl px-4 py-3 mb-4 text-sm">
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-gray-500">택배비</span>
+                  {productAmount >= FREE_SHIPPING_THRESHOLD ? (
+                    <span className="font-bold text-emerald-600">무료배송</span>
+                  ) : (
+                    <span className="font-bold text-gray-900">{BASE_SHIPPING_FEE.toLocaleString()}원</span>
+                  )}
+                </div>
+                {productAmount < FREE_SHIPPING_THRESHOLD && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    {(FREE_SHIPPING_THRESHOLD - productAmount).toLocaleString()}원 더 구매하면 무료배송
+                  </p>
+                )}
+                <ul className="text-xs text-gray-400 mt-2 space-y-0.5">
+                  <li>· {FREE_SHIPPING_THRESHOLD.toLocaleString()}원 이상 무료배송, 미만 {BASE_SHIPPING_FEE.toLocaleString()}원</li>
+                  <li>· 제주 +{JEJU_SURCHARGE.toLocaleString()}원 · 도서산간 +{ISLAND_SURCHARGE.toLocaleString()}원 (무료배송이어도 별도)</li>
+                  <li>· 직접 수령 시 택배비 없음</li>
+                </ul>
+              </div>
+
               <button onClick={() => {
                 if (!optionsReady) { alert('옵션을 선택해주세요.'); return }
                 if (!user) { alert('로그인 후 주문할 수 있습니다.'); router.push('/login?redirect=/materials/' + id); return }
@@ -606,7 +629,7 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
       {tab === 'shipping' && (
         <div className="mb-12 bg-white border border-gray-200 rounded-2xl p-6">
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {material.shipping_info || '· 배송비: 3만원 이상 무료 (미만 3,000원)\n· 제주/도서산간 추가 3,000원'}
+            {material.shipping_info || '· 배송비: 3만원 이상 무료 (미만 3,000원)\n· 제주 추가 3,000원 · 도서산간 추가 5,000원\n· 직접 수령 시 배송비 없음'}
           </p>
         </div>
       )}
