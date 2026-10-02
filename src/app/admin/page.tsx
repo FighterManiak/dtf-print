@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, AlertCircle, CreditCard, ShoppingCart, DollarSign, HardDrive, Star, Mail, Trash2 } from 'lucide-react'
+import { ClipboardList, Package, ShieldCheck, TrendingUp, Truck, Users, MessageCircle, AlertCircle, CreditCard, ShoppingCart, DollarSign, HardDrive, Star, Mail, Trash2, Trophy } from 'lucide-react'
 import { createClient } from '@/lib/supabase-browser'
 
 const formatBytes = (bytes: number) => {
@@ -359,6 +359,13 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </Link>
+
+          <Link href="/admin/company-ranking"
+            className="bg-white border border-gray-200 rounded-xl p-6 hover:border-amber-300 hover:shadow-md transition-all">
+            <Trophy className="w-8 h-8 text-amber-500 mb-3" />
+            <h2 className="font-bold text-gray-800 text-lg mb-1">업체별 주문 순위</h2>
+            <p className="text-gray-500 text-sm">월별 주문금액 순위 · 전월 대비 변동</p>
           </Link>
 
           <Link href="/admin/products"
