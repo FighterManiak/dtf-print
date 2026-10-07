@@ -23,6 +23,7 @@ interface MemberNote {
   id: string; user_id: string | null; company_name: string | null
   note_date: string; kind: NoteKind; content: string
   created_by: string | null; created_at: string; updated_by: string | null; updated_at: string | null
+  created_by_name?: string | null; updated_by_name?: string | null
 }
 
 interface Member {
@@ -100,6 +101,7 @@ export default function MembersPage() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [currentRole, setCurrentRole] = useState<string | null>(null)
+  const [myName, setMyName] = useState('')
   const [metersByUser, setMetersByUser] = useState<Record<string, number>>({})
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(30)
@@ -516,6 +518,8 @@ export default function MembersPage() {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
       setCurrentRole(data.user?.user_metadata?.role || null)
+      // 영업일지 작성자로 기록될 이름
+      setMyName(String(data.user?.user_metadata?.full_name || data.user?.user_metadata?.name || data.user?.email || ''))
     })
     fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
     fetch('/api/admin/member-activity').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.lastActivity) setLastActivity(d.lastActivity) }).catch(() => {})
@@ -1054,7 +1058,9 @@ export default function MembersPage() {
                 placeholder={'미팅 내용, 요청사항, 견적·단가 협의, 다음 연락 일정 등\n예) 월 200M 예상 · 단가 6,500원 요청 · 10/15 샘플 발송 후 재연락'}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed" />
               <div className="flex items-center justify-between gap-2 mt-2">
-                <span className="text-[11px] text-gray-400">Ctrl+Enter 로 저장</span>
+                <span className="text-[11px] text-gray-500">
+                  {editingNote ? '수정자' : '작성자'} <b className="text-gray-800">{myName || '—'}</b> 으로 기록 · Ctrl+Enter 로 저장
+                </span>
                 <div className="flex gap-2">
                   {editingNote && (
                     <button onClick={resetNoteForm} disabled={noteSaving}
@@ -1097,9 +1103,15 @@ export default function MembersPage() {
                             </div>
                           </div>
                           <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed break-words">{n.content}</p>
-                          <p className="text-[11px] text-gray-400 mt-1.5">
-                            {n.created_by || '—'}
-                            {n.updated_at && ` · 수정됨 ${new Date(n.updated_at).toLocaleDateString('ko-KR')}`}
+                          <p className="text-[11px] text-gray-400 mt-1.5" title={[n.created_by, n.updated_by].filter(Boolean).join(' / ')}>
+                            작성 <b className="font-semibold text-gray-600">{n.created_by_name || n.created_by || '—'}</b>
+                            {' '}{new Date(n.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            {n.updated_at && (
+                              <>
+                                {' · '}수정 <b className="font-semibold text-gray-600">{n.updated_by_name || n.updated_by || '—'}</b>
+                                {' '}{new Date(n.updated_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>

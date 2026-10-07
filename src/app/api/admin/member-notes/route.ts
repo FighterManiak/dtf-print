@@ -76,10 +76,32 @@ export async function GET(req: Request) {
     if (same.error) return dbError(same.error.message)
     ;(same.data || []).forEach((n) => byId.set(n.id, n))
   }
-  const notes = [...byId.values()].sort((a, b) =>
-    String(b.note_date).localeCompare(String(a.note_date)) || String(b.created_at).localeCompare(String(a.created_at)))
+  // 작성·수정한 관리자의 이름 (이메일로 찾아 붙임 — 이름이 없으면 이메일 그대로)
+  const names = await adminNames()
+  const notes = [...byId.values()]
+    .sort((a, b) => String(b.note_date).localeCompare(String(a.note_date)) || String(b.created_at).localeCompare(String(a.created_at)))
+    .map((n) => ({
+      ...n,
+      created_by_name: names[String(n.created_by || '').toLowerCase()] || null,
+      updated_by_name: names[String(n.updated_by || '').toLowerCase()] || null,
+    }))
 
   return NextResponse.json({ member: { userId, name, company }, notes })
+}
+
+// 이메일 → 이름 (나중에 관리자 권한이 해제된 계정도 이름이 보이도록 전체 계정 기준)
+async function adminNames(): Promise<Record<string, string>> {
+  const map: Record<string, string> = {}
+  for (let page = 1; page <= 100; page++) {
+    const { data } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 })
+    const users = data?.users || []
+    users.forEach((u) => {
+      const nm = String(u.user_metadata?.full_name || u.user_metadata?.name || '').trim()
+      if (u.email && nm) map[u.email.toLowerCase()] = nm
+    })
+    if (users.length < 1000) break
+  }
+  return map
 }
 
 // 작성
