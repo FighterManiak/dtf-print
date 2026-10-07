@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+import { normCompany } from '@/lib/company'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,9 +27,6 @@ const monthStartIso = (ym: string) => new Date(`${ym}-01T00:00:00+09:00`).toISOS
 const kstMonthOf = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 7)
 const kstDateOf = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10)
 
-// 같은 업체로 묶기 위한 정규화: (주)·주식회사·공백·대소문자 차이 무시
-const normCompany = (s: string) =>
-  s.replace(/\(주\)|㈜|주식회사|\(유\)|유한회사/g, '').replace(/[\s.,·-]/g, '').toLowerCase()
 const digits = (s: unknown) => String(s || '').replace(/\D/g, '')
 
 async function fetchRange(source: Source, gte: string, lt: string) {

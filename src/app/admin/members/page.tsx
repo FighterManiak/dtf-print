@@ -6,6 +6,24 @@ import { createClient } from '@/lib/supabase-browser'
 import { resolveGrade } from '@/lib/grade'
 import * as XLSX from 'xlsx'
 import { safeRows } from '@/lib/excel-safe'
+import { normCompany } from '@/lib/company'
+
+// 영업일지
+type NoteKind = 'meeting' | 'call' | 'visit' | 'etc'
+const NOTE_KIND_LABEL: Record<string, string> = { meeting: '미팅', call: '통화', visit: '방문', etc: '기타' }
+const NOTE_KIND_STYLE: Record<string, string> = {
+  meeting: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  call: 'bg-sky-50 text-sky-700 ring-sky-200',
+  visit: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  etc: 'bg-gray-100 text-gray-600 ring-gray-200',
+}
+interface NoteSummaryRow { id: string; user_id: string | null; company_key: string | null; note_date: string }
+const kstToday = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+interface MemberNote {
+  id: string; user_id: string | null; company_name: string | null
+  note_date: string; kind: NoteKind; content: string
+  created_by: string | null; created_at: string; updated_by: string | null; updated_at: string | null
+}
 
 interface Member {
   id: string
@@ -292,6 +310,81 @@ export default function MembersPage() {
     setInfoSaving(false)
   }
 
+  // ── 영업일지 ─────────────────────────────────────────────
+  // 목록 표시용 요약 (기록 id · 회원 · 업체키 · 날짜)
+  const [noteRows, setNoteRows] = useState<NoteSummaryRow[]>([])
+  const loadNoteSummary = () =>
+    fetch('/api/admin/member-notes?summary=1')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (Array.isArray(d?.rows)) setNoteRows(d.rows) })
+      .catch(() => {})
+
+  // 회원별 기록 수 = 이 회원이 남긴 기록 ∪ 같은 업체 회원들의 기록
+  const noteStatsFor = (member: Member) => {
+    const key = normCompany(member.user_metadata?.company)
+    const hits = noteRows.filter((n) => n.user_id === member.id || (key && n.company_key === key))
+    return { count: hits.length, last: hits[0]?.note_date || null }
+  }
+
+  const [notesFor, setNotesFor] = useState<{ userId: string; name: string; company: string } | null>(null)
+  const [notes, setNotes] = useState<MemberNote[]>([])
+  const [notesLoading, setNotesLoading] = useState(false)
+  const [notesError, setNotesError] = useState('')
+  const [noteDate, setNoteDate] = useState('')
+  const [noteKind, setNoteKind] = useState<NoteKind>('meeting')
+  const [noteText, setNoteText] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [editingNote, setEditingNote] = useState<string | null>(null)
+
+  const resetNoteForm = () => {
+    setNoteDate(kstToday())
+    setNoteKind('meeting'); setNoteText(''); setEditingNote(null)
+  }
+
+  const fetchNotes = async (userId: string) => {
+    setNotesLoading(true); setNotesError('')
+    const res = await fetch(`/api/admin/member-notes?userId=${userId}`)
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) setNotes(d.notes || [])
+    else { setNotes([]); setNotesError(d.error || '불러오지 못했습니다.') }
+    setNotesLoading(false)
+  }
+
+  const openNotes = (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    setNotesFor({ userId: member.id, name, company: member.user_metadata?.company || '' })
+    setNotes([]); resetNoteForm()
+    fetchNotes(member.id)
+  }
+
+  const saveNote = async () => {
+    if (!notesFor || !noteText.trim()) return
+    setNoteSaving(true)
+    const res = await fetch('/api/admin/member-notes', {
+      method: editingNote ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editingNote
+        ? { id: editingNote, noteDate, kind: noteKind, content: noteText }
+        : { userId: notesFor.userId, noteDate, kind: noteKind, content: noteText }),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) { resetNoteForm(); await fetchNotes(notesFor.userId); loadNoteSummary() }
+    else alert(d.error || '저장하지 못했습니다.')
+    setNoteSaving(false)
+  }
+
+  const editNote = (n: MemberNote) => {
+    setEditingNote(n.id); setNoteDate(n.note_date); setNoteKind(n.kind); setNoteText(n.content)
+  }
+
+  const deleteNote = async (n: MemberNote) => {
+    if (!notesFor) return
+    if (!confirm(`${n.note_date} ${NOTE_KIND_LABEL[n.kind] || ''} 기록을 삭제할까요?`)) return
+    const res = await fetch(`/api/admin/member-notes?id=${n.id}`, { method: 'DELETE' })
+    if (res.ok) { if (editingNote === n.id) resetNoteForm(); await fetchNotes(notesFor.userId); loadNoteSummary() }
+    else { const d = await res.json().catch(() => ({})); alert(d.error || '삭제하지 못했습니다.') }
+  }
+
   const viewLicense = async (member: Member) => {
     const res = await fetch(`/api/admin/member-license?userId=${member.id}`)
     if (res.ok) {
@@ -426,6 +519,7 @@ export default function MembersPage() {
     })
     fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
     fetch('/api/admin/member-activity').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.lastActivity) setLastActivity(d.lastActivity) }).catch(() => {})
+    loadNoteSummary()
     loadBalances()
     loadMembers()
   }, [])
@@ -657,6 +751,16 @@ export default function MembersPage() {
                           </span>
                         )}
                         <button onClick={() => openInfoModal(member)} className="text-[11px] text-blue-600 hover:underline">회사정보 수정</button>
+                        {/* 영업일지 — 이 회원과 같은 업체 회원들의 기록 수 · 최근 일자 */}
+                        {(() => {
+                          const s = noteStatsFor(member)
+                          return (
+                            <button onClick={() => openNotes(member)}
+                              className={`text-[11px] font-semibold rounded px-1.5 py-0.5 border transition-colors whitespace-nowrap ${s.count > 0 ? 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100' : 'text-gray-400 border-dashed border-gray-300 hover:text-indigo-600 hover:border-indigo-300'}`}>
+                              {s.count > 0 ? `영업일지 ${s.count} · ${s.last?.slice(5).replace('-', '/')}` : '+ 영업일지'}
+                            </button>
+                          )
+                        })()}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-gray-600">{member.email}</td>
@@ -909,6 +1013,101 @@ export default function MembersPage() {
                   className="w-full bg-gray-900 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-gray-800">확인</button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 영업일지 모달 */}
+      {notesFor && (
+        <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 px-4 py-6 overflow-y-auto"
+          onClick={(e) => { if (e.target === e.currentTarget) setNotesFor(null) }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-auto flex flex-col max-h-[90vh]">
+            {/* 머리 */}
+            <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-100">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-indigo-600 mb-0.5">영업일지</p>
+                <h2 className="font-bold text-gray-900 text-lg truncate">{notesFor.company || notesFor.name}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {notesFor.company ? `담당 ${notesFor.name} · 같은 업체 회원의 기록도 함께 보입니다` : '회사명이 없어 이 회원의 기록만 보입니다'}
+                </p>
+              </div>
+              <button onClick={() => setNotesFor(null)} className="text-gray-400 hover:text-gray-600 shrink-0" aria-label="닫기"><X className="w-5 h-5" /></button>
+            </div>
+
+            {/* 작성 */}
+            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <input id="note-date" type="date" value={noteDate} onChange={(e) => setNoteDate(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 bg-white" />
+                <div className="flex gap-1">
+                  {(Object.keys(NOTE_KIND_LABEL) as NoteKind[]).map((k) => (
+                    <button key={k} type="button" onClick={() => setNoteKind(k)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${noteKind === k ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>
+                      {NOTE_KIND_LABEL[k]}
+                    </button>
+                  ))}
+                </div>
+                {editingNote && <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">기록 수정 중</span>}
+              </div>
+              <textarea id="note-content" value={noteText} onChange={(e) => setNoteText(e.target.value)} rows={4}
+                onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveNote() } }}
+                placeholder={'미팅 내용, 요청사항, 견적·단가 협의, 다음 연락 일정 등\n예) 월 200M 예상 · 단가 6,500원 요청 · 10/15 샘플 발송 후 재연락'}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed" />
+              <div className="flex items-center justify-between gap-2 mt-2">
+                <span className="text-[11px] text-gray-400">Ctrl+Enter 로 저장</span>
+                <div className="flex gap-2">
+                  {editingNote && (
+                    <button onClick={resetNoteForm} disabled={noteSaving}
+                      className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 text-gray-600 hover:bg-gray-50">수정 취소</button>
+                  )}
+                  <button onClick={saveNote} disabled={noteSaving || !noteText.trim()}
+                    className="px-5 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+                    {noteSaving ? '저장 중...' : editingNote ? '수정 저장' : '기록 추가'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 기록 목록 — 날짜별로 묶어서 최신순 */}
+            <div className="px-6 py-4 overflow-y-auto">
+              {notesError ? (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">{notesError}</p>
+              ) : notesLoading ? (
+                <p className="text-sm text-gray-400 text-center py-8">불러오는 중...</p>
+              ) : notes.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">아직 기록이 없습니다. 첫 미팅 내용을 남겨보세요.</p>
+              ) : (
+                <div className="space-y-4">
+                  {notes.map((n, i) => {
+                    const newDay = i === 0 || notes[i - 1].note_date !== n.note_date
+                    const [y, m, d] = n.note_date.split('-').map(Number)
+                    const dow = '일월화수목금토'[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+                    return (
+                      <div key={n.id}>
+                        {newDay && (
+                          <p className="text-xs font-bold text-gray-500 mb-1.5 tabular-nums">{y}.{String(m).padStart(2, '0')}.{String(d).padStart(2, '0')} ({dow})</p>
+                        )}
+                        <div className={`border rounded-xl px-4 py-3 ${editingNote === n.id ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'}`}>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ring-1 ${NOTE_KIND_STYLE[n.kind] || NOTE_KIND_STYLE.etc}`}>{NOTE_KIND_LABEL[n.kind] || '기타'}</span>
+                            {n.user_id && n.user_id !== notesFor.userId && <span className="text-[11px] text-gray-400">같은 업체 다른 담당자</span>}
+                            <div className="ml-auto flex gap-2 text-[11px]">
+                              <button onClick={() => editNote(n)} className="text-gray-400 hover:text-gray-700">수정</button>
+                              <button onClick={() => deleteNote(n)} className="text-gray-300 hover:text-red-600">삭제</button>
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed break-words">{n.content}</p>
+                          <p className="text-[11px] text-gray-400 mt-1.5">
+                            {n.created_by || '—'}
+                            {n.updated_at && ` · 수정됨 ${new Date(n.updated_at).toLocaleDateString('ko-KR')}`}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
