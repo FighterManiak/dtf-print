@@ -19,6 +19,43 @@ const NOTE_KIND_STYLE: Record<string, string> = {
 }
 interface NoteSummaryRow { id: string; user_id: string | null; company_key: string | null; note_date: string }
 const kstToday = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+
+// 주문 빈도
+interface OrderSummary {
+  count: number; amount: number; lastAt: string; firstAt: string
+  recent90: number; daysSinceLast: number; avgIntervalDays: number | null
+}
+type FreqTier = 'frequent' | 'regular' | 'occasional' | 'dormant' | 'none'
+const FREQ_META: Record<FreqTier, { label: string; cls: string; desc: string }> = {
+  frequent: { label: '자주', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', desc: '최근 90일 6건 이상' },
+  regular: { label: '보통', cls: 'bg-sky-50 text-sky-700 ring-sky-200', desc: '최근 90일 2~5건' },
+  occasional: { label: '가끔', cls: 'bg-amber-50 text-amber-700 ring-amber-200', desc: '최근 90일 0~1건' },
+  dormant: { label: '휴면', cls: 'bg-red-50 text-red-600 ring-red-200', desc: '마지막 주문 후 90일 넘음' },
+  none: { label: '주문 없음', cls: 'bg-gray-100 text-gray-500 ring-gray-200', desc: '주문 이력 없음' },
+}
+const freqTier = (s?: OrderSummary): FreqTier =>
+  !s ? 'none' : s.daysSinceLast > 90 ? 'dormant' : s.recent90 >= 6 ? 'frequent' : s.recent90 >= 2 ? 'regular' : 'occasional'
+const agoText = (days: number) =>
+  days <= 0 ? '오늘' : days < 30 ? `${days}일 전` : days < 365 ? `${Math.floor(days / 30)}개월 전` : `${Math.floor(days / 365)}년 전`
+
+interface MemberOrder {
+  id: string; orderNo: string | null; source: 'print' | 'material' | 'quote'
+  createdAt: string; status: string | null; placed: boolean; unpaid: boolean
+  amount: number; orderName: string | null; byPhone: boolean
+}
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  pending: '입금 대기', paid: '결제 완료', in_progress: '작업 중', shipped: '출고', delivered: '배송 완료',
+  cancelled: '취소', refunded: '환불', quoted: '견적 발송', bank_transfer_pending: '입금 확인중',
+}
+const orderStatusLabel = (o: MemberOrder) =>
+  o.source === 'quote' && o.status === 'pending' ? '견적 검토 대기' : ORDER_STATUS_LABEL[o.status || ''] || o.status || '—'
+// 최근 12개월 (한국시간 기준 'YYYY-MM' 목록, 오래된 달부터)
+const last12Months = () => {
+  const now = new Date(Date.now() + 9 * 3600 * 1000)
+  return Array.from({ length: 12 }, (_, i) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11 + i, 1)).toISOString().slice(0, 7))
+}
+const kstMonth = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 7)
 interface MemberNote {
   id: string; user_id: string | null; company_name: string | null
   note_date: string; kind: NoteKind; content: string
@@ -312,6 +349,33 @@ export default function MembersPage() {
     setInfoSaving(false)
   }
 
+  // ── 주문 빈도 · 주문내역 ──────────────────────────────────
+  const [orderSummary, setOrderSummary] = useState<Record<string, OrderSummary>>({})
+  const [orderSummaryReady, setOrderSummaryReady] = useState(false)
+  const [freqFilter, setFreqFilter] = useState<'all' | FreqTier>('all')
+  const loadOrderSummary = () =>
+    fetch('/api/admin/member-orders?summary=1')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.summary) setOrderSummary(d.summary) })
+      .catch(() => {})
+      .finally(() => setOrderSummaryReady(true))
+
+  const [ordersFor, setOrdersFor] = useState<{ userId: string; name: string; company: string } | null>(null)
+  const [memberOrders, setMemberOrders] = useState<MemberOrder[]>([])
+  const [memberOrdersLoading, setMemberOrdersLoading] = useState(false)
+  const [memberOrdersError, setMemberOrdersError] = useState('')
+
+  const openOrders = async (member: Member) => {
+    const name = member.user_metadata?.full_name || member.user_metadata?.name || member.email
+    setOrdersFor({ userId: member.id, name, company: member.user_metadata?.company || '' })
+    setMemberOrders([]); setMemberOrdersError(''); setMemberOrdersLoading(true)
+    const res = await fetch(`/api/admin/member-orders?userId=${member.id}`)
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) setMemberOrders(d.orders || [])
+    else setMemberOrdersError(d.error || '주문내역을 불러오지 못했습니다.')
+    setMemberOrdersLoading(false)
+  }
+
   // ── 영업일지 ─────────────────────────────────────────────
   // 목록 표시용 요약 (기록 id · 회원 · 업체키 · 날짜)
   const [noteRows, setNoteRows] = useState<NoteSummaryRow[]>([])
@@ -524,6 +588,7 @@ export default function MembersPage() {
     fetch('/api/admin/member-grades').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.metersByUser) setMetersByUser(d.metersByUser) }).catch(() => {})
     fetch('/api/admin/member-activity').then((r) => r.ok ? r.json() : null).then((d) => { if (d?.lastActivity) setLastActivity(d.lastActivity) }).catch(() => {})
     loadNoteSummary()
+    loadOrderSummary()
     loadBalances()
     loadMembers()
   }, [])
@@ -591,6 +656,7 @@ export default function MembersPage() {
   }
 
   const filtered = members.filter((m) => {
+    if (freqFilter !== 'all' && freqTier(orderSummary[m.id]) !== freqFilter) return false
     if (!search) return true
     const q = search.toLowerCase()
     return (
@@ -635,6 +701,25 @@ export default function MembersPage() {
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="이름, 이메일, 전화번호, 회사명, 주소, 메모 검색"
             className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
+        </div>
+
+        {/* 주문 빈도 필터 */}
+        <div className="flex items-center gap-1.5 flex-wrap mb-4">
+          <span className="text-xs text-gray-400 mr-1">주문 빈도</span>
+          {(['all', 'frequent', 'regular', 'occasional', 'dormant', 'none'] as const).map((k) => {
+            const n = k === 'all' ? members.length : members.filter((m) => freqTier(orderSummary[m.id]) === k).length
+            const active = freqFilter === k
+            return (
+              <button key={k} type="button" onClick={() => { setFreqFilter(k); setPage(1) }}
+                title={k === 'all' ? '전체 회원' : FREQ_META[k].desc}
+                disabled={!orderSummaryReady && k !== 'all'}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors disabled:opacity-40 ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                {k === 'all' ? '전체' : FREQ_META[k].label}
+                {orderSummaryReady && <span className={`ml-1.5 tabular-nums ${active ? 'text-white/70' : 'text-gray-400'}`}>{n}</span>}
+              </button>
+            )
+          })}
+          <span className="text-[11px] text-gray-400 ml-1">· 자주: 90일 6건↑ · 보통: 2~5건 · 가끔: 0~1건 · 휴면: 마지막 주문 90일 초과</span>
         </div>
 
         {/* 포인트 일괄 지급 툴바 (최고관리자) */}
@@ -713,6 +798,7 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입방법</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">가입일</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">최근 활동</th>
+                <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap">주문</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-24">등급 <span className="text-gray-400 font-normal">(전월)</span></th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-28">포인트</th>
                 <th className="text-left px-4 py-3 text-gray-600 font-semibold whitespace-nowrap w-20">권한</th>
@@ -816,6 +902,32 @@ export default function MembersPage() {
                             {s.text}
                             {src && <span className="text-[10px] text-gray-400 ml-1">({src})</span>}
                           </span>
+                        )
+                      })()}
+                    </td>
+                    {/* 주문 빈도 — 누르면 주문내역 */}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {(() => {
+                        if (!orderSummaryReady) return <span className="text-xs text-gray-300">…</span>
+                        const s = orderSummary[member.id]
+                        const tier = freqTier(s)
+                        return (
+                          <button type="button" onClick={() => openOrders(member)} title="주문내역 보기"
+                            className="flex flex-col items-start gap-0.5 text-left group">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ring-1 ${FREQ_META[tier].cls}`}>{FREQ_META[tier].label}</span>
+                            {s ? (
+                              <>
+                                <span className="text-xs text-gray-700 group-hover:underline">
+                                  <b className="tabular-nums">{s.count}</b>건 · 마지막 {agoText(s.daysSinceLast)}
+                                </span>
+                                <span className="text-[11px] text-gray-400 tabular-nums">
+                                  {s.avgIntervalDays != null ? `평균 ${s.avgIntervalDays}일마다` : '1회 주문'} · 90일 {s.recent90}건
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-[11px] text-gray-400 group-hover:underline">주문내역 보기</span>
+                            )}
+                          </button>
                         )
                       })()}
                     </td>
@@ -1020,6 +1132,117 @@ export default function MembersPage() {
           </div>
         </div>
       )}
+
+      {/* 주문내역 모달 */}
+      {ordersFor && (() => {
+        const s = orderSummary[ordersFor.userId]
+        const tier = freqTier(s)
+        const months = last12Months()
+        const placed = memberOrders.filter((o) => o.placed)
+        const perMonth = months.map((ym) => {
+          const inMonth = placed.filter((o) => kstMonth(o.createdAt) === ym)
+          return { ym, count: inMonth.length, amount: inMonth.reduce((t, o) => t + o.amount, 0) }
+        })
+        const maxCount = Math.max(1, ...perMonth.map((p) => p.count))
+        const won = (n: number) => `${Math.round(n).toLocaleString()}원`
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 px-4 py-6 overflow-y-auto"
+            onClick={(e) => { if (e.target === e.currentTarget) setOrdersFor(null) }}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-auto flex flex-col max-h-[90vh]">
+              {/* 머리 */}
+              <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-100">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-semibold text-gray-500">주문내역</p>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ring-1 ${FREQ_META[tier].cls}`} title={FREQ_META[tier].desc}>{FREQ_META[tier].label}</span>
+                  </div>
+                  <h2 className="font-bold text-gray-900 text-lg truncate">{ordersFor.company || ordersFor.name}</h2>
+                  {ordersFor.company && <p className="text-xs text-gray-500">{ordersFor.name}</p>}
+                </div>
+                <button onClick={() => setOrdersFor(null)} className="text-gray-400 hover:text-gray-600 shrink-0" aria-label="닫기"><X className="w-5 h-5" /></button>
+              </div>
+
+              <div className="overflow-y-auto px-6 py-4 space-y-5">
+                {/* 요약 */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { k: '총 주문', v: s ? `${s.count}건` : '0건' },
+                    { k: '총 주문금액', v: s ? won(s.amount) : '0원' },
+                    { k: '마지막 주문', v: s ? agoText(s.daysSinceLast) : '—', sub: s ? new Date(s.lastAt).toLocaleDateString('ko-KR') : '' },
+                    { k: '평균 주문 간격', v: s?.avgIntervalDays != null ? `${s.avgIntervalDays}일` : '—', sub: s ? `최근 90일 ${s.recent90}건` : '' },
+                  ].map((t) => (
+                    <div key={t.k} className="border border-gray-200 rounded-xl px-3 py-2.5">
+                      <p className="text-[11px] text-gray-400">{t.k}</p>
+                      <p className="text-base font-bold text-gray-900 tabular-nums">{t.v}</p>
+                      {t.sub && <p className="text-[11px] text-gray-400 tabular-nums">{t.sub}</p>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 최근 12개월 월별 주문 수 */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">최근 12개월 월별 주문</p>
+                  <div className="grid grid-cols-12 gap-1 items-end h-24">
+                    {perMonth.map((p) => (
+                      <div key={p.ym} className="flex flex-col items-center justify-end h-full gap-1" title={`${p.ym} · ${p.count}건 · ${won(p.amount)}`}>
+                        <span className="text-[10px] text-gray-500 tabular-nums">{p.count || ''}</span>
+                        <div className={`w-full rounded-t ${p.count ? 'bg-gray-800' : 'bg-gray-100'}`}
+                          style={{ height: p.count ? `${Math.max(8, (p.count / maxCount) * 64)}px` : '3px' }} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-12 gap-1 mt-1">
+                    {perMonth.map((p) => (
+                      <span key={p.ym} className="text-[10px] text-gray-400 text-center tabular-nums">{Number(p.ym.slice(5))}월</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 주문 목록 */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-2">전체 주문 {memberOrders.length > 0 && <span className="text-gray-400 font-normal">· {memberOrders.length}건 (견적 진행 중 포함)</span>}</p>
+                  {memberOrdersError ? (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">{memberOrdersError}</p>
+                  ) : memberOrdersLoading ? (
+                    <p className="text-sm text-gray-400 text-center py-8">불러오는 중...</p>
+                  ) : memberOrders.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-8">주문 이력이 없습니다.</p>
+                  ) : (
+                    <div className="border border-gray-200 rounded-xl divide-y divide-gray-100">
+                      {memberOrders.map((o) => {
+                        const href = o.orderNo
+                          ? (o.source === 'material' ? `/admin/material-orders?q=${encodeURIComponent(o.orderNo)}` : `/admin/quotes?q=${encodeURIComponent(o.orderNo)}`)
+                          : null
+                        const dim = !o.placed
+                        return (
+                          <div key={`${o.source}-${o.id}`} className={`flex items-center gap-3 px-3 py-2.5 text-sm ${dim ? 'bg-gray-50/60' : ''}`}>
+                            <span className="text-xs text-gray-400 tabular-nums w-20 shrink-0">{new Date(o.createdAt).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' })}</span>
+                            <span className="text-[10px] font-semibold text-gray-500 border border-gray-200 rounded px-1.5 py-0.5 shrink-0">
+                              {o.source === 'material' ? '자재' : o.source === 'quote' ? '견적' : '출력'}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              {href ? (
+                                <a href={href} className="font-mono text-xs text-blue-600 hover:underline">{o.orderNo}</a>
+                              ) : <span className="font-mono text-xs text-gray-400">번호 없음</span>}
+                              {o.orderName && <span className="text-xs text-gray-600 ml-2 truncate">{o.orderName}</span>}
+                              {o.byPhone && <span className="text-[10px] text-gray-400 ml-2" title="회원과 연결되지 않은 주문이지만 전화번호가 같아 함께 표시">전화번호 일치</span>}
+                            </div>
+                            <span className={`text-xs shrink-0 ${dim ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {orderStatusLabel(o)}{o.unpaid && <span className="text-red-500 font-semibold"> · 미입금</span>}
+                            </span>
+                            <span className={`text-sm font-semibold tabular-nums w-24 text-right shrink-0 ${dim ? 'text-gray-400' : 'text-gray-900'}`}>{o.amount ? won(o.amount) : '—'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-gray-400 mt-2">빈도·금액은 결제완료 이후 주문만 셉니다 (입금대기·취소·환불·견적 진행 중은 제외, 흐리게 표시).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 영업일지 모달 */}
       {notesFor && (

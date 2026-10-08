@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Package, Search, Download, ChevronDown, ChevronUp, Truck, CheckCircle, Clock, CreditCard, XCircle } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { safeRows, splitAddress } from '@/lib/excel-safe'
@@ -48,11 +49,18 @@ const NEXT: Record<string, { to: string; label: string }> = {
 
 const CARRIERS = ['CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배', '쿠팡로켓', '기타']
 
+// ?q= 로 검색어를 넘겨받기 위해 useSearchParams 를 쓰므로 Suspense 로 감쌈
 export default function AdminMaterialOrdersPage() {
+  return <Suspense><MaterialOrdersContent /></Suspense>
+}
+
+function MaterialOrdersContent() {
+  const searchParams = useSearchParams()
   const [orders, setOrders] = useState<MaterialOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('all')
-  const [search, setSearch] = useState('')
+  // 회원관리 주문내역에서 주문번호를 눌러 들어오면 검색어를 미리 채움
+  const [search, setSearch] = useState(searchParams.get('q') || '')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
   const [carrierIn, setCarrierIn] = useState<Record<string, string>>({})
