@@ -14,6 +14,7 @@ interface MaterialOrder {
   product_amount: number; shipping_fee: number; total_amount: number
   status: string; is_paid: boolean | null; payment_method: string | null
   carrier: string | null; tracking_number: string | null; memo: string | null
+  payment_key?: string | null
   depositor_name?: string | null
   receipt_type?: string | null
   receipt_info?: Record<string, string> | null
@@ -65,6 +66,10 @@ function MaterialOrdersContent() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [carrierIn, setCarrierIn] = useState<Record<string, string>>({})
   const [trackIn, setTrackIn] = useState<Record<string, string>>({})
+  // 결제 취소 모달
+  const [cancelTarget, setCancelTarget] = useState<MaterialOrder | null>(null)
+  const [cancelForm, setCancelForm] = useState({ reason: '', amount: '', account: '', restock: true })
+  const [cancelling, setCancelling] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -96,6 +101,40 @@ function MaterialOrdersContent() {
     if (res.ok) load()
     else { const e = await res.json().catch(() => ({})); alert(e.error || '삭제 실패') }
     setProcessing(null)
+  }
+
+  const openCancel = (o: MaterialOrder) => {
+    setCancelTarget(o)
+    setCancelForm({ reason: '', amount: String(o.total_amount || 0), account: '', restock: true })
+  }
+
+  const submitCancel = async () => {
+    const o = cancelTarget
+    if (!o) return
+    const reason = cancelForm.reason.trim()
+    if (!reason) { alert('취소 사유를 입력해주세요.'); return }
+    const amount = Math.round(Number(cancelForm.amount) || 0)
+    if (amount <= 0 || amount > o.total_amount) { alert(`취소 금액은 1원 ~ ${o.total_amount.toLocaleString()}원 사이로 입력해주세요.`); return }
+    const isCard = o.payment_method === 'CARD'
+    const partial = amount < o.total_amount
+    const msg = isCard
+      ? `카드 결제 ${partial ? '부분' : '전액'}취소 ${amount.toLocaleString()}원을 진행합니다.\n토스페이먼츠로 바로 취소 요청되며 되돌릴 수 없습니다. 계속할까요?`
+      : `${partial ? '부분' : '전액'} 환불 ${amount.toLocaleString()}원으로 처리합니다.\n(무통장은 계좌로 직접 송금해주셔야 합니다) 계속할까요?`
+    if (!confirm(msg)) return
+
+    setCancelling(true)
+    const res = await fetch('/api/admin/material-cancel-payment', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: o.id, cancelReason: reason, cancelAmount: amount, refundAccount: cancelForm.account, restock: cancelForm.restock }),
+    })
+    const d = await res.json().catch(() => ({}))
+    setCancelling(false)
+    if (!res.ok) { alert(d.error || '취소 실패'); return }
+    alert(d.partial
+      ? `부분 ${isCard ? '취소' : '환불'} ${amount.toLocaleString()}원 처리했습니다.`
+      : `주문을 취소했습니다.${d.restocked ? ` (재고 ${d.restocked}개 품목 복구)` : ''}`)
+    setCancelTarget(null)
+    load()
   }
 
   const filtered = orders.filter((o) => {
@@ -334,12 +373,13 @@ function MaterialOrdersContent() {
                           </button>
                         )}
                         {o.status !== 'cancelled' && (
-                          <button onClick={() => { if (confirm('이 주문을 취소 처리하시겠습니까?')) patch(o.id, { status: 'cancelled' }) }} disabled={processing === o.id}
+                          <button onClick={() => openCancel(o)} disabled={processing === o.id}
                             className="border border-gray-300 text-gray-500 px-4 py-3 rounded-xl text-sm font-medium hover:bg-red-50 hover:text-red-500 hover:border-red-300 disabled:opacity-50">
-                            <XCircle className="w-4 h-4 inline mr-1" />주문 취소
+                            <XCircle className="w-4 h-4 inline mr-1" />{o.payment_method === 'CARD' ? '결제 취소' : o.is_paid === false || o.status === 'pending' ? '주문 취소' : '취소·환불'}
                           </button>
                         )}
-                        {o.status === 'cancelled' && (
+                        {/* 카드 결제는 취소 후 되돌릴 수 없으므로 복구 버튼을 보이지 않음 */}
+                        {o.status === 'cancelled' && o.payment_method !== 'CARD' && (
                           <button onClick={() => patch(o.id, { status: 'pending' })} disabled={processing === o.id}
                             className="border border-gray-300 text-gray-600 px-4 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
                             <Clock className="w-4 h-4 inline mr-1" />입금대기로 복구
@@ -354,6 +394,80 @@ function MaterialOrdersContent() {
           </div>
         )}
       </div>
+
+      {/* 결제 취소 모달 */}
+      {cancelTarget && (() => {
+        const o = cancelTarget
+        const isCard = o.payment_method === 'CARD'
+        const unpaid = !isCard && (o.is_paid === false || o.status === 'pending')
+        const amount = Math.round(Number(cancelForm.amount) || 0)
+        const partial = amount > 0 && amount < o.total_amount
+        return (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !cancelling && setCancelTarget(null)}>
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">
+                {isCard ? '카드 결제 취소' : unpaid ? '주문 취소' : '취소 · 환불 처리'}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {o.order_no ? `#${o.order_no} · ` : ''}{o.user_name || '고객'} · {o.order_name} · 결제 {o.total_amount.toLocaleString()}원
+              </p>
+
+              <div className={`text-xs rounded-lg px-3 py-2 mb-4 ${isCard ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                {isCard
+                  ? o.payment_key
+                    ? '토스페이먼츠로 바로 취소 요청됩니다. 고객 카드사에 따라 3~7영업일 내 환불됩니다.'
+                    : '⚠ 결제 키가 없는 주문이라 자동 취소가 되지 않습니다. 토스 대시보드에서 결제 여부를 확인해주세요.'
+                  : unpaid
+                    ? '입금 전 주문이라 환불할 금액이 없습니다. 주문만 취소됩니다.'
+                    : '무통장 입금 건은 자동 환불이 되지 않습니다. 기록 후 고객 계좌로 직접 송금해주세요.'}
+              </div>
+
+              <div className="space-y-3">
+                {!unpaid && (
+                  <label className="block">
+                    <span className="text-xs font-semibold text-gray-600">{isCard ? '취소 금액' : '환불 금액'} (원)</span>
+                    <input type="number" min={1} max={o.total_amount} value={cancelForm.amount}
+                      onChange={(e) => setCancelForm((p) => ({ ...p, amount: e.target.value }))}
+                      className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800" />
+                    <span className="text-[11px] text-gray-400">
+                      {partial ? `부분 ${isCard ? '취소' : '환불'} — 주문 상태는 그대로 유지됩니다.` : '전액 — 주문이 취소 상태로 바뀝니다.'}
+                    </span>
+                  </label>
+                )}
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-600">취소 사유 (필수)</span>
+                  <input value={cancelForm.reason} onChange={(e) => setCancelForm((p) => ({ ...p, reason: e.target.value }))}
+                    placeholder="예: 고객 요청, 재고 부족, 중복 주문"
+                    className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800" />
+                </label>
+                {!isCard && !unpaid && (
+                  <label className="block">
+                    <span className="text-xs font-semibold text-gray-600">환불 계좌 (선택)</span>
+                    <input value={cancelForm.account} onChange={(e) => setCancelForm((p) => ({ ...p, account: e.target.value }))}
+                      placeholder="은행 / 계좌번호 / 예금주"
+                      className="mt-1 w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-800" />
+                  </label>
+                )}
+                {(unpaid || !partial) && (
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={cancelForm.restock} onChange={(e) => setCancelForm((p) => ({ ...p, restock: e.target.checked }))} />
+                    주문 수량만큼 재고 되돌리기
+                  </label>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setCancelTarget(null)} disabled={cancelling}
+                  className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50 disabled:opacity-50">닫기</button>
+                <button onClick={submitCancel} disabled={cancelling}
+                  className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-red-600 disabled:opacity-50">
+                  {cancelling ? '처리 중...' : isCard ? `${partial ? '부분' : '전액'} 취소` : unpaid ? '주문 취소' : `${partial ? '부분' : '전액'} 환불 기록`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
