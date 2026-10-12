@@ -110,13 +110,18 @@ export default function ChatWidget() {
     return () => clearInterval(timer)
   }, [open, guestStep, roomId])
 
+  // 메시지는 서버 API로 조회 (방 권한 확인 후 반환 — DB 직접 조회 차단)
+  const fetchMessages = async (rid: string): Promise<Message[] | null> => {
+    try {
+      const res = await fetch(`/api/chat/messages?roomId=${encodeURIComponent(rid)}`, { cache: 'no-store' })
+      if (!res.ok) return null
+      const d = await res.json()
+      return Array.isArray(d) ? d : null
+    } catch { return null }
+  }
+
   const pollMessages = async (rid: string) => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', rid)
-      .order('created_at', { ascending: true })
+    const data = await fetchMessages(rid)
     if (data) {
       setMessages((prev) => (data.length !== prev.length ? data : prev))
     }
@@ -158,69 +163,27 @@ export default function ChatWidget() {
 
     if (!rid) return
     await loadMessages(rid)
-    subscribeRoom(rid)
   }
 
+  // 새 메시지는 3초 주기 갱신(pollMessages)으로 받아옴
   const loadMessages = async (rid: string) => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('room_id', rid)
-      .order('created_at', { ascending: true })
-    setMessages(data || [])
-    subscribeRoom(rid)
-  }
-
-  const subscribeRoom = (rid: string) => {
-    const supabase = createClient()
-    supabase
-      .channel(`room-${rid}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `room_id=eq.${rid}`,
-      }, (payload) => {
-        setMessages((prev) => {
-          const exists = prev.find((m) => m.id === (payload.new as Message).id)
-          if (exists) return prev
-          return [...prev, payload.new as Message]
-        })
-      })
-      .subscribe()
+    setMessages((await fetchMessages(rid)) || [])
   }
 
   const sendMessage = async (content: string, imageUrl?: string) => {
     if (!roomId) return
-    const supabase = createClient()
-    const msgId = crypto.randomUUID()
-    const { error } = await supabase.from('chat_messages').insert({
-      id: msgId,
-      room_id: roomId,
-      sender_id: userId || null,
-      sender_type: 'user',
-      content: content || null,
-      image_url: imageUrl || null,
-    })
-    if (error) {
-      console.error('메시지 전송 실패:', error)
-      alert(`메시지 전송 실패: ${error.message}`)
+    // 전송·방 갱신(완료된 방 재오픈)은 서버 API에서 처리
+    const res = await fetch('/api/chat/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId, content: content || null, imageUrl: imageUrl || null }),
+    }).catch(() => null)
+    if (!res || !res.ok) {
+      const e = res ? await res.json().catch(() => ({})) : {}
+      alert(`메시지 전송 실패: ${e.error || '네트워크 오류'}`)
       return
     }
-    const newMsg: Message = {
-      id: msgId,
-      content: content || null,
-      image_url: imageUrl || null,
-      sender_type: 'user',
-      created_at: new Date().toISOString(),
-    }
-    setMessages((prev) => [...prev, newMsg])
-    // 방 갱신 + 완료된 방이면 자동 재오픈 (서비스롤 API)
-    await fetch('/api/chat/activity', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId, lastMessage: content || '사진' }),
-    }).catch(() => {})
+    const newMsg = await res.json() as Message
+    setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]))
   }
 
   const handleSend = async () => {

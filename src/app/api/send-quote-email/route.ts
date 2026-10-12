@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 const supabaseAdmin = createClient(
@@ -10,6 +11,8 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
+  // 관리자만 호출 가능 (견적 발송) — 외부에서 회사 명의 메일을 보내지 못하게 막음
+  if (!(await getAdminUser())) return adminOnly()
   const { userEmail, userName, productType, quantity, unit, unitPrice, cuttingPrice, totalAmount, adminNote, quoteId } = await req.json()
 
   const quoteHtml = `

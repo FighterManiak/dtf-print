@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { canAccessRoom } from '@/lib/chat-access'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,7 +11,9 @@ const supabaseAdmin = createClient(
 // 고객 메시지 전송 시 방 갱신 — 완료된 방이면 자동 재오픈 (서비스롤, RLS 우회)
 export async function POST(req: Request) {
   const { roomId, lastMessage } = await req.json()
-  if (!roomId) return NextResponse.json({ error: 'roomId 필요' }, { status: 400 })
+  if (!(await canAccessRoom(supabaseAdmin, String(roomId || '')))) {
+    return NextResponse.json({ error: '채팅방을 찾을 수 없습니다.' }, { status: 404 })
+  }
 
   const { error } = await supabaseAdmin.from('chat_rooms').update({
     last_message: (lastMessage || '사진').slice(0, 200),

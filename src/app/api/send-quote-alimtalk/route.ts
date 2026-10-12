@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 
 // 솔라피(Solapi) 카카오 알림톡 발송
 // 필요한 환경변수:
@@ -10,6 +11,8 @@ import crypto from 'crypto'
 //   KAKAO_TEMPLATE_QUOTE               — 승인된 '견적 발송' 알림톡 템플릿 ID
 
 export async function POST(req: Request) {
+  // 관리자만 호출 가능 (견적 발송 알림톡)
+  if (!(await getAdminUser())) return adminOnly()
   const { userName, userPhone, productType, totalAmount } = await req.json()
 
   const API_KEY = process.env.SOLAPI_API_KEY

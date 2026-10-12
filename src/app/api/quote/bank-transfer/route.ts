@@ -5,6 +5,7 @@ import { getShippingFee } from '@/lib/shipping'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 import { saveProfileAddress } from '@/lib/save-profile-address'
 import { insertWithOptional } from '@/lib/safe-insert'
+import { getLoginUser } from '@/lib/admin-auth'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,16 @@ export async function POST(req: Request) {
 
   const { data: quote } = await supabaseAdmin.from('quotes').select('*').eq('id', quoteId).single()
   if (!quote) return NextResponse.json({ error: 'quote not found' }, { status: 404 })
+
+  // 본인 견적만 주문 가능
+  const user = await getLoginUser()
+  if (!user || user.id !== quote.user_id) {
+    return NextResponse.json({ error: '본인 견적만 주문할 수 있습니다.' }, { status: 403 })
+  }
+  // 이미 주문으로 넘어간 견적은 다시 만들지 않음 (중복 주문 방지)
+  if (quote.order_id) {
+    return NextResponse.json({ error: '이미 주문이 접수된 견적입니다.' }, { status: 409 })
+  }
 
   // 배송비 계산 — 직접수령 0원, 택배는 지역 추가배송비 포함
   const product = Number(quote.total_amount) || 0

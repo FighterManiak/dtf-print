@@ -356,7 +356,7 @@ function OrderPageContent() {
       }),
     })
     if (res.ok) setBankDone(true)
-    else alert('처리 중 오류가 발생했습니다.')
+    else { const e = await res.json().catch(() => ({})); alert(e.error || '처리 중 오류가 발생했습니다.') }
     setSubmitting(false)
   }
 

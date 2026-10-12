@@ -384,7 +384,8 @@ export default function MyOrdersPage() {
     if (res.ok) {
       setQuotes((prev) => prev.map((q) => q.id === quote.id ? { ...q, status: 'bank_transfer_pending', order: null } : q))
     } else {
-      alert('처리 중 오류가 발생했습니다.')
+      const e = await res.json().catch(() => ({}))
+      alert(e.error || '처리 중 오류가 발생했습니다.')
     }
     setPaying(null)
   }
