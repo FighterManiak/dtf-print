@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -9,6 +10,8 @@ const supabaseAdmin = createClient(
 
 // 실제 작업 장비 번호 지정 (관리자)
 export async function POST(req: Request) {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const { orderId, assignedMachine } = await req.json()
   if (!orderId) return NextResponse.json({ error: 'orderId 필요' }, { status: 400 })
 

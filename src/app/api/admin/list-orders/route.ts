@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 
 // 서비스롤로 orders 전체 조회 (RLS 우회) — 관리자 페이지용
@@ -9,6 +10,8 @@ const supabaseAdmin = createClient(
 )
 
 export async function GET() {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const { data, error } = await supabaseAdmin
     .from('orders')
     .select('*,order_items(*)')

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { getAdminUser, getLoginUser, adminOnly } from '@/lib/admin-auth'
 import { awardPointsForDeliveredOrder, awardReferralIfFirstDelivery, awardReferralCommission, revokePointsForOrder, refundUsedPoints } from '@/lib/points-server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 
@@ -14,6 +15,30 @@ export async function POST(req: Request) {
 
   if (!orderId || !status) {
     return NextResponse.json({ error: 'orderId and status required' }, { status: 400 })
+  }
+
+  // 권한: 관리자는 모든 상태 변경 가능.
+  // 고객은 '내 주문 현황'에서 본인 주문의 환불 요청(refund_requested)만 가능.
+  if (!(await getAdminUser())) {
+    const user = await getLoginUser()
+    if (!user) return adminOnly()
+    if (status !== 'refund_requested' || assignedMachine !== undefined) return adminOnly()
+
+    const { data: own } = await supabaseAdmin.from('orders').select('user_id,status').eq('id', orderId).single()
+    if (!own || own.user_id !== user.id) {
+      return NextResponse.json({ error: '본인 주문만 환불을 요청할 수 있습니다.' }, { status: 403 })
+    }
+    if (!['paid', 'in_progress', 'shipped', 'delivered'].includes(String(own.status))) {
+      return NextResponse.json({ error: '결제가 완료된 주문만 환불을 요청할 수 있습니다.' }, { status: 400 })
+    }
+    const reason = String(refund_reason || '').trim().slice(0, 500)
+    if (!reason) return NextResponse.json({ error: '환불 사유를 입력해주세요.' }, { status: 400 })
+
+    const { error } = await supabaseAdmin.from('orders')
+      .update({ status: 'refund_requested', refund_reason: reason })
+      .eq('id', orderId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
   }
 
   const updateData: Record<string, unknown> = { status }

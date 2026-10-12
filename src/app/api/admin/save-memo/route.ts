@@ -1,5 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -8,6 +9,8 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const { type, id, memo, existing } = await req.json()
   if (!type || !id || !memo?.trim()) {
     return NextResponse.json({ error: 'type, id, memo required' }, { status: 400 })

@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 import { revokePointsForOrder, refundUsedPoints } from '@/lib/points-server'
 
@@ -12,6 +13,8 @@ const supabaseAdmin = createClient(
 
 // 카드: 토스 결제취소(전액/부분) / 무통장: 환불계좌 기록
 export async function POST(req: Request) {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const { orderId, cancelReason, cancelAmount, refundAccount } = await req.json()
 
   if (!orderId || !cancelReason?.trim()) {

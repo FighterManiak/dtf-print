@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 import { isRollProduct } from '@/lib/grade'
 import { getRollProductIds } from '@/lib/points-server'
@@ -13,6 +14,8 @@ const supabaseAdmin = createClient(
 const COUNTED_STATUSES = ['paid', 'in_progress', 'shipped', 'delivered']
 
 export async function GET() {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const end = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()

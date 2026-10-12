@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -47,6 +48,8 @@ function aggregate(rows: Row[]) {
 }
 
 export async function GET() {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   // 한국시간(KST, UTC+9) 기준 — 저장 시점과 동일한 기준으로 집계
   const now = new Date(Date.now() + 9 * 3600 * 1000)
   const today = ymd(now)

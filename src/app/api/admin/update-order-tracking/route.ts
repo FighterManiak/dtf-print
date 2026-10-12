@@ -1,5 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 
@@ -9,6 +10,8 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(req: Request) {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const { orderId, carrier, tracking_number, notify } = await req.json()
 
   if (!orderId) {

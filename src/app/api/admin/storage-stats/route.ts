@@ -1,5 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -33,6 +34,8 @@ async function listAllFiles(bucket: string, folder = ''): Promise<number> {
 }
 
 export async function GET() {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   try {
     const { data: buckets } = await supabaseAdmin.storage.listBuckets()
     const bucketNames = (buckets || []).map((b) => b.name)

@@ -32,29 +32,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId: quote.order_id })
   }
 
-  // 카드결제 승인 — 토스에 승인 요청을 해야 실제로 결제가 완료됨
-  let approvedKey: string | null = null
-  if (paymentKey && tossOrderId && amount) {
-    const res = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(TOSS_SECRET_KEY + ':').toString('base64')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ paymentKey, orderId: tossOrderId, amount }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      return NextResponse.json({ error: data.message || '결제 승인에 실패했습니다.' }, { status: 400 })
-    }
-    approvedKey = paymentKey
-  }
-
   // 배송비 계산 — 직접수령 0원, 택배는 지역 추가배송비 포함
   const product = Number(quote.total_amount) || 0
   const isPickup = delivery?.method === 'pickup'
   const shipTotal = isPickup ? 0 : getShippingFee(product, delivery?.zonecode || '').total
   const payTotal = product + shipTotal
+
+  // 카드결제 승인 — 토스 승인 없이는 결제완료 주문을 만들지 않음
+  // (무통장입금 견적은 /api/quote/bank-transfer 를 사용)
+  if (!paymentKey || !tossOrderId || !amount) {
+    return NextResponse.json({ error: '카드 결제 정보가 없습니다. 결제를 다시 진행해주세요.' }, { status: 400 })
+  }
+  // 같은 결제로 이미 주문이 만들어졌으면 그 주문을 돌려줌 (새로고침 등 중복 호출)
+  const { data: dup } = await supabaseAdmin.from('orders').select('id').eq('payment_key', paymentKey).maybeSingle()
+  if (dup?.id) return NextResponse.json({ success: true, orderId: dup.id })
+
+  if (Number(amount) !== payTotal) {
+    return NextResponse.json({ error: `결제 금액이 견적 금액(${payTotal.toLocaleString()}원)과 다릅니다.` }, { status: 400 })
+  }
+  const res = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(TOSS_SECRET_KEY + ':').toString('base64')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ paymentKey, orderId: tossOrderId, amount: payTotal }),
+  })
+  const data = await res.json()
+  if (!res.ok) {
+    return NextResponse.json({ error: data.message || '결제 승인에 실패했습니다.' }, { status: 400 })
+  }
+  const approvedKey: string = paymentKey
   const fullAddress = isPickup
     ? '직접 수령'
     : `${delivery?.zonecode ? `(${delivery.zonecode}) ` : ''}${delivery?.address || quote.user_address || ''}${delivery?.addressDetail ? ` ${delivery.addressDetail}` : ''}`.trim()

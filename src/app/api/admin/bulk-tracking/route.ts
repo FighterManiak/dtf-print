@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@supabase/supabase-js'
+import { getAdminUser, adminOnly } from '@/lib/admin-auth'
 import { NextResponse } from 'next/server'
 import { sendOrderStatusMail } from '@/lib/order-mail'
 
@@ -11,6 +12,8 @@ const supabaseAdmin = createClient(
 // 송장 일괄 등록: rows = [{ orderId, carrier, tracking_number }]
 // 등록 시 상태를 '출고(shipped)'로 변경
 export async function POST(req: Request) {
+  // 관리자만 호출 가능
+  if (!(await getAdminUser())) return adminOnly()
   const { rows, notify } = await req.json()
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: '등록할 데이터가 없습니다.' }, { status: 400 })
