@@ -11,6 +11,10 @@ import { insertWithOptional } from '@/lib/safe-insert'
 // 자재 구매 포인트 사용 상한 (구매금액의 5%)
 const MATERIAL_POINT_RATE = 0.05
 
+// 토스페이먼츠 서버 인증 (출력 주문 결제와 같은 키)
+const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY || 'test_sk_jZ61JOxRQVEoxkmy4AQ8W0X9bAqw'
+const tossAuth = () => `Basic ${Buffer.from(TOSS_SECRET_KEY + ':').toString('base64')}`
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -87,8 +91,41 @@ export async function POST(req: Request) {
     ? finalItems[0].name
     : `${finalItems[0].name} 외 ${finalItems.length - 1}건`
 
+  // ── 카드 결제: 토스 승인이 끝난 결제만 주문으로 저장 ─────────
+  const isCard = b.paymentMethod === 'CARD'
+  let paymentKey: string | null = null
+  if (isCard) {
+    paymentKey = String(b.paymentKey || '').trim()
+    const tossOrderId = String(b.tossOrderId || '').trim()
+    const amount = Math.round(Number(b.amount))
+    if (!paymentKey || !tossOrderId || !Number.isFinite(amount)) {
+      return NextResponse.json({ error: '카드 결제 정보가 없습니다. 결제창에서 결제를 진행해주세요.' }, { status: 400 })
+    }
+
+    // 새로고침 등으로 같은 결제가 다시 들어오면 이미 만든 주문을 돌려줌
+    const { data: dup } = await supabaseAdmin.from('material_orders').select('id,total_amount').eq('payment_key', paymentKey).limit(1)
+    if (dup && dup[0]) return NextResponse.json({ success: true, orderId: dup[0].id, total: dup[0].total_amount, already: true })
+
+    // 승인 전에 금액 검증 — 다르면 승인하지 않으므로 실제 결제되지 않음
+    if (amount !== total) {
+      return NextResponse.json({
+        error: `결제 금액(${amount.toLocaleString()}원)이 주문 금액(${total.toLocaleString()}원)과 달라 결제를 진행하지 않았습니다. 다시 시도해주세요.`,
+      }, { status: 400 })
+    }
+
+    const confirm = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+      method: 'POST',
+      headers: { Authorization: tossAuth(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentKey, orderId: tossOrderId, amount }),
+    })
+    if (!confirm.ok) {
+      const e = await confirm.json().catch(() => ({}))
+      return NextResponse.json({ error: `결제 승인에 실패했습니다. ${e.message || ''}`.trim() }, { status: 400 })
+    }
+  }
+
   // 무통장 입금자명·증빙 정보 (카드는 저장하지 않음)
-  const isBankPay = b.paymentMethod !== 'CARD'
+  const isBankPay = !isCard
   const depositor = isBankPay ? (String(b.depositorName || '').trim() || String(b.name || '').trim() || null) : null
   const rType = isBankPay && (b.receiptType === 'tax_invoice' || b.receiptType === 'cash_receipt') ? b.receiptType : null
 
@@ -107,14 +144,28 @@ export async function POST(req: Request) {
     shipping_fee: shipping,
     used_points: usedPoints,
     total_amount: total,
-    status: b.paymentMethod === 'CARD' ? 'paid' : 'pending',
-    is_paid: b.paymentMethod === 'CARD',
-    payment_method: b.paymentMethod === 'CARD' ? 'CARD' : 'bank_transfer',
-    payment_key: b.paymentKey || null,
+    // 카드는 위에서 토스 승인까지 끝난 경우에만 여기까지 옴
+    status: isCard ? 'paid' : 'pending',
+    is_paid: isCard,
+    payment_method: isCard ? 'CARD' : 'bank_transfer',
+    payment_key: isCard ? paymentKey : null,
     memo: `자재구매${isPickup ? ' · 직접 수령' : ` · 배송비 ${shipping.toLocaleString()}원`}${usedPoints ? ` · 포인트 ${usedPoints.toLocaleString()}P 사용` : ''}${b.memo ? ` · ${b.memo}` : ''}`,
   }, ['depositor_name', 'receipt_type', 'receipt_info']) as { data: { id: string } | null; error: { message: string } | null }
 
-  if (error || !newOrder) return NextResponse.json({ error: error?.message || 'order insert failed' }, { status: 500 })
+  if (error || !newOrder) {
+    // 결제는 승인됐는데 주문 저장에 실패하면 고객 돈만 빠지므로 결제를 바로 취소
+    if (isCard && paymentKey) {
+      try {
+        await fetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(paymentKey)}/cancel`, {
+          method: 'POST',
+          headers: { Authorization: tossAuth(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cancelReason: '주문 저장 실패로 자동 취소' }),
+        })
+      } catch { /* 취소 실패는 아래 오류 메시지로 안내 */ }
+      return NextResponse.json({ error: '주문 저장 중 오류가 발생해 결제를 취소했습니다. 잠시 후 다시 시도해주세요.' }, { status: 500 })
+    }
+    return NextResponse.json({ error: error?.message || 'order insert failed' }, { status: 500 })
+  }
 
   // 회원정보에 주소가 없으면 주문 시 입력한 배송지를 저장
   if (!isPickup) {

@@ -11,6 +11,9 @@ import {
   getMaterialShippingFee, normalizeMaterialShipping, materialItemFee, describeMaterialShipping,
 } from '@/lib/shipping'
 import { compressImage } from '@/lib/image-compress'
+import { loadTossPayments } from '@tosspayments/tosspayments-sdk'
+
+const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || 'test_ck_jZ61JOxRQVEoxknP6KD8W0X9bAqw'
 
 interface OptionValue { label: string; addPrice: number }
 interface ProductOption { name: string; values: OptionValue[] }
@@ -206,23 +209,56 @@ export default function MaterialDetailPage({ params }: { params: Promise<{ id: s
         ? { purpose: receipt.cashPurpose, number: receipt.cashNo.trim() }
         : null
 
+    const orderBody = {
+      ...form,
+      // 선택 옵션은 메모에 함께 남겨 관리자가 확인
+      memo: [optionLabel, form.memo].filter(Boolean).join(' | '),
+      items: [{ materialId: id, qty, options: optionLabel || null, unitPrice }],
+      usedPoints,
+      depositorName: isBank ? (depositorName.trim() || form.name.trim()) : '',
+      receiptType: rType === 'none' ? null : rType,
+      receiptInfo,
+    }
+
     setSubmitting(true)
+
+    // ── 카드: 토스 결제창 → 결제 성공 페이지에서 승인 후 주문 저장 ──
+    if (!isBank) {
+      try {
+        const tossOrderId = `MAT-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        // 결제창을 다녀오는 동안 주문 정보를 임시 보관 (승인 성공 시에만 주문 생성)
+        sessionStorage.setItem(`material_order_${tossOrderId}`, JSON.stringify({ ...orderBody, materialId: id }))
+        const goodsName = `${material?.name || '자재'}${optionLabel ? ` (${optionLabel})` : ''}`.slice(0, 100)
+        const toss = await loadTossPayments(TOSS_CLIENT_KEY)
+        const payment = toss.payment({ customerKey: user?.id || 'GUEST' })
+        await payment.requestPayment({
+          method: 'CARD',
+          amount: { currency: 'KRW', value: total },
+          orderId: tossOrderId,
+          orderName: goodsName,
+          customerName: form.name.trim(),
+          customerEmail: form.email.trim() || undefined,
+          customerMobilePhone: form.phone.replace(/\D/g, '') || undefined,
+          successUrl: `${window.location.origin}/materials/payment/success?tossOrderId=${tossOrderId}`,
+          failUrl: `${window.location.origin}/materials/payment/fail?materialId=${id}`,
+        })
+      } catch (err: unknown) {
+        // 결제창을 닫은 경우는 조용히 돌아옴
+        const msg = err instanceof Error ? err.message : String(err)
+        if (!/PAYMENT_CANCELED|USER_CANCEL/i.test(msg)) alert(`결제창을 열지 못했습니다.\n${msg}`)
+      }
+      setSubmitting(false)
+      return
+    }
+
+    // ── 무통장: 바로 주문 접수 ──
     const res = await fetch('/api/materials/order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        // 선택 옵션은 메모에 함께 남겨 관리자가 확인
-        memo: [optionLabel, form.memo].filter(Boolean).join(' | '),
-        items: [{ materialId: id, qty, options: optionLabel || null, unitPrice }],
-        usedPoints,
-        depositorName: isBank ? (depositorName.trim() || form.name.trim()) : '',
-        receiptType: rType === 'none' ? null : rType,
-        receiptInfo,
-      }),
+      body: JSON.stringify(orderBody),
     })
     const d = await res.json().catch(() => ({}))
     if (res.ok) {
-      alert(`주문이 접수되었습니다.${form.paymentMethod === 'bank_transfer' ? `\n\n${BANK.bank} ${BANK.account}\n${total.toLocaleString()}원을 입금해주세요.` : ''}`)
+      alert(`주문이 접수되었습니다.\n\n${BANK.bank} ${BANK.account}\n${total.toLocaleString()}원을 입금해주세요.`)
       router.push('/my-materials')
     } else {
       alert(d.error || '주문에 실패했습니다.')
