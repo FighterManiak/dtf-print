@@ -29,12 +29,32 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: '취소', refunded: '환불', refund_requested: '환불요청',
 }
 
+// 삭제된 주문 종류 — 바로주문 / 견적주문 / 자재구매
+const KIND: Record<string, { label: string; badge: string }> = {
+  order: { label: '바로주문', badge: 'bg-gray-100 text-gray-500 ring-gray-200' },
+  quote: { label: '견적주문', badge: 'bg-blue-50 text-blue-600 ring-blue-200' },
+  material: { label: '자재구매', badge: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
+}
+const KIND_TABS = [
+  { key: 'all', label: '전체' },
+  { key: 'order', label: '바로주문' },
+  { key: 'quote', label: '견적주문' },
+  { key: 'material', label: '자재구매' },
+]
+
+// 원본 스냅샷에서 주문번호 추출 (견적은 { quote, order } 형태)
+function orderNoOf(r: DeletedRow): string {
+  const s = r.snapshot as { order_no?: string | null; quote?: { order_no?: string | null } } | null
+  return String(s?.order_no || s?.quote?.order_no || '')
+}
+
 export default function DeletedOrdersPage() {
   const [rows, setRows] = useState<DeletedRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [kindTab, setKindTab] = useState('all')
 
   useEffect(() => {
     fetch('/api/admin/deleted-orders')
@@ -48,9 +68,11 @@ export default function DeletedOrdersPage() {
   }, [])
 
   const filtered = rows.filter((r) => {
+    if (kindTab !== 'all' && r.kind !== kindTab) return false
     if (!search) return true
     const q = search.toLowerCase()
     return (
+      orderNoOf(r).toLowerCase().includes(q) ||
       (r.user_name || '').toLowerCase().includes(q) ||
       (r.user_phone || '').includes(q) ||
       (r.user_email || '').toLowerCase().includes(q) ||
@@ -82,7 +104,7 @@ export default function DeletedOrdersPage() {
           <Trash2 className="w-6 h-6 text-red-500" />
           <h1 className="text-2xl font-bold text-gray-900">삭제된 주문 내역</h1>
         </div>
-        <p className="text-sm text-gray-500 mb-4">삭제된 주문·견적의 감사 기록입니다. 전체 관리자가 열람하며, 이 기록은 수정·삭제할 수 없습니다.</p>
+        <p className="text-sm text-gray-500 mb-4">삭제된 주문·견적·자재구매의 감사 기록입니다. 전체 관리자가 열람하며, 이 기록은 수정·삭제할 수 없습니다.</p>
 
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-xs text-amber-800 leading-relaxed">
           <b>🔒 삭제 기록 안내</b><br />
@@ -109,8 +131,22 @@ export default function DeletedOrdersPage() {
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 mb-4 shadow-sm">
           <Search className="w-4 h-4 text-gray-400 shrink-0" />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="고객명, 연락처, 이메일, 주문명, 삭제한 관리자 검색"
+            placeholder="주문번호, 고객명, 연락처, 이메일, 주문명, 삭제한 관리자 검색"
             className="flex-1 text-sm text-gray-800 bg-transparent outline-none placeholder-gray-400" />
+        </div>
+
+        <div className="flex gap-1.5 mb-4 flex-wrap">
+          {KIND_TABS.map(({ key, label }) => {
+            const cnt = key === 'all' ? rows.length : rows.filter((r) => r.kind === key).length
+            const active = kindTab === key
+            return (
+              <button key={key} onClick={() => setKindTab(key)}
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                {label}
+                {cnt > 0 && <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-bold ${active ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>{cnt}</span>}
+              </button>
+            )
+          })}
         </div>
 
         {filtered.length === 0 ? (
@@ -125,9 +161,12 @@ export default function DeletedOrdersPage() {
                   <div className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50" onClick={() => setExpanded(isOpen ? null : r.id)}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {orderNoOf(r) && (
+                          <span className="font-mono text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">#{orderNoOf(r)}</span>
+                        )}
                         <span className="font-bold text-gray-900 text-sm">{r.user_name || r.user_email || '—'}</span>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${r.kind === 'quote' ? 'bg-blue-50 text-blue-600 ring-blue-200' : 'bg-gray-100 text-gray-500 ring-gray-200'}`}>
-                          {r.kind === 'quote' ? '견적주문' : '바로주문'}
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ring-1 ${(KIND[r.kind] || KIND.order).badge}`}>
+                          {(KIND[r.kind] || KIND.order).label}
                         </span>
                         {r.status && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{STATUS_LABEL[r.status] || r.status}</span>}
                         {risky && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">⚠️ 결제 이후 삭제</span>}
@@ -150,6 +189,15 @@ export default function DeletedOrdersPage() {
                         <div><span className="text-gray-500">주문 생성일</span><br /><span className="text-gray-800">{r.original_created_at ? new Date(r.original_created_at).toLocaleString('ko-KR') : '—'}</span></div>
                         <div><span className="text-gray-500">이메일</span><br /><span className="text-gray-800">{r.user_email || '—'}</span></div>
                       </div>
+                      {/* 자재구매: 주문했던 상품 목록 */}
+                      {r.kind === 'material' && Array.isArray((r.snapshot as { items?: unknown } | null)?.items) && (
+                        <div>
+                          <span className="text-gray-500">주문 상품</span>
+                          {((r.snapshot as { items: { name: string; qty: number; price: number }[] }).items).map((it, i) => (
+                            <div key={i} className="text-gray-800">{it.name} × {it.qty} · {(Number(it.price) * Number(it.qty)).toLocaleString()}원</div>
+                          ))}
+                        </div>
+                      )}
                       {r.memo && <div><span className="text-gray-500">메모</span><br /><span className="text-gray-800 whitespace-pre-wrap">{r.memo}</span></div>}
                       {r.reason && <div><span className="text-gray-500">삭제 사유</span><br /><span className="text-gray-800">{r.reason}</span></div>}
                       <details className="bg-gray-50 rounded-xl p-3">

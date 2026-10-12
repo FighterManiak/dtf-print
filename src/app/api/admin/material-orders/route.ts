@@ -64,20 +64,22 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: 'id 필요' }, { status: 400 })
 
   const { data: order } = await supabaseAdmin.from('material_orders').select('*').eq('id', id).single()
-  if (order) {
-    try {
-      await supabaseAdmin.from('deleted_orders').insert({
-        kind: 'material',
-        record_id: id,
-        user_name: order.user_name, user_phone: order.user_phone, user_email: order.user_email,
-        total_amount: order.total_amount, status: order.status, is_paid: order.is_paid ?? null,
-        order_name: order.order_name, memo: order.memo, original_created_at: order.created_at,
-        snapshot: order,
-        deleted_by: auth.user?.email || null,
-        deleted_by_role: auth.role,
-        reason: reason.trim() || null,
-      })
-    } catch { /* 로그 실패해도 삭제는 진행 */ }
+  if (!order) return NextResponse.json({ error: '주문을 찾을 수 없습니다.' }, { status: 404 })
+
+  // 삭제 기록(감사 로그)을 먼저 남기고, 기록이 실패하면 삭제하지 않음 — 기록 없는 삭제 방지
+  const { error: logErr } = await supabaseAdmin.from('deleted_orders').insert({
+    kind: 'material',
+    record_id: id,
+    user_name: order.user_name, user_phone: order.user_phone, user_email: order.user_email,
+    total_amount: order.total_amount, status: order.status, is_paid: order.is_paid ?? null,
+    order_name: order.order_name, memo: order.memo, original_created_at: order.created_at,
+    snapshot: order,
+    deleted_by: auth.user?.email || null,
+    deleted_by_role: auth.role,
+    reason: reason.trim() || null,
+  })
+  if (logErr) {
+    return NextResponse.json({ error: `삭제 기록 저장에 실패해 삭제하지 않았습니다: ${logErr.message}` }, { status: 500 })
   }
 
   // 사용했던 포인트를 먼저 환원한 뒤(주문 연결이 남아 있어야 조회 가능) 연결을 해제한다
